@@ -1,12 +1,19 @@
+import { PreviewPanel } from "@/components/workspace/PreviewPanel";
+import { Navbar } from "@/components/workspace/TopBar";
+import { VenueInputForm } from "@/components/workspace/VenueInputForm";
+
 export default function WorkspacePage() {
   return (
-    <main className="min-h-screen bg-white">
-      <div className="mx-auto max-w-6xl px-6 py-10">
-        <h1 className="text-3xl font-extrabold text-gray-900">Workspace</h1>
-        <p className="mt-2 text-gray-500">
-          This is a placeholder page after successful mock login/signup.
-        </p>
+    <div className="flex h-screen flex-col">
+      <Navbar />
+      <div className="flex flex-1 overflow-hidden">
+        <aside className="w-90 shrink-0 overflow-y-auto border-r bg-background">
+          <VenueInputForm />
+        </aside>
+        <main className="flex-1 overflow-hidden">
+          <PreviewPanel className="h-full" />
+        </main>
       </div>
-    </main>
+    </div>
   );
 }
