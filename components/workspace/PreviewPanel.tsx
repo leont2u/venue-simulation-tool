@@ -5,6 +5,8 @@ import React from "react";
 import { useState } from "react";
 import { Box, Grid3X3, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { LayoutBlueprint } from "@/lib/layout.types";
+import { VenueCanvas } from "./VenueCanvas";
 
 type ViewMode = "3d" | "topdown" | "layers";
 
@@ -22,9 +24,13 @@ const viewOptions: ViewToggleOption[] = [
 
 interface PreviewPanelProps {
   className?: string;
+  blueprint?: LayoutBlueprint | null;
 }
 
-export function PreviewPanel({ className }: PreviewPanelProps) {
+export function PreviewPanel({
+  className,
+  blueprint = null,
+}: PreviewPanelProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("3d");
 
   return (
@@ -50,27 +56,34 @@ export function PreviewPanel({ className }: PreviewPanelProps) {
         </div>
       </div>
       <div className="flex flex-1 items-center justify-center bg-muted/30">
-        <div className="flex flex-col items-center gap-4 text-center">
-          <div className="flex h-20 w-20 items-center justify-center rounded-xl bg-muted">
-            <svg
-              className="h-10 w-10 text-muted-foreground"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-            >
-              <path d="M12 2L2 7l10 5 10-5-10-5z" />
-              <path d="M2 17l10 5 10-5" />
-              <path d="M2 12l10 5 10-5" />
-            </svg>
+        {!blueprint ? (
+          <div className="flex flex-col items-center gap-4 text-center">
+            <div className="flex h-20 w-20 items-center justify-center rounded-xl bg-muted">
+              <svg
+                className="h-10 w-10 text-muted-foreground"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              >
+                <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                <path d="M2 17l10 5 10-5" />
+                <path d="M2 12l10 5 10-5" />
+              </svg>
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-lg font-semibold">No Preview Available</h3>
+              <p className="max-w-xs text-sm text-muted-foreground">
+                Generate a layout or import a sketch to preview your venue in
+                3D.
+              </p>
+            </div>
           </div>
-          <div className="space-y-1">
-            <h3 className="text-lg font-semibold">No Preview Available</h3>
-            <p className="max-w-xs text-sm text-muted-foreground">
-              Generate a layout or import a sketch to preview your venue in 3D.
-            </p>
+        ) : (
+          <div className="h-full w-full">
+            <VenueCanvas blueprint={blueprint} viewMode={viewMode} />
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
