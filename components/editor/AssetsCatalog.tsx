@@ -1,18 +1,25 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { ASSET_CATALOG } from "@/lib/DemoAssets";
 import { useEditorStore } from "@/store/UseEditorStore";
 import { SceneItem } from "@/types/types";
 
 export function AssetCatalog() {
   const addItem = useEditorStore((s) => s.addItem);
+  const [query, setQuery] = useState("");
 
-  const handleAdd = (index: number) => {
-    const asset = ASSET_CATALOG[index];
+  const filteredAssets = useMemo(() => {
+    return ASSET_CATALOG.filter((asset) =>
+      asset.name.toLowerCase().includes(query.toLowerCase()),
+    );
+  }, [query]);
+
+  const handleAdd = (asset: (typeof ASSET_CATALOG)[number]) => {
     const item: SceneItem = {
       id: crypto.randomUUID(),
       type: asset.type,
-      x: -6 + index * 1.5,
+      x: 0,
       y: 0,
       z: 0,
       rotationY: 0,
@@ -25,23 +32,33 @@ export function AssetCatalog() {
   };
 
   return (
-    <aside className="flex h-full flex-col border-r border-white/10 bg-zinc-950/60">
-      <div className="border-b border-white/10 px-5 py-4 text-lg font-semibold text-white">
-        Assets
+    <aside className="flex h-full min-h-0 w-72 flex-col border-r border-white/10 bg-zinc-950">
+      <div className="border-b border-white/10 px-4 py-3">
+        <div className="text-sm font-semibold text-white">Assets</div>
       </div>
-      <div className="grid gap-3 p-4">
-        {ASSET_CATALOG.map((asset, index) => (
-          <button
-            key={asset.type}
-            onClick={() => handleAdd(index)}
-            className="rounded-2xl border border-white/10 bg-zinc-900/80 px-4 py-4 text-left transition hover:border-green-400/40 hover:bg-zinc-900"
-          >
-            <div className="font-medium text-white">{asset.name}</div>
-            <div className="mt-1 text-sm text-zinc-500">
-              Click to place in room
-            </div>
-          </button>
-        ))}
+
+      <div className="border-b border-white/10 p-3">
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Type to search"
+          className="w-full rounded-md border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white outline-none placeholder:text-zinc-500"
+        />
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-3">
+        <div className="grid gap-2">
+          {filteredAssets.map((asset) => (
+            <button
+              key={asset.type}
+              onClick={() => handleAdd(asset)}
+              className="rounded-lg border border-white/10 bg-zinc-900 px-3 py-3 text-left transition hover:border-blue-400/40 hover:bg-zinc-800"
+            >
+              <div className="text-sm font-medium text-white">{asset.name}</div>
+              <div className="mt-1 text-xs text-zinc-500">Click to place</div>
+            </button>
+          ))}
+        </div>
       </div>
     </aside>
   );

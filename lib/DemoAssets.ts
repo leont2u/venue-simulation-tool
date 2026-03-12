@@ -5,7 +5,7 @@ export const ASSET_CATALOG: AssetDefinition[] = [
     type: "chair",
     name: "Chair",
     modelUrl: "/models/chair.glb",
-    defaultScale: [1.1, 1.1, 1.1],
+    defaultScale: [0.7, 0.7, 0.7],
     yOffset: 0,
   },
   {
@@ -26,7 +26,7 @@ export const ASSET_CATALOG: AssetDefinition[] = [
     type: "piano",
     name: "Piano",
     modelUrl: "/models/piano.glb",
-    defaultScale: [1, 1, 1],
+    defaultScale: [1.5, 1.5, 1.5],
     yOffset: 0,
   },
   {
@@ -48,6 +48,13 @@ export const ASSET_CATALOG: AssetDefinition[] = [
     name: "Banquet Table",
     modelUrl: "/models/banquet_table.glb",
     defaultScale: [0.05, 0.05, 0.05],
+    yOffset: 0,
+  },
+  {
+    type: "church_bench",
+    name: "Church Bench",
+    modelUrl: "/models/church_bench.glb",
+    defaultScale: [0.7, 0.7, 0.7],
     yOffset: 0,
   },
 ];
