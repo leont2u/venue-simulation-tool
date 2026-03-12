@@ -57,4 +57,18 @@ export const ASSET_CATALOG: AssetDefinition[] = [
     defaultScale: [0.7, 0.7, 0.7],
     yOffset: 0,
   },
+  {
+    type: "screen",
+    name: "LED Screen",
+    modelUrl: "/models/screen.glb",
+    defaultScale: [1, 1, 1],
+    yOffset: 0,
+  },
+  {
+    type: "tv",
+    name: "TV",
+    modelUrl: "/models/tv.glb",
+    defaultScale: [0.1, 0.1, 0.1],
+    yOffset: 0,
+  },
 ];

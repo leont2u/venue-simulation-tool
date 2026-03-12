@@ -6,7 +6,9 @@ export type AssetType =
   | "camera"
   | "altar"
   | "banquet_table"
-  | "church_bench";
+  | "church_bench"
+  | "screen"
+  | "tv";
 
 export type AssetDefinition = {
   type: AssetType;
@@ -31,7 +33,7 @@ export type SceneItem = {
   rotationY: number;
   scale: [number, number, number];
   assetUrl: string;
-  label: string;
+  label?: string;
 };
 
 export type Project = {
@@ -45,4 +47,15 @@ export type Project = {
     height: number;
   };
   items: SceneItem[];
+  measurements?: MeasurementLine[];
+};
+
+export type MeasurementLine = {
+  id: string;
+  type: "measurement";
+  startX: number;
+  startZ: number;
+  endX: number;
+  endZ: number;
+  text?: string;
 };
