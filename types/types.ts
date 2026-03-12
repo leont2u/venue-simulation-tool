@@ -5,7 +5,8 @@ export type AssetType =
   | "piano"
   | "camera"
   | "altar"
-  | "banquet_table";
+  | "banquet_table"
+  | "church_bench";
 
 export type AssetDefinition = {
   type: AssetType;
@@ -23,14 +24,14 @@ export type AssetDefinition = {
 
 export type SceneItem = {
   id: string;
-  type: AssetType;
+  type: string;
   x: number;
   y: number;
   z: number;
   rotationY: number;
   scale: [number, number, number];
   assetUrl: string;
-  label?: string;
+  label: string;
 };
 
 export type Project = {

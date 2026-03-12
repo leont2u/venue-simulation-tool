@@ -1,11 +1,13 @@
 import { Project } from "@/types/types";
 
-const PROJECTS_KEY = "venuesim-projects";
+const STORAGE_KEY = "venue-projects";
 
 export function getProjects(): Project[] {
   if (typeof window === "undefined") return [];
-  const raw = localStorage.getItem(PROJECTS_KEY);
+
+  const raw = localStorage.getItem(STORAGE_KEY);
   if (!raw) return [];
+
   try {
     return JSON.parse(raw) as Project[];
   } catch {
@@ -13,23 +15,22 @@ export function getProjects(): Project[] {
   }
 }
 
-export function saveProjects(projects: Project[]) {
-  localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));
-}
-
-export function getProjectById(projectId: string): Project | null {
-  return getProjects().find((p) => p.id === projectId) ?? null;
+export function getProjectById(id: string): Project | null {
+  const projects = getProjects();
+  return projects.find((project) => project.id === id) ?? null;
 }
 
 export function upsertProject(project: Project) {
+  if (typeof window === "undefined") return;
+
   const projects = getProjects();
   const existingIndex = projects.findIndex((p) => p.id === project.id);
 
   if (existingIndex >= 0) {
     projects[existingIndex] = project;
   } else {
-    projects.unshift(project);
+    projects.push(project);
   }
 
-  saveProjects(projects);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
 }

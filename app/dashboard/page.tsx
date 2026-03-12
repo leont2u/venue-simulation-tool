@@ -1,17 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { getProjects, upsertProject } from "@/lib/storage";
 import { Project } from "@/types/types";
 
 export default function DashboardPage() {
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<Project[]>(() => getProjects());
   const [name, setName] = useState("");
-
-  useEffect(() => {
-    setProjects(getProjects());
-  }, []);
 
   const createProject = () => {
     const project: Project = {
@@ -28,6 +24,7 @@ export default function DashboardPage() {
     };
 
     upsertProject(project);
+    setProjects((prev) => [project, ...prev]);
     window.location.href = `/editor/${project.id}`;
   };
 

@@ -28,7 +28,7 @@ export function Navbar() {
 
       <Link
         href="/dashboard"
-        className="rounded-2xl bg-green-500 px-7 py-4 text-lg font-medium text-white transition hover:bg-green-400"
+        className="rounded-2xl bg-green-500 px-4 py-2 text-lg font-medium text-white transition hover:bg-green-400"
       >
         Log in
       </Link>

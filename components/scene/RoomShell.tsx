@@ -12,7 +12,7 @@ export function RoomShell({
     <group>
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[width, depth]} />
-        <meshStandardMaterial color="#d4d4d8" />
+        <meshStandardMaterial color="#e5e7eb" />
       </mesh>
     </group>
   );
