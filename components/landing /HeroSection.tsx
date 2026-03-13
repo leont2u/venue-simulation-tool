@@ -1,5 +1,7 @@
 "use client";
 
+import { DrawioImportSection } from "./UploadSection";
+
 export function Hero() {
   return (
     <section className="mx-auto flex min-h-[calc(100vh-104px)] max-w-6xl flex-col px-6 pb-12 pt-8">
@@ -15,6 +17,7 @@ export function Hero() {
           share polished previews with clients and internal teams.
         </p>
       </div>
+      <DrawioImportSection />
     </section>
   );
 }
