@@ -59,3 +59,35 @@ export type MeasurementLine = {
   endZ: number;
   text?: string;
 };
+
+export type LayoutPlanItem = {
+  type: AssetType;
+  x: number;
+  z: number;
+  rotationY?: number;
+  label?: string;
+};
+
+export type LayoutPlanChairBlock = {
+  label?: string;
+  rows: number;
+  cols: number;
+  startX: number;
+  startZ: number;
+  spacingX: number;
+  spacingZ: number;
+  rotationY?: number;
+  aisleAfterCol?: number;
+  aisleWidth?: number;
+};
+
+export type LayoutPlan = {
+  projectName: string;
+  room: {
+    width: number;
+    depth: number;
+    height: number;
+  };
+  chairBlocks?: LayoutPlanChairBlock[];
+  items: LayoutPlanItem[];
+};

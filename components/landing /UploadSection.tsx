@@ -34,48 +34,90 @@ export function DrawioImportSection() {
     }
   };
 
+  const handleCreateManual = () => {
+    router.push("/dashboard");
+  };
+
   return (
-    <section className="mx-auto mt-16 w-full max-w-5xl rounded-[32px] border border-white/10 bg-zinc-950/40 p-8 shadow-[0_0_120px_rgba(73,210,77,0.05)] backdrop-blur">
+    <section className="rounded-[32px] border border-white/10 bg-zinc-950/40 p-8 shadow-[0_0_120px_rgba(73,210,77,0.05)] backdrop-blur">
       <div className="max-w-3xl">
+        <h2 className="text-3xl font-semibold text-white">
+          Start your project
+        </h2>
         <p className="mt-4 text-lg leading-8 text-zinc-400">
-          Upload a structured floor plan file and generate a 3D project from it
-          without changing your current manual editor workflow.
+          Upload a structured floor plan file and generate a 3D project, or
+          start a new venue layout manually from your dashboard.
         </p>
       </div>
 
-      <div className="mt-3 grid gap-5 md:grid-cols-[1fr_auto]">
-        <label className="flex cursor-pointer flex-col rounded-2xl  px-5 py-5 text-zinc-300 transition hover:border-green-400/40">
-          <span className="text-base font-medium text-white">
-            Select .drawio, .xml, or exported .html
-          </span>
-          <span className="mt-1 text-sm text-zinc-500">
-            Best for version 2 conversion into editable 3D layouts
-          </span>
-          <input
-            type="file"
-            accept=".drawio,.xml,.html,.htm"
-            className="mt-4 text-sm text-zinc-400 file:mr-4 file:rounded-xl file:border-0 file:bg-green-500 file:px-4 file:py-2 file:text-white"
-            onChange={(e) => setFile(e.target.files?.[0] || null)}
-          />
-          {file && (
-            <span className="mt-3 text-sm text-green-400">{file.name}</span>
-          )}
-        </label>
+      <div className="mt-8 grid gap-6 md:grid-cols-2">
+        <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6">
+          <div className="text-lg font-medium text-white">Import from file</div>
+          <p className="mt-2 text-sm leading-6 text-zinc-500">
+            Upload a .drawio, .xml, or exported .html file and convert it into
+            an editable 3D layout.
+          </p>
 
-        <button
-          onClick={handleGenerate}
-          disabled={loading}
-          className="rounded-2xl bg-green-500 px-8 py-5 text-lg font-medium text-white transition hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {loading ? "Generating..." : "Generate 3D project"}
-        </button>
+          <label className="mt-5 flex cursor-pointer flex-col rounded-2xl border border-dashed border-white/10 bg-zinc-900/40 px-5 py-5 text-zinc-300 transition hover:border-green-400/40">
+            <span className="text-sm font-medium text-white">
+              Select .drawio, .xml, or exported .html
+            </span>
+            <span className="mt-1 text-xs text-zinc-500">
+              Structured formats are more reliable for 2D to 3D conversion
+            </span>
+
+            <input
+              type="file"
+              accept=".drawio,.xml,.html,.htm"
+              className="mt-4 text-sm text-zinc-400 file:mr-4 file:rounded-xl file:border-0 file:bg-green-500 file:px-4 file:py-2 file:text-white"
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+            />
+
+            {file ? (
+              <span className="mt-3 text-sm text-green-400">{file.name}</span>
+            ) : null}
+          </label>
+
+          <button
+            onClick={handleGenerate}
+            disabled={loading}
+            className="mt-5 rounded-xl bg-green-500 px-5 py-3 text-sm font-medium text-white transition hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {loading ? "Generating..." : "Generate 3D"}
+          </button>
+        </div>
+
+        <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6">
+          <div className="text-lg font-medium text-white">Create manually</div>
+          <p className="mt-2 text-sm leading-6 text-zinc-500">
+            Start a project from scratch and build your venue layout directly in
+            the 3D editor.
+          </p>
+
+          <div className="mt-5 rounded-2xl border border-white/10 bg-zinc-900/40 px-5 py-5">
+            <div className="text-sm font-medium text-white">
+              Manual 3D workflow
+            </div>
+            <p className="mt-2 text-xs leading-6 text-zinc-500">
+              Ideal when you want full control over layout placement, object
+              movement, and scene composition.
+            </p>
+          </div>
+
+          <button
+            onClick={handleCreateManual}
+            className="mt-5 rounded-xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-medium text-white transition hover:border-green-400/40 hover:bg-white/[0.08]"
+          >
+            Create New Project
+          </button>
+        </div>
       </div>
 
-      {error && (
+      {error ? (
         <div className="mt-4 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
           {error}
         </div>
-      )}
+      ) : null}
     </section>
   );
 }
