@@ -39,7 +39,7 @@ export function DrawioImportSection() {
   };
 
   return (
-    <section className="rounded-[32px] border border-white/10 bg-zinc-950/40 p-8 shadow-[0_0_120px_rgba(73,210,77,0.05)] backdrop-blur">
+    <section className="rounded-4xl border border-white/10 bg-zinc-950/40 p-8 shadow-[0_0_120px_rgba(73,210,77,0.05)] backdrop-blur">
       <div className="max-w-3xl">
         <h2 className="text-3xl font-semibold text-white">
           Start your project
@@ -51,7 +51,7 @@ export function DrawioImportSection() {
       </div>
 
       <div className="mt-8 grid gap-6 md:grid-cols-2">
-        <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6">
+        <div className="rounded-3xl border border-white/10 bg-white/2 p-6">
           <div className="text-lg font-medium text-white">Import from file</div>
           <p className="mt-2 text-sm leading-6 text-zinc-500">
             Upload a .drawio, .xml, or exported .html file and convert it into
@@ -87,7 +87,7 @@ export function DrawioImportSection() {
           </button>
         </div>
 
-        <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-6">
+        <div className="rounded-3xl border border-white/10 bg-white/2 p-6">
           <div className="text-lg font-medium text-white">Create manually</div>
           <p className="mt-2 text-sm leading-6 text-zinc-500">
             Start a project from scratch and build your venue layout directly in
@@ -106,7 +106,7 @@ export function DrawioImportSection() {
 
           <button
             onClick={handleCreateManual}
-            className="mt-5 rounded-xl border border-white/10 bg-white/[0.04] px-5 py-3 text-sm font-medium text-white transition hover:border-green-400/40 hover:bg-white/[0.08]"
+            className="mt-5 rounded-xl border border-white/10 bg-white/4px-5 py-3 text-sm font-medium text-white transition hover:border-green-400/40 hover:bg-white/8"
           >
             Create New Project
           </button>

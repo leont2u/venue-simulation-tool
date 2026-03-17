@@ -1,14 +1,20 @@
 "use client";
 
+import { useState } from "react";
 import { useEditorStore } from "@/store/UseEditorStore";
+import { ShareExportModal } from "./ShareExportModal";
+import { Settings } from "lucide-react";
 
 export function TopToolbar() {
-  const saveProject = useEditorStore((s) => s.saveProject);
-  const selectedId = useEditorStore((s) => s.selectedId);
-  const duplicateItem = useEditorStore((s) => s.duplicateItem);
-  const deleteItem = useEditorStore((s) => s.deleteItem);
+  const project = useEditorStore((s) => s.project);
+  const selectedIds = useEditorStore((s) => s.selectedIds);
   const toolMode = useEditorStore((s) => s.toolMode);
   const setToolMode = useEditorStore((s) => s.setToolMode);
+  const saveProject = useEditorStore((s) => s.saveProject);
+  const duplicateSelected = useEditorStore((s) => s.duplicateSelected);
+  const deleteSelected = useEditorStore((s) => s.deleteSelected);
+
+  const [shareOpen, setShareOpen] = useState(false);
 
   const toolButton = (
     mode: "select" | "move" | "rotate" | "transform",
@@ -16,10 +22,10 @@ export function TopToolbar() {
   ) => (
     <button
       onClick={() => setToolMode(mode)}
-      className={`rounded-md px-3 py-1.5 text-sm transition ${
+      className={`rounded-xl px-3 py-2 text-sm transition ${
         toolMode === mode
-          ? "bg-blue-500 text-white"
-          : "text-zinc-300 hover:bg-zinc-900"
+          ? "bg-[#EEF2EC] text-[#2F3E46]"
+          : "text-[#52796F] hover:bg-[#F7F8F5]"
       }`}
     >
       {label}
@@ -27,38 +33,61 @@ export function TopToolbar() {
   );
 
   return (
-    <div className="flex h-12 items-center gap-2 border-b border-white/10 bg-zinc-950 px-3">
-      <button
-        onClick={saveProject}
-        className="rounded-md bg-green-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-400"
-      >
-        Save
-      </button>
+    <>
+      <div className="flex h-16 items-center justify-between border-b border-black/5 bg-white px-4">
+        <div className="text-xl font-semibold text-[#52796F]">
+          {project?.name}
+        </div>
+        <div className="flex items-center gap-2">
+          {toolButton("select", "Select")}
+          {toolButton("move", "Move")}
+          {toolButton("rotate", "Rotate")}
 
-      <div className="mx-1 h-6 w-px bg-white/10" />
+          <div className="mx-2 h-6 w-px bg-black/10" />
 
-      {toolButton("select", "Select")}
-      {toolButton("move", "Move")}
-      {toolButton("rotate", "Rotate")}
-      {toolButton("transform", "Gizmo")}
+          <button
+            onClick={saveProject}
+            className="rounded-xl px-3 py-2 text-sm text-[#52796F] hover:bg-[#F7F8F5]"
+          >
+            Save
+          </button>
 
-      <div className="mx-1 h-6 w-px bg-white/10" />
+          <button
+            disabled={selectedIds.length === 0}
+            onClick={duplicateSelected}
+            className="rounded-xl px-3 py-2 text-sm text-[#52796F] hover:bg-[#F7F8F5] disabled:opacity-40"
+          >
+            Duplicate
+          </button>
 
-      <button
-        disabled={!selectedId}
-        onClick={() => selectedId && duplicateItem(selectedId)}
-        className="rounded-md px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-900 disabled:opacity-40"
-      >
-        Duplicate
-      </button>
+          <button
+            disabled={selectedIds.length === 0}
+            onClick={deleteSelected}
+            className="rounded-xl px-3 py-2 text-sm text-[#52796F] hover:bg-[#F7F8F5] disabled:opacity-40"
+          >
+            Delete
+          </button>
+        </div>
 
-      <button
-        disabled={!selectedId}
-        onClick={() => selectedId && deleteItem(selectedId)}
-        className="rounded-md px-3 py-1.5 text-sm text-zinc-300 hover:bg-zinc-900 disabled:opacity-40"
-      >
-        Delete
-      </button>
-    </div>
+        <div className="flex items-center gap-3">
+          <button className="rounded-xl p-2 text-[#52796F] hover:bg-[#F7F8F5]">
+            <Settings />
+          </button>
+
+          <button
+            onClick={() => setShareOpen(true)}
+            className="inline-flex items-center gap-2 rounded-2xl bg-[#84A98C] px-5 py-3 text-sm font-medium text-white transition hover:bg-[#52796F]"
+          >
+            Share / Export
+          </button>
+        </div>
+      </div>
+
+      <ShareExportModal
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        projectName={project?.name || "Project"}
+      />
+    </>
   );
 }

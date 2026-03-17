@@ -3,8 +3,6 @@
 import { useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useEditorStore } from "@/store/UseEditorStore";
-import { EditorHeader } from "@/components/editor/EditorHeader";
-
 import { PropertiesPanel } from "@/components/editor/PropertiesPanel";
 import { EditorShortcuts } from "@/components/editor/EditorShortcuts";
 import { TopToolbar } from "@/components/editor/TopToolBar";
@@ -19,14 +17,12 @@ export default function EditorPage() {
   const project = useEditorStore((s) => s.project);
 
   useEffect(() => {
-    if (id) {
-      loadProject(id);
-    }
+    if (id) loadProject(id);
   }, [id, loadProject]);
 
   if (!id) {
     return (
-      <div className="flex h-screen items-center justify-center bg-black text-zinc-400">
+      <div className="flex h-screen items-center justify-center bg-[#F7F8F5] text-[#52796F]">
         Missing project id
       </div>
     );
@@ -34,20 +30,19 @@ export default function EditorPage() {
 
   if (!project) {
     return (
-      <div className="flex h-screen items-center justify-center bg-black text-zinc-400">
+      <div className="flex h-screen items-center justify-center bg-[#F7F8F5] text-[#52796F]">
         Loading project...
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen flex-col bg-black">
-      <EditorHeader name={project.name} />
+    <div className="flex h-screen flex-col bg-[#F7F8F5]">
       <TopToolbar />
 
       <div className="flex min-h-0 flex-1">
         <AssetCatalog />
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 bg-[#FCFCFA]">
           <SceneCanvas />
         </div>
         <PropertiesPanel />

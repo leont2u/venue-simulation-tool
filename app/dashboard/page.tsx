@@ -1,96 +1,71 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { getProjects, upsertProject } from "@/lib/storage";
+import { useRouter } from "next/navigation";
+import { getProjects } from "@/lib/storage";
 import { Project } from "@/types/types";
+import ProjectModal from "@/components/dashboard/ProjectModal";
+import ProjectPreviewCard from "@/components/dashboard/ProjectPreviewCard";
 
 export default function DashboardPage() {
-  const [projects, setProjects] = useState<Project[]>(() => getProjects());
-  const [name, setName] = useState("");
-
-  const createProject = () => {
-    const project: Project = {
-      id: crypto.randomUUID(),
-      name: name.trim() || `Untitled Project ${projects.length + 1}`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      room: {
-        width: 20,
-        depth: 14,
-        height: 4,
-      },
-      items: [],
-    };
-
-    upsertProject(project);
-    setProjects((prev) => [project, ...prev]);
-    window.location.href = `/editor/${project.id}`;
-  };
+  const router = useRouter();
+  const [projects] = useState<Project[]>(() => getProjects());
+  const [open, setOpen] = useState(false);
 
   return (
-    <main className="min-h-screen px-6 py-10 text-white">
-      <div className="mx-auto max-w-6xl">
-        <div className="mb-10 flex items-center justify-between">
+    <main className="min-h-screen bg-transparent px-6 py-12">
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-12 flex items-start justify-between gap-6">
           <div>
-            <div className="text-4xl font-semibold">Projects</div>
-            <div className="mt-2 text-zinc-400">
-              Create and manage your 3D venue layouts.
-            </div>
+            <h1 className="text-5xl font-semibold tracking-tight text-[#2F3E46]">
+              Projects
+            </h1>
+            <p className="mt-3 text-xl text-[#52796F]">
+              Manage your venue layouts
+            </p>
           </div>
-          <Link href="/" className="text-zinc-400 transition hover:text-white">
-            ← Back
-          </Link>
+
+          <button
+            onClick={() => setOpen(true)}
+            className="inline-flex items-center gap-3 rounded-2xl bg-[#84A98C] px-6 py-4 text-base font-medium text-white transition hover:bg-[#52796F]"
+          >
+            <span className="text-xl leading-none">＋</span>
+            <span>New project</span>
+          </button>
         </div>
 
-        <div className="grid gap-8 lg:grid-cols-[360px_1fr]">
-          <div className="rounded-3xl border border-white/10 bg-zinc-950/50 p-6">
-            <div className="text-2xl font-semibold">Create project</div>
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Project name"
-              className="mt-5 w-full rounded-2xl border border-white/10 bg-zinc-900 px-4 py-4 text-white placeholder:text-zinc-500"
-            />
+        {projects.length === 0 ? (
+          <div className="rounded-[28px] border border-dashed border-black/10 bg-white p-16 text-center shadow-[0_12px_40px_rgba(47,62,70,0.04)]">
+            <div className="text-2xl font-semibold text-[#2F3E46]">
+              No projects yet
+            </div>
+            <p className="mx-auto mt-3 max-w-lg text-base leading-7 text-[#52796F]">
+              Create your first venue project to start building layouts,
+              importing floor plans, or generating scenes from prompts.
+            </p>
+
             <button
-              onClick={createProject}
-              className="mt-5 w-full rounded-2xl bg-green-500 px-4 py-4 font-medium text-white transition hover:bg-green-400"
+              onClick={() => setOpen(true)}
+              className="mt-8 inline-flex items-center gap-3 rounded-2xl bg-[#84A98C] px-6 py-4 text-base font-medium text-white transition hover:bg-[#52796F]"
             >
-              Create and open editor
+              <span className="text-xl leading-none">＋</span>
+              <span>Create first project</span>
             </button>
           </div>
-
-          <div className="rounded-3xl border border-white/10 bg-zinc-950/50 p-6">
-            <div className="mb-5 text-2xl font-semibold">Recent projects</div>
-
-            {projects.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-white/10 p-10 text-zinc-500">
-                No projects yet. Create one to start building.
-              </div>
-            ) : (
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {projects.map((project) => (
-                  <Link
-                    key={project.id}
-                    href={`/editor/${project.id}`}
-                    className="rounded-2xl border border-white/10 bg-zinc-900/60 p-5 transition hover:border-green-400/40 hover:bg-zinc-900"
-                  >
-                    <div className="text-xl font-medium text-white">
-                      {project.name}
-                    </div>
-                    <div className="mt-2 text-sm text-zinc-500">
-                      Room: {project.room.width}m × {project.room.depth}m
-                    </div>
-                    <div className="mt-2 text-sm text-zinc-500">
-                      Assets: {project.items.length}
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
+        ) : (
+          <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-3">
+            {projects.map((project) => (
+              <ProjectPreviewCard key={project.id} project={project} />
+            ))}
           </div>
-        </div>
+        )}
       </div>
+
+      <ProjectModal
+        open={open}
+        onClose={() => setOpen(false)}
+        onOpenProject={(projectId) => router.push(`/editor/${projectId}`)}
+      />
     </main>
   );
 }
