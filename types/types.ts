@@ -8,7 +8,8 @@ export type AssetType =
   | "banquet_table"
   | "church_bench"
   | "screen"
-  | "tv";
+  | "tv"
+  | "stand-up";
 
 export type AssetDefinition = {
   type: AssetType;
