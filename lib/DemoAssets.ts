@@ -71,4 +71,11 @@ export const ASSET_CATALOG: AssetDefinition[] = [
     defaultScale: [0.1, 0.1, 0.1],
     yOffset: 0,
   },
+  {
+    type: "stand-up",
+    name: "Stand UP",
+    modelUrl: "/models/tv.glb",
+    defaultScale: [0.1, 0.1, 0.1],
+    yOffset: 0,
+  },
 ];
