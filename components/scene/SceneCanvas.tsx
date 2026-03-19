@@ -9,7 +9,8 @@ import { useEditorStore } from "@/store/UseEditorStore";
 
 export function SceneCanvas() {
   const project = useEditorStore((s) => s.project);
-  const selectedId = useEditorStore((s) => s.selectedId);
+  const selectedId = useEditorStore((s) => s.selectedIds);
+
   const selectItem = useEditorStore((s) => s.selectItem);
 
   if (!project) return null;
@@ -42,7 +43,7 @@ export function SceneCanvas() {
               position={[item.x, item.y, item.z]}
               rotation={[0, item.rotationY, 0]}
               scale={item.scale}
-              selected={item.id === selectedId}
+              selected={item.id === selectedId[0]}
               onClick={() => selectItem(item.id)}
             />
           ))}
