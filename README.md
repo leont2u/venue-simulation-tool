@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Venue Simulation Tool
 
-## Getting Started
+This repository is now split into two apps:
 
-First, run the development server:
+- `frontend/`: Next.js app for the 3D venue planner UI
+- `backend/`: Django + Django REST Framework API with JWT auth
+
+## Frontend
+
+Run the Next.js app from the `frontend/` folder:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The frontend runs on `http://localhost:3000`.
+
+You can also start it from the repository root:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+JWT auth pages are available at:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `/login`
+- `/register`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Protected pages such as the dashboard and editor require a valid token.
 
-## Learn More
+## Backend
 
-To learn more about Next.js, take a look at the following resources:
+Create a virtual environment, install requirements, run migrations, then start Django:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+The backend runs on `http://127.0.0.1:8000`.
 
-## Deploy on Vercel
+Auth endpoints:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `POST /api/auth/register/`
+- `POST /api/auth/login/`
+- `POST /api/auth/refresh/`
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Local Development
+
+1. Start the Django backend in `backend/`.
+2. Start the Next.js frontend in `frontend/`.
+3. Open `http://localhost:3000/register` to create an account.
+4. Log in at `http://localhost:3000/login`.
+5. Open the dashboard or editor after authentication.
+
+## Notes
+
+- The frontend defaults to `http://127.0.0.1:8000` for API requests through `NEXT_PUBLIC_API_BASE_URL`.
+- SQLite is used by default in development at `backend/db.sqlite3`.

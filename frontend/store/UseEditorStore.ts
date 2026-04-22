@@ -1,0 +1,340 @@
+"use client";
+
+import { create } from "zustand";
+import { getProjectById, upsertProject } from "@/lib/storage";
+import { ASSET_CATALOG } from "@/lib/DemoAssets";
+import {
+  EditorViewMode,
+  Project,
+  SceneItem,
+  SceneSettings,
+} from "@/types/types";
+
+type ToolMode = "select" | "move" | "rotate" | "scale";
+
+type HistoryState = {
+  project: Project;
+};
+
+const DEFAULT_SCENE_SETTINGS: SceneSettings = {
+  showGrid: true,
+  enableHdri: true,
+  ambientLightIntensity: 1.1,
+  directionalLightIntensity: 2.1,
+  snapToGrid: true,
+  livestreamMode: false,
+};
+
+interface EditorState {
+  project: Project | null;
+  selectedIds: string[];
+  toolMode: ToolMode;
+  activeView: EditorViewMode;
+  assetLibraryTab: "Assets" | "Uploads" | "Favorites";
+  assetSearch: string;
+  viewportZoom: number;
+  historyPast: HistoryState[];
+  historyFuture: HistoryState[];
+
+  loadProject: (id: string) => void;
+  setProject: (project: Project) => void;
+
+  selectItem: (id: string | null, append?: boolean) => void;
+  setSelectedIds: (ids: string[]) => void;
+  clearSelection: () => void;
+
+  setToolMode: (mode: ToolMode) => void;
+  setActiveView: (view: EditorViewMode) => void;
+  setAssetLibraryTab: (tab: "Assets" | "Uploads" | "Favorites") => void;
+  setAssetSearch: (value: string) => void;
+  setViewportZoom: (value: number) => void;
+
+  addItem: (item: SceneItem) => void;
+  addItemFromAsset: (assetId: string) => void;
+  clearScene: () => void;
+  updateItem: (id: string, patch: Partial<SceneItem>) => void;
+  updateItems: (ids: string[], updater: (item: SceneItem) => SceneItem) => void;
+  applyProjectMutation: (updater: (project: Project) => Project) => void;
+
+  deleteSelected: () => void;
+  duplicateSelected: () => void;
+  moveSelectedBy: (dx: number, dz: number) => void;
+  updateSceneSettings: (patch: Partial<SceneSettings>) => void;
+
+  undo: () => void;
+  redo: () => void;
+  saveProject: () => void;
+}
+
+function withSceneSettings(project: Project): Project {
+  return {
+    ...project,
+    sceneSettings: {
+      ...DEFAULT_SCENE_SETTINGS,
+      ...project.sceneSettings,
+    },
+  };
+}
+
+function snapshot(project: Project): HistoryState {
+  return {
+    project: {
+      ...project,
+      room: { ...project.room },
+      sceneSettings: project.sceneSettings
+        ? { ...project.sceneSettings }
+        : { ...DEFAULT_SCENE_SETTINGS },
+      items: project.items.map((item) => ({
+        ...item,
+        scale: [...item.scale] as [number, number, number],
+        material: item.material ? { ...item.material } : undefined,
+      })),
+    },
+  };
+}
+
+function applySnap(value: number, enabled: boolean) {
+  return enabled ? Math.round(value * 4) / 4 : value;
+}
+
+function createItemFromAsset(assetId: string, existingCount: number): SceneItem {
+  const asset = ASSET_CATALOG.find((entry) => entry.id === assetId);
+  if (!asset) {
+    throw new Error(`Asset "${assetId}" not found.`);
+  }
+
+  return {
+    id: crypto.randomUUID(),
+    type: asset.type,
+    x: -3 + (existingCount % 6) * 1.4,
+    y: 0,
+    z: -2 + Math.floor(existingCount / 6) * 1.4,
+    rotationY: 0,
+    scale: asset.defaultScale,
+    assetUrl: asset.modelUrl,
+    label: asset.name,
+    color: "#ffffff",
+    material: {
+      roughness: 0.65,
+      metalness: 0.1,
+    },
+  };
+}
+
+export const useEditorStore = create<EditorState>((set, get) => ({
+  project: null,
+  selectedIds: [],
+  toolMode: "select",
+  activeView: "3d",
+  assetLibraryTab: "Assets",
+  assetSearch: "",
+  viewportZoom: 1,
+  historyPast: [],
+  historyFuture: [],
+
+  loadProject: (id) => {
+    const project = getProjectById(id);
+    set({
+      project: project ? withSceneSettings(project) : null,
+      selectedIds: [],
+      historyPast: [],
+      historyFuture: [],
+    });
+  },
+
+  setProject: (project) =>
+    set({
+      project: withSceneSettings(project),
+      selectedIds: [],
+      historyPast: [],
+      historyFuture: [],
+    }),
+
+  selectItem: (id, append = false) => {
+    if (!id) {
+      set({ selectedIds: [] });
+      return;
+    }
+
+    const current = get().selectedIds;
+
+    if (append) {
+      if (current.includes(id)) {
+        set({ selectedIds: current.filter((x) => x !== id) });
+      } else {
+        set({ selectedIds: [...current, id] });
+      }
+    } else {
+      set({ selectedIds: [id] });
+    }
+  },
+
+  setSelectedIds: (ids) => set({ selectedIds: ids }),
+  clearSelection: () => set({ selectedIds: [] }),
+  setToolMode: (mode) => set({ toolMode: mode }),
+  setActiveView: (view) => set({ activeView: view }),
+  setAssetLibraryTab: (tab) => set({ assetLibraryTab: tab }),
+  setAssetSearch: (value) => set({ assetSearch: value }),
+  setViewportZoom: (value) => set({ viewportZoom: Math.min(2.5, Math.max(0.5, value)) }),
+
+  applyProjectMutation: (updater) => {
+    const project = get().project;
+    if (!project) return;
+
+    const currentSnapshot = snapshot(project);
+    const nextProject = withSceneSettings({
+      ...updater(snapshot(project).project),
+      updatedAt: new Date().toISOString(),
+    });
+
+    set((state) => ({
+      project: nextProject,
+      historyPast: [...state.historyPast.slice(-49), currentSnapshot],
+      historyFuture: [],
+    }));
+  },
+
+  addItem: (item) => {
+    get().applyProjectMutation((project) => ({
+      ...project,
+      items: [...project.items, item],
+    }));
+
+    set({ selectedIds: [item.id] });
+  },
+
+  addItemFromAsset: (assetId) => {
+    const project = get().project;
+    if (!project) return;
+
+    const item = createItemFromAsset(assetId, project.items.length);
+    get().addItem(item);
+  },
+
+  clearScene: () => {
+    get().applyProjectMutation((project) => ({
+      ...project,
+      items: [],
+    }));
+    set({ selectedIds: [] });
+  },
+
+  updateItem: (id, patch) => {
+    get().applyProjectMutation((project) => ({
+      ...project,
+      items: project.items.map((item) =>
+        item.id === id ? { ...item, ...patch } : item,
+      ),
+    }));
+  },
+
+  updateItems: (ids, updater) => {
+    get().applyProjectMutation((project) => ({
+      ...project,
+      items: project.items.map((item) =>
+        ids.includes(item.id) ? updater(item) : item,
+      ),
+    }));
+  },
+
+  deleteSelected: () => {
+    const selectedIds = get().selectedIds;
+    if (selectedIds.length === 0) return;
+
+    get().applyProjectMutation((project) => ({
+      ...project,
+      items: project.items.filter((item) => !selectedIds.includes(item.id)),
+    }));
+    set({ selectedIds: [] });
+  },
+
+  duplicateSelected: () => {
+    const project = get().project;
+    const selectedIds = get().selectedIds;
+    if (!project || selectedIds.length === 0) return;
+
+    const selectedItems = project.items.filter((item) =>
+      selectedIds.includes(item.id),
+    );
+
+    const clones = selectedItems.map((item, index) => ({
+      ...item,
+      id: crypto.randomUUID(),
+      x: item.x + 1 + index * 0.2,
+      z: item.z + 1 + index * 0.2,
+    }));
+
+    get().applyProjectMutation((currentProject) => ({
+      ...currentProject,
+      items: [...currentProject.items, ...clones],
+    }));
+
+    set({
+      selectedIds: clones.map((item) => item.id),
+    });
+  },
+
+  moveSelectedBy: (dx, dz) => {
+    const project = get().project;
+    const selectedIds = get().selectedIds;
+    if (!project || selectedIds.length === 0) return;
+
+    const snapToGrid = project.sceneSettings?.snapToGrid ?? true;
+
+    get().applyProjectMutation((currentProject) => ({
+      ...currentProject,
+      items: currentProject.items.map((item) =>
+        selectedIds.includes(item.id)
+          ? {
+              ...item,
+              x: applySnap(item.x + dx, snapToGrid),
+              z: applySnap(item.z + dz, snapToGrid),
+            }
+          : item,
+      ),
+    }));
+  },
+
+  updateSceneSettings: (patch) => {
+    get().applyProjectMutation((project) => ({
+      ...project,
+      sceneSettings: {
+        ...DEFAULT_SCENE_SETTINGS,
+        ...project.sceneSettings,
+        ...patch,
+      },
+    }));
+  },
+
+  undo: () => {
+    const { project, historyPast, historyFuture } = get();
+    if (!project || historyPast.length === 0) return;
+
+    const previous = historyPast[historyPast.length - 1];
+    set({
+      project: withSceneSettings(previous.project),
+      historyPast: historyPast.slice(0, -1),
+      historyFuture: [snapshot(project), ...historyFuture].slice(0, 50),
+      selectedIds: [],
+    });
+  },
+
+  redo: () => {
+    const { project, historyPast, historyFuture } = get();
+    if (!project || historyFuture.length === 0) return;
+
+    const next = historyFuture[0];
+    set({
+      project: withSceneSettings(next.project),
+      historyPast: [...historyPast, snapshot(project)].slice(-50),
+      historyFuture: historyFuture.slice(1),
+      selectedIds: [],
+    });
+  },
+
+  saveProject: () => {
+    const project = get().project;
+    if (!project) return;
+    upsertProject(project);
+  },
+}));
