@@ -2,16 +2,22 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { upsertProject } from "@/lib/storage";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { createProjectFromDrawioFile } from "@/lib/drawioImport";
 
 export function DrawioImportSection() {
   const router = useRouter();
+  const { isAuthenticated } = useAuth();
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleGenerate = async () => {
+    if (!isAuthenticated) {
+      router.push(`/login?next=${encodeURIComponent("/dashboard")}`);
+      return;
+    }
+
     if (!file) {
       setError("Please choose a .drawio, .xml, or exported .html file.");
       return;
@@ -21,10 +27,8 @@ export function DrawioImportSection() {
       setLoading(true);
       setError("");
 
-      const project = await createProjectFromDrawioFile(file);
-      upsertProject(project);
-
-      router.push(`/editor/${project.id}`);
+      const savedProject = await createProjectFromDrawioFile(file);
+      router.push(`/editor/${savedProject.id}`);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to import draw.io file.",

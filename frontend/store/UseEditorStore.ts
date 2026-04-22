@@ -35,8 +35,11 @@ interface EditorState {
   viewportZoom: number;
   historyPast: HistoryState[];
   historyFuture: HistoryState[];
+  isProjectLoading: boolean;
+  isProjectSaving: boolean;
+  projectError: string;
 
-  loadProject: (id: string) => void;
+  loadProject: (id: string) => Promise<void>;
   setProject: (project: Project) => void;
 
   selectItem: (id: string | null, append?: boolean) => void;
@@ -63,7 +66,7 @@ interface EditorState {
 
   undo: () => void;
   redo: () => void;
-  saveProject: () => void;
+  saveProject: () => Promise<void>;
 }
 
 function withSceneSettings(project: Project): Project {
@@ -131,15 +134,34 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   viewportZoom: 1,
   historyPast: [],
   historyFuture: [],
+  isProjectLoading: false,
+  isProjectSaving: false,
+  projectError: "",
 
-  loadProject: (id) => {
-    const project = getProjectById(id);
-    set({
-      project: project ? withSceneSettings(project) : null,
-      selectedIds: [],
-      historyPast: [],
-      historyFuture: [],
-    });
+  loadProject: async (id) => {
+    set({ isProjectLoading: true, projectError: "" });
+
+    try {
+      const project = await getProjectById(id);
+      set({
+        project: project ? withSceneSettings(project) : null,
+        selectedIds: [],
+        historyPast: [],
+        historyFuture: [],
+        isProjectLoading: false,
+        projectError: project ? "" : "Project not found.",
+      });
+    } catch (error) {
+      set({
+        project: null,
+        selectedIds: [],
+        historyPast: [],
+        historyFuture: [],
+        isProjectLoading: false,
+        projectError:
+          error instanceof Error ? error.message : "Failed to load project.",
+      });
+    }
   },
 
   setProject: (project) =>
@@ -148,6 +170,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       selectedIds: [],
       historyPast: [],
       historyFuture: [],
+      projectError: "",
     }),
 
   selectItem: (id, append = false) => {
@@ -332,9 +355,25 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     });
   },
 
-  saveProject: () => {
+  saveProject: async () => {
     const project = get().project;
     if (!project) return;
-    upsertProject(project);
+
+    set({ isProjectSaving: true, projectError: "" });
+
+    try {
+      const savedProject = await upsertProject(project);
+      set({
+        project: withSceneSettings(savedProject),
+        isProjectSaving: false,
+      });
+    } catch (error) {
+      set({
+        isProjectSaving: false,
+        projectError:
+          error instanceof Error ? error.message : "Failed to save project.",
+      });
+      throw error;
+    }
   },
 }));

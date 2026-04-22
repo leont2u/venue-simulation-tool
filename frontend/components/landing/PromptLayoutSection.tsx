@@ -2,16 +2,23 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { upsertProject } from "@/lib/storage";
 import { generateProjectFromPrompt } from "@/lib/promptLayout";
 
 export function PromptLayoutSection() {
   const router = useRouter();
+  const { isAuthenticated } = useAuth();
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleGenerate = async () => {
+    if (!isAuthenticated) {
+      router.push(`/login?next=${encodeURIComponent("/dashboard")}`);
+      return;
+    }
+
     if (!prompt.trim()) {
       setError("Please enter a layout prompt.");
       return;
@@ -22,9 +29,9 @@ export function PromptLayoutSection() {
       setError("");
 
       const project = await generateProjectFromPrompt(prompt);
-      upsertProject(project);
+      const savedProject = await upsertProject(project);
 
-      router.push(`/editor/${project.id}`);
+      router.push(`/editor/${savedProject.id}`);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to generate layout.",
