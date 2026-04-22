@@ -1,36 +1,44 @@
+import { apiClient } from "@/lib/apiClient";
 import { Project } from "@/types/types";
 
-const STORAGE_KEY = "venue-projects";
+export async function getProjects(): Promise<Project[]> {
+  const response = await apiClient.get<Project[]>("/api/projects/");
+  return response.data;
+}
 
-export function getProjects(): Project[] {
-  if (typeof window === "undefined") return [];
-
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (!raw) return [];
-
+export async function getProjectById(id: string): Promise<Project | null> {
   try {
-    return JSON.parse(raw) as Project[];
-  } catch {
-    return [];
+    const response = await apiClient.get<Project>(`/api/projects/${id}/`);
+    return response.data;
+  } catch (error) {
+    const status = (error as { response?: { status?: number } })?.response?.status;
+    if (status === 404) return null;
+    throw error;
   }
 }
 
-export function getProjectById(id: string): Project | null {
-  const projects = getProjects();
-  return projects.find((project) => project.id === id) ?? null;
+export async function createProject(project: Project): Promise<Project> {
+  const response = await apiClient.post<Project>("/api/projects/", project);
+  return response.data;
 }
 
-export function upsertProject(project: Project) {
-  if (typeof window === "undefined") return;
+export async function updateProject(project: Project): Promise<Project> {
+  const response = await apiClient.put<Project>(
+    `/api/projects/${project.id}/`,
+    project,
+  );
+  return response.data;
+}
 
-  const projects = getProjects();
-  const existingIndex = projects.findIndex((p) => p.id === project.id);
+export async function upsertProject(project: Project): Promise<Project> {
+  try {
+    return await updateProject(project);
+  } catch (error) {
+    const status = (error as { response?: { status?: number } })?.response?.status;
+    if (status === 404) {
+      return createProject(project);
+    }
 
-  if (existingIndex >= 0) {
-    projects[existingIndex] = project;
-  } else {
-    projects.push(project);
+    throw error;
   }
-
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
 }

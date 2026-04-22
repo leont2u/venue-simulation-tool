@@ -9,14 +9,11 @@ import {
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
-import { apiClient } from "@/lib/apiClient";
-import { readStoredAuthSession, writeStoredAuthSession } from "@/lib/authStorage";
-import { AuthTokens, AuthUser } from "@/types/auth";
+import { apiClient, setUnauthorizedHandler } from "@/lib/apiClient";
+import { AuthUser } from "@/types/auth";
 
 type AuthContextValue = {
   user: AuthUser | null;
-  accessToken: string | null;
-  refreshToken: string | null;
   isAuthenticated: boolean;
   isHydrating: boolean;
   isSubmitting: boolean;
@@ -34,32 +31,40 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
-  const [refreshToken, setRefreshToken] = useState<string | null>(null);
   const [isHydrating, setIsHydrating] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    const session = readStoredAuthSession();
-
-    if (session) {
-      setUser(session.user);
-      setAccessToken(session.tokens.access);
-      setRefreshToken(session.tokens.refresh);
-    }
-
-    setIsHydrating(false);
+  const clearSession = useCallback(() => {
+    setUser(null);
   }, []);
 
-  const persistSession = useCallback((nextUser: AuthUser, tokens: AuthTokens) => {
+  const persistSession = useCallback((nextUser: AuthUser) => {
     setUser(nextUser);
-    setAccessToken(tokens.access);
-    setRefreshToken(tokens.refresh);
-    writeStoredAuthSession({
-      user: nextUser,
-      tokens,
-    });
   }, []);
+
+  useEffect(() => {
+    const hydrate = async () => {
+      try {
+        const response = await apiClient.get<{ user: AuthUser }>("/api/auth/me/");
+        persistSession(response.data.user);
+      } catch {
+        clearSession();
+      } finally {
+        setIsHydrating(false);
+      }
+    };
+
+    void hydrate();
+  }, [clearSession, persistSession]);
+
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      clearSession();
+      router.replace("/login");
+    });
+
+    return () => setUnauthorizedHandler(null);
+  }, [clearSession, router]);
 
   const login = useCallback(
     async ({
@@ -74,12 +79,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsSubmitting(true);
 
       try {
-        const response = await apiClient.post<AuthTokens>("/api/auth/login/", {
+        const response = await apiClient.post<{ user: AuthUser }>("/api/auth/login/", {
           email,
           password,
         });
 
-        persistSession({ email }, response.data);
+        persistSession(response.data.user ?? { email });
         router.push(redirectTo || "/dashboard");
       } finally {
         setIsSubmitting(false);
@@ -107,19 +112,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(() => {
-    setUser(null);
-    setAccessToken(null);
-    setRefreshToken(null);
-    writeStoredAuthSession(null);
+    void apiClient.post("/api/auth/logout/", {}).catch(() => null);
+    clearSession();
     router.push("/login");
-  }, [router]);
+  }, [clearSession, router]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
-      accessToken,
-      refreshToken,
-      isAuthenticated: Boolean(accessToken),
+      isAuthenticated: Boolean(user),
       isHydrating,
       isSubmitting,
       login,
@@ -127,12 +128,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logout,
     }),
     [
-      accessToken,
       isHydrating,
       isSubmitting,
       login,
       logout,
-      refreshToken,
       register,
       user,
     ],

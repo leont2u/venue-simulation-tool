@@ -11,10 +11,12 @@ type ProjectPipeline = "menu" | "upload" | "draw2d" | "prompt" | "draw3d";
 export default function ProjectModal({
   open,
   onClose,
+  onProjectCreated,
   onOpenProject,
 }: {
   open: boolean;
   onClose: () => void;
+  onProjectCreated?: () => void | Promise<void>;
   onOpenProject: (projectId: string) => void;
 }) {
   const [step, setStep] = useState<ProjectPipeline>("menu");
@@ -57,18 +59,42 @@ export default function ProjectModal({
     };
   };
 
-  const handleCreate3D = () => {
+  const handleCreate3D = async () => {
     const project = createBlankProject(name || "New 3D Layout");
-    upsertProject(project);
-    handleClose();
-    onOpenProject(project.id);
+    setLoading(true);
+    setError("");
+
+    try {
+      const savedProject = await upsertProject(project);
+      await onProjectCreated?.();
+      handleClose();
+      onOpenProject(savedProject.id);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to create project.",
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleCreate2D = () => {
+  const handleCreate2D = async () => {
     const project = createBlankProject(name || "New 2D Layout");
-    upsertProject(project);
-    handleClose();
-    onOpenProject(project.id);
+    setLoading(true);
+    setError("");
+
+    try {
+      const savedProject = await upsertProject(project);
+      await onProjectCreated?.();
+      handleClose();
+      onOpenProject(savedProject.id);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to create project.",
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleGenerateFromPrompt = async () => {
@@ -87,9 +113,10 @@ export default function ProjectModal({
         name: name.trim() || project.name || "Prompt Generated Project",
       };
 
-      upsertProject(finalProject);
+      const savedProject = await upsertProject(finalProject);
+      await onProjectCreated?.();
       handleClose();
-      onOpenProject(finalProject.id);
+      onOpenProject(savedProject.id);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to generate from prompt.",
@@ -109,15 +136,10 @@ export default function ProjectModal({
       setLoading(true);
       setError("");
 
-      const importedProject = await createProjectFromDrawioFile(file);
-      const finalProject = {
-        ...importedProject,
-        name: name.trim() || importedProject.name || "Imported Project",
-      };
-
-      upsertProject(finalProject);
+      const savedProject = await createProjectFromDrawioFile(file, name.trim());
+      await onProjectCreated?.();
       handleClose();
-      onOpenProject(finalProject.id);
+      onOpenProject(savedProject.id);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to import project file.",
@@ -319,9 +341,10 @@ export default function ProjectModal({
             <div className="mt-5 flex justify-end">
               <button
                 onClick={handleCreate3D}
-                className="rounded-xl bg-[#84A98C] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#52796F]"
+                disabled={loading}
+                className="rounded-xl bg-[#84A98C] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#52796F] disabled:opacity-60"
               >
-                Open 3D editor
+                {loading ? "Creating..." : "Open 3D editor"}
               </button>
             </div>
           </div>
@@ -346,9 +369,10 @@ export default function ProjectModal({
             <div className="mt-5 flex justify-end">
               <button
                 onClick={handleCreate2D}
-                className="rounded-xl bg-[#84A98C] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#52796F]"
+                disabled={loading}
+                className="rounded-xl bg-[#84A98C] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#52796F] disabled:opacity-60"
               >
-                Open 2D canvas
+                {loading ? "Creating..." : "Open 2D canvas"}
               </button>
             </div>
           </div>

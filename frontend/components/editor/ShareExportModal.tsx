@@ -16,17 +16,28 @@ export function ShareExportModal({
 }) {
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
+  const [generatedShareUrl, setGeneratedShareUrl] = useState("");
   const shareUrl = useMemo(() => {
+    if (generatedShareUrl) return generatedShareUrl;
     if (typeof window === "undefined" || !project) return "";
-    return `${window.location.origin}/shared?s=${project.id}`;
-  }, [project]);
+    return `${window.location.origin}/shared?s=...`;
+  }, [generatedShareUrl, project]);
+
+  const handleClose = () => {
+    setGeneratedShareUrl("");
+    setStatus("");
+    setError("");
+    onClose();
+  };
 
   const handleCopy = async () => {
     if (!shareUrl || !project) return;
 
     try {
-      createShareToken(project);
-      await navigator.clipboard.writeText(shareUrl);
+      const token = await createShareToken(project.id);
+      const url = `${window.location.origin}/shared?s=${token}`;
+      setGeneratedShareUrl(url);
+      await navigator.clipboard.writeText(url);
       setError("");
       setStatus("Share link copied.");
     } catch {
@@ -85,7 +96,7 @@ export function ShareExportModal({
           </div>
 
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="text-3xl text-[#52796F] hover:text-[#2F3E46]"
           >
             ×

@@ -52,3 +52,7 @@ class LoginSerializer(serializers.Serializer):
                 "email": authenticated_user.email,
             },
         }
+
+
+class UserSerializer(serializers.Serializer):
+    email = serializers.EmailField()

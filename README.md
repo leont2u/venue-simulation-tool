@@ -1,6 +1,6 @@
 # Venue Simulation Tool
 
-This repository is now split into two apps:
+This repository is split into two apps:
 
 - `frontend/`: Next.js app for the 3D venue planner UI
 - `backend/`: Django + Django REST Framework API with JWT auth
@@ -16,12 +16,6 @@ npm run dev
 ```
 
 The frontend runs on `http://localhost:3000`.
-
-You can also start it from the repository root:
-
-```bash
-npm run dev
-```
 
 JWT auth pages are available at:
 
@@ -50,16 +44,27 @@ Auth endpoints:
 - `POST /api/auth/register/`
 - `POST /api/auth/login/`
 - `POST /api/auth/refresh/`
+- `GET /api/auth/me/`
+- `POST /api/auth/logout/`
+- `POST /api/ai/generate-scene/`
+- `POST /api/imports/drawio/`
+- `POST /api/projects/<id>/share/`
+- `GET /api/projects/shared/<token>/`
 
 ## Local Development
 
 1. Start the Django backend in `backend/`.
 2. Start the Next.js frontend in `frontend/`.
-3. Open `http://localhost:3000/register` to create an account.
-4. Log in at `http://localhost:3000/login`.
-5. Open the dashboard or editor after authentication.
+3. Open the frontend with `http://127.0.0.1:3000` so auth cookies work cleanly in local development.
+4. Open `http://127.0.0.1:3000/register` to create an account.
+5. Log in at `http://127.0.0.1:3000/login`.
+6. Open the dashboard or editor after authentication.
 
 ## Notes
 
 - The frontend defaults to `http://127.0.0.1:8000` for API requests through `NEXT_PUBLIC_API_BASE_URL`.
+- Auth now uses HttpOnly cookies managed by Django instead of frontend localStorage.
+- In local development, use `127.0.0.1` for both frontend and backend to avoid cookie issues caused by mixing `localhost` and `127.0.0.1`.
 - SQLite is used by default in development at `backend/db.sqlite3`.
+- Ollama is now called from the Django backend, not the Next.js app.
+- Set `OLLAMA_BASE_URL` and `OLLAMA_MODEL` in the backend environment when needed.

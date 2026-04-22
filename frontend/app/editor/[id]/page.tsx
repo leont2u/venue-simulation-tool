@@ -19,9 +19,13 @@ export default function EditorPage() {
   const loadProject = useEditorStore((s) => s.loadProject);
   const project = useEditorStore((s) => s.project);
   const activeView = useEditorStore((s) => s.activeView);
+  const isProjectLoading = useEditorStore((s) => s.isProjectLoading);
+  const projectError = useEditorStore((s) => s.projectError);
 
   useEffect(() => {
-    if (id) loadProject(id);
+    if (id) {
+      void loadProject(id);
+    }
   }, [id, loadProject]);
 
   if (!id) {
@@ -32,10 +36,26 @@ export default function EditorPage() {
     );
   }
 
-  if (!project) {
+  if (isProjectLoading) {
     return (
       <div className="flex h-screen items-center justify-center bg-[#F7F8F5] text-[#52796F]">
         Loading project...
+      </div>
+    );
+  }
+
+  if (projectError) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#F7F8F5] px-6 text-center text-[#52796F]">
+        {projectError}
+      </div>
+    );
+  }
+
+  if (!project) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-[#F7F8F5] text-[#52796F]">
+        Project not found.
       </div>
     );
   }

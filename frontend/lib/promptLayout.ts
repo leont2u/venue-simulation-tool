@@ -1,4 +1,5 @@
 import { Project } from "@/types/types";
+import { apiClient } from "@/lib/apiClient";
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -44,20 +45,8 @@ function isValidProject(project: unknown): project is Project {
 export async function generateProjectFromPrompt(
   prompt: string,
 ): Promise<Project> {
-  const res = await fetch("/api/generate-scene", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ prompt }),
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(text || "Failed to generate layout plan.");
-  }
-
-  const project: unknown = await res.json();
+  const response = await apiClient.post("/api/ai/generate-scene/", { prompt });
+  const project: unknown = response.data;
 
   if (!isValidProject(project)) {
     throw new Error("Generated scene is invalid.");

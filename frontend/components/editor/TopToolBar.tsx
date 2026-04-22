@@ -3,6 +3,7 @@
 import { useState } from "react";
 import {
   Eraser,
+  LogOut,
   Move3D,
   MousePointer2,
   Redo2,
@@ -12,14 +13,18 @@ import {
   Share2,
   Undo2,
 } from "lucide-react";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useEditorStore } from "@/store/UseEditorStore";
 import { ShareExportModal } from "./ShareExportModal";
 
 export function TopToolbar() {
+  const { logout } = useAuth();
   const project = useEditorStore((s) => s.project);
   const toolMode = useEditorStore((s) => s.toolMode);
   const setToolMode = useEditorStore((s) => s.setToolMode);
   const saveProject = useEditorStore((s) => s.saveProject);
+  const isProjectSaving = useEditorStore((s) => s.isProjectSaving);
+  const projectError = useEditorStore((s) => s.projectError);
   const clearScene = useEditorStore((s) => s.clearScene);
   const undo = useEditorStore((s) => s.undo);
   const redo = useEditorStore((s) => s.redo);
@@ -83,11 +88,12 @@ export function TopToolbar() {
             Redo
           </button>
           <button
-            onClick={saveProject}
-            className="inline-flex items-center gap-2 rounded-2xl bg-[#EDF6EF] px-4 py-2.5 text-sm font-medium text-[#2F3E46] hover:bg-[#E1EEE3]"
+            onClick={() => void saveProject()}
+            disabled={isProjectSaving}
+            className="inline-flex items-center gap-2 rounded-2xl bg-[#EDF6EF] px-4 py-2.5 text-sm font-medium text-[#2F3E46] hover:bg-[#E1EEE3] disabled:opacity-60"
           >
             <Save className="h-4 w-4" />
-            Save
+            {isProjectSaving ? "Saving..." : "Save"}
           </button>
           <button
             onClick={clearScene}
@@ -103,6 +109,13 @@ export function TopToolbar() {
             <Share2 className="h-4 w-4" />
             Share / Export
           </button>
+          <button
+            onClick={logout}
+            className="inline-flex items-center gap-2 rounded-2xl border border-black/10 bg-white px-4 py-2.5 text-sm font-medium text-[#52796F] transition hover:bg-[#F7F8F5] hover:text-[#2F3E46]"
+          >
+            <LogOut className="h-4 w-4" />
+            Logout
+          </button>
         </div>
       </header>
 
@@ -111,6 +124,11 @@ export function TopToolbar() {
         onClose={() => setShareOpen(false)}
         project={project ?? null}
       />
+      {projectError ? (
+        <div className="fixed bottom-4 right-4 z-50 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400 shadow-lg">
+          {projectError}
+        </div>
+      ) : null}
     </>
   );
 }

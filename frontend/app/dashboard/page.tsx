@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { getProjects } from "@/lib/storage";
 import { Project } from "@/types/types";
@@ -10,8 +11,29 @@ import ProjectPreviewCard from "@/components/dashboard/ProjectPreviewCard";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [projects] = useState<Project[]>(() => getProjects());
+  const { user, logout } = useAuth();
+  const [projects, setProjects] = useState<Project[]>([]);
   const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const loadProjects = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
+      setProjects(await getProjects());
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to load projects.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadProjects();
+  }, [loadProjects]);
 
   return (
     <ProtectedRoute>
@@ -27,16 +49,37 @@ export default function DashboardPage() {
               </p>
             </div>
 
-            <button
-              onClick={() => setOpen(true)}
-              className="mt-8 inline-flex items-center gap-3 rounded-2xl bg-[#84A98C] px-6 py-4 text-base font-medium text-white transition hover:bg-[#52796F]"
-            >
-              <span className="text-xl leading-none">＋</span>
-              <span>New project</span>
-            </button>
+            <div className="mt-8 flex items-center gap-3">
+              <div className="hidden rounded-2xl bg-white px-4 py-3 text-sm text-[#52796F] shadow-[0_12px_30px_rgba(47,62,70,0.04)] md:block">
+                {user?.email}
+              </div>
+              <button
+                onClick={() => setOpen(true)}
+                className="inline-flex items-center gap-3 rounded-2xl bg-[#84A98C] px-6 py-4 text-base font-medium text-white transition hover:bg-[#52796F]"
+              >
+                <span className="text-xl leading-none">＋</span>
+                <span>New project</span>
+              </button>
+              <button
+                onClick={logout}
+                className="inline-flex items-center gap-2 rounded-2xl border border-black/10 bg-white px-5 py-4 text-base font-medium text-[#52796F] transition hover:bg-[#F7F8F5] hover:text-[#2F3E46]"
+              >
+                Logout
+              </button>
+            </div>
           </div>
 
-          {projects.length === 0 ? (
+          {loading ? (
+            <div className="rounded-[28px] border border-black/5 bg-white p-16 text-center shadow-[0_12px_40px_rgba(47,62,70,0.04)]">
+              <div className="text-2xl font-semibold text-[#2F3E46]">
+                Loading projects...
+              </div>
+            </div>
+          ) : error ? (
+            <div className="rounded-[28px] border border-red-500/20 bg-red-500/10 p-8 text-center text-red-400">
+              {error}
+            </div>
+          ) : projects.length === 0 ? (
             <div className="rounded-[28px] border border-dashed border-black/10 bg-white p-16 text-center shadow-[0_12px_40px_rgba(47,62,70,0.04)]">
               <div className="text-2xl font-semibold text-[#2F3E46]">
                 No projects yet
@@ -66,6 +109,7 @@ export default function DashboardPage() {
         <ProjectModal
           open={open}
           onClose={() => setOpen(false)}
+          onProjectCreated={loadProjects}
           onOpenProject={(projectId) => router.push(`/editor/${projectId}`)}
         />
       </main>
