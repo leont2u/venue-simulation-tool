@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthProvider";
 
 export function AuthGate({
@@ -10,13 +10,15 @@ export function AuthGate({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isAuthenticated, isHydrating } = useAuth();
+  const nextPath = searchParams.get("next");
 
   useEffect(() => {
     if (!isHydrating && isAuthenticated) {
-      router.replace("/dashboard");
+      router.replace(nextPath || "/dashboard");
     }
-  }, [isAuthenticated, isHydrating, router]);
+  }, [isAuthenticated, isHydrating, nextPath, router]);
 
   if (isHydrating) {
     return (

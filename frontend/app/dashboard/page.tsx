@@ -1,21 +1,26 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
-import { getProjects } from "@/lib/storage";
+import { clearPendingPrompt, readPendingPrompt, savePendingPrompt } from "@/lib/pendingPrompt";
+import { generateProjectFromPrompt } from "@/lib/promptLayout";
+import { getProjects, upsertProject } from "@/lib/storage";
 import { Project } from "@/types/types";
 import ProjectModal from "@/components/dashboard/ProjectModal";
 import ProjectPreviewCard from "@/components/dashboard/ProjectPreviewCard";
 
 export default function DashboardPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, logout } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isResumingPrompt, setIsResumingPrompt] = useState(false);
+  const resumeAttemptedRef = useRef(false);
 
   const loadProjects = useCallback(async () => {
     try {
@@ -34,6 +39,45 @@ export default function DashboardPage() {
   useEffect(() => {
     void loadProjects();
   }, [loadProjects]);
+
+  useEffect(() => {
+    const shouldResumePrompt = searchParams.get("resumePrompt") === "1";
+    if (!shouldResumePrompt || resumeAttemptedRef.current) {
+      return;
+    }
+
+    const prompt = readPendingPrompt().trim();
+    if (!prompt) {
+      resumeAttemptedRef.current = true;
+      router.replace("/dashboard");
+      return;
+    }
+
+    resumeAttemptedRef.current = true;
+
+    const resume = async () => {
+      try {
+        setIsResumingPrompt(true);
+        setError("");
+        clearPendingPrompt();
+        const project = await generateProjectFromPrompt(prompt);
+        const savedProject = await upsertProject(project);
+        router.replace(`/editor/${savedProject.id}`);
+      } catch (err) {
+        savePendingPrompt(prompt);
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Failed to generate layout from your saved prompt.",
+        );
+        router.replace("/dashboard");
+      } finally {
+        setIsResumingPrompt(false);
+      }
+    };
+
+    void resume();
+  }, [router, searchParams]);
 
   return (
     <ProtectedRoute>
@@ -69,7 +113,16 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {loading ? (
+          {isResumingPrompt ? (
+            <div className="rounded-[28px] border border-black/5 bg-white p-16 text-center shadow-[0_12px_40px_rgba(47,62,70,0.04)]">
+              <div className="text-2xl font-semibold text-[#2F3E46]">
+                Generating your layout...
+              </div>
+              <p className="mt-3 text-base text-[#52796F]">
+                We picked up your prompt after login and are building the scene now.
+              </p>
+            </div>
+          ) : loading ? (
             <div className="rounded-[28px] border border-black/5 bg-white p-16 text-center shadow-[0_12px_40px_rgba(47,62,70,0.04)]">
               <div className="text-2xl font-semibold text-[#2F3E46]">
                 Loading projects...

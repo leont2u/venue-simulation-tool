@@ -15,6 +15,10 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
   const [error, setError] = useState("");
 
   const isRegister = mode === "register";
+  const switchHref = useMemo(() => {
+    const target = isRegister ? "/login" : "/register";
+    return nextPath ? `${target}?next=${encodeURIComponent(nextPath)}` : target;
+  }, [isRegister, nextPath]);
 
   const meta = useMemo(
     () =>
@@ -23,14 +27,12 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
             title: "Create your account",
             subtitle: "Register to manage venue projects and access the 3D editor.",
             action: "Register",
-            switchHref: "/login",
             switchText: "Already have an account? Log in",
           }
         : {
             title: "Welcome back",
             subtitle: "Sign in to access your dashboard and editor workspace.",
             action: "Login",
-            switchHref: "/register",
             switchText: "Need an account? Register",
           },
     [isRegister],
@@ -47,7 +49,11 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
 
     try {
       if (isRegister) {
-        await register({ email, password });
+        await register({
+          email,
+          password,
+          redirectTo: nextPath ? `/login?next=${encodeURIComponent(nextPath)}` : "/login",
+        });
       } else {
         await login({ email, password, redirectTo: nextPath || "/dashboard" });
       }
@@ -120,7 +126,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         </form>
 
         <Link
-          href={meta.switchHref}
+          href={switchHref}
           className="mt-6 inline-block text-sm text-[#52796F] underline-offset-4 hover:text-[#2F3E46] hover:underline"
         >
           {meta.switchText}

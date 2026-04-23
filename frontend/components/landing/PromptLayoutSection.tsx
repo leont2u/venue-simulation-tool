@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { savePendingPrompt } from "@/lib/pendingPrompt";
 import { upsertProject } from "@/lib/storage";
 import { generateProjectFromPrompt } from "@/lib/promptLayout";
 
@@ -14,13 +15,16 @@ export function PromptLayoutSection() {
   const [error, setError] = useState("");
 
   const handleGenerate = async () => {
-    if (!isAuthenticated) {
-      router.push(`/login?next=${encodeURIComponent("/dashboard")}`);
+    if (!prompt.trim()) {
+      setError("Please enter a layout prompt.");
       return;
     }
 
-    if (!prompt.trim()) {
-      setError("Please enter a layout prompt.");
+    if (!isAuthenticated) {
+      savePendingPrompt(prompt.trim());
+      router.push(
+        `/login?next=${encodeURIComponent("/dashboard?resumePrompt=1")}`,
+      );
       return;
     }
 
@@ -28,7 +32,7 @@ export function PromptLayoutSection() {
       setLoading(true);
       setError("");
 
-      const project = await generateProjectFromPrompt(prompt);
+      const project = await generateProjectFromPrompt(prompt.trim());
       const savedProject = await upsertProject(project);
 
       router.push(`/editor/${savedProject.id}`);
