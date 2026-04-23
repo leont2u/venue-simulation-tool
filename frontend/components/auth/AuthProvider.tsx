@@ -20,9 +20,13 @@ type AuthContextValue = {
   login: (input: {
     email: string;
     password: string;
+    redirectTo?: string | null;
+  }) => Promise<void>;
+  register: (input: {
+    email: string;
+    password: string;
     redirectTo?: string;
   }) => Promise<void>;
-  register: (input: { email: string; password: string }) => Promise<void>;
   logout: () => void;
 };
 
@@ -74,7 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }: {
       email: string;
       password: string;
-      redirectTo?: string;
+      redirectTo?: string | null;
     }) => {
       setIsSubmitting(true);
 
@@ -85,7 +89,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
 
         persistSession(response.data.user ?? { email });
-        router.push(redirectTo || "/dashboard");
+        if (redirectTo !== null) {
+          router.push(redirectTo || "/dashboard");
+        }
       } finally {
         setIsSubmitting(false);
       }
@@ -94,7 +100,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const register = useCallback(
-    async ({ email, password }: { email: string; password: string }) => {
+    async ({
+      email,
+      password,
+      redirectTo,
+    }: {
+      email: string;
+      password: string;
+      redirectTo?: string;
+    }) => {
       setIsSubmitting(true);
 
       try {
@@ -103,7 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           password,
         });
 
-        router.push("/login");
+        router.push(redirectTo || "/login");
       } finally {
         setIsSubmitting(false);
       }

@@ -15,9 +15,8 @@ class GenerateSceneView(APIView):
 
         try:
             raw_scene = generate_scene_with_ollama(prompt)
-            validated_intent = validate_prompt_layout_intent(raw_scene)
+            validated_intent = validate_prompt_layout_intent(raw_scene, prompt)
             project = prompt_scene_plan_to_project(validated_intent)
             return Response(project, status=status.HTTP_200_OK)
         except Exception as exc:
             return Response(str(exc), status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-

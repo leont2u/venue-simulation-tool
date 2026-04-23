@@ -33,11 +33,25 @@ STRICT RULES:
 
 SUPPORTED VALUES:
 - eventType: "conference" | "wedding" | "funeral" | "church"
+- layoutStyle:
+  "banquet_round_table" |
+  "theatre" |
+  "classroom" |
+  "boardroom" |
+  "u_shape" |
+  "hollow_square" |
+  "cocktail_reception" |
+  "cabaret" |
+  "pods" |
+  "auditorium" |
+  "exhibition_booth" |
+  "lounge"
 - seatingLayout: "rows" | "round_tables" | "mixed"
 
 OUTPUT SCHEMA:
 {{
   "eventType": string,
+  "layoutStyle": string,
   "capacity": number,
   "room": {{
     "width": number,
