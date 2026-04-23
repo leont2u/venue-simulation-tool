@@ -63,6 +63,10 @@ export type SceneSettings = {
   directionalLightIntensity: number;
   snapToGrid: boolean;
   livestreamMode: boolean;
+  wallThickness: number;
+  wallColor: string;
+  floorColor: string;
+  floorMaterial: "Wood" | "Concrete" | "Stone";
 };
 
 export type EditorViewMode = "2d" | "3d";
@@ -76,6 +80,7 @@ export type Project = {
     width: number;
     depth: number;
     height: number;
+    wallThickness?: number;
   };
   items: SceneItem[];
   measurements?: MeasurementLine[];

@@ -9,7 +9,6 @@ import { EditorShortcuts } from "@/components/editor/EditorShortcuts";
 import { TopToolbar } from "@/components/editor/TopToolBar";
 import { AssetCatalog } from "@/components/editor/AssetsCatalog";
 import { SceneCanvas } from "@/components/scene/SceneCanvas";
-import { BottomBar } from "@/components/editor/BottomBar";
 import { FloorplanCanvas } from "@/components/editor/FloorplanCanvas";
 
 export default function EditorPage() {
@@ -19,6 +18,7 @@ export default function EditorPage() {
   const loadProject = useEditorStore((s) => s.loadProject);
   const project = useEditorStore((s) => s.project);
   const activeView = useEditorStore((s) => s.activeView);
+  const setActiveView = useEditorStore((s) => s.setActiveView);
   const isProjectLoading = useEditorStore((s) => s.isProjectLoading);
   const projectError = useEditorStore((s) => s.projectError);
 
@@ -62,18 +62,33 @@ export default function EditorPage() {
 
   return (
     <ProtectedRoute>
-      <div className="flex h-screen flex-col bg-[#F7F8F5]">
+      <div className="flex h-screen flex-col bg-[var(--sf-bg)]">
         <TopToolbar />
 
         <div className="flex min-h-0 flex-1">
           <AssetCatalog />
-          <div className="min-w-0 flex-1 bg-[#FCFCFA]">
+          <div className="relative min-w-0 flex-1 bg-[#f3f3f0]">
+            <div className="absolute right-8 top-4 z-20 flex items-center rounded-[12px] border border-[#dcdcdc] bg-white p-1 shadow-sm">
+              {(["2d", "3d"] as const).map((view) => (
+                <button
+                  key={view}
+                  onClick={() => setActiveView(view)}
+                  className={`rounded-[10px] px-5 py-2 text-[15px] font-medium transition ${
+                    activeView === view
+                      ? "bg-[#111111] text-white"
+                      : "text-[#4a4a4a]"
+                  }`}
+                >
+                  {view.toUpperCase()}
+                </button>
+              ))}
+            </div>
+
             {activeView === "3d" ? <SceneCanvas /> : <FloorplanCanvas />}
           </div>
           <PropertiesPanel />
         </div>
 
-        <BottomBar />
         <EditorShortcuts />
       </div>
     </ProtectedRoute>

@@ -23,6 +23,10 @@ const DEFAULT_SCENE_SETTINGS: SceneSettings = {
   directionalLightIntensity: 2.1,
   snapToGrid: true,
   livestreamMode: false,
+  wallThickness: 0.15,
+  wallColor: "#F6F2EC",
+  floorColor: "#F4F1EA",
+  floorMaterial: "Wood",
 };
 
 interface EditorState {
@@ -72,6 +76,11 @@ interface EditorState {
 function withSceneSettings(project: Project): Project {
   return {
     ...project,
+    room: {
+      ...project.room,
+      wallThickness:
+        project.room.wallThickness ?? project.sceneSettings?.wallThickness ?? 0.15,
+    },
     sceneSettings: {
       ...DEFAULT_SCENE_SETTINGS,
       ...project.sceneSettings,
