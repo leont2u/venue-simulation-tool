@@ -1,128 +1,152 @@
 "use client";
 
-import FeatureCard from "./components/FeatureCard";
-import QuickActionCard from "./components/QuickActionCard";
-import StepCard from "./components/StepCard";
-import Footer from "./Footer";
+import Link from "next/link";
+import { DrawioImportSection } from "./UploadSection";
 import { PromptLayoutSection } from "./PromptLayoutSection";
+
+const FEATURES = [
+  {
+    icon: "✦",
+    title: "Prompt to 3D",
+    description:
+      "Generate event layouts from natural language and open them directly in the editor.",
+  },
+  {
+    icon: "⬚",
+    title: "2D Import",
+    description:
+      "Bring in draw.io, XML, and HTML floorplans and convert them into editable 3D scenes.",
+  },
+  {
+    icon: "◫",
+    title: "Unified Editor",
+    description:
+      "Refine imports, AI layouts, and manual scenes inside the same 2D/3D workspace.",
+  },
+  {
+    icon: "⌁",
+    title: "Client Sharing",
+    description:
+      "Share read-only layouts and export floorplans while keeping the editing workflow internal.",
+  },
+];
+
+const PIPELINES = [
+  {
+    number: "01",
+    title: "Manual 3D Scene",
+    description: "Start from scratch in the editor and build your venue manually.",
+  },
+  {
+    number: "02",
+    title: "XML to 3D",
+    description: "Convert structured XML floor plans into room-aware 3D layouts.",
+  },
+  {
+    number: "03",
+    title: "draw.io to 3D",
+    description: "Read layered draw.io geometry, labels, and measurements into your editor.",
+  },
+  {
+    number: "04",
+    title: "Prompt to 3D",
+    description: "Use Ollama + Gemma3 to turn venue intent into editable 3D scenes.",
+  },
+];
 
 export function Hero() {
   return (
-    <div className="pb-20">
-      <section className="mx-auto flex min-h-[calc(100vh-88px)] max-w-7xl flex-col justify-center px-6 py-10">
-        <div className="mx-auto max-w-5xl text-center">
-          <h1 className="mt-8 text-4xl font-semibold tracking-tight text-[#2F3E46] md:text-6xl lg:text-7xl">
-            Turn 2D Floor Plans into
-            <br />
-            <span className="text-[#52796F]">3D Experiences</span>
-          </h1>
-
-          <p className="mx-auto mt-5 max-w-3xl text-lg leading-8 text-[#52796F] md:text-xl">
-            Help event organisers present their venue layouts in immersive 3D.
-            Build manually, import structured plans, or generate from prompts.
-          </p>
+    <div className="sf-shell">
+      <section className="mx-auto max-w-[960px] px-6 pb-16 pt-24 text-center">
+        <div className="inline-block rounded-full bg-[var(--sf-surface-muted)] px-3 py-1 text-[12px] font-medium text-[var(--sf-text-muted)]">
+          3D venue design platform
         </div>
 
-        <div id="start" className="mx-auto mt-8 w-full max-w-4xl">
-          <PromptLayoutSection />
-        </div>
+        <h1 className="mx-auto mt-6 max-w-[840px] text-[42px] leading-[1.08] font-semibold tracking-[-0.05em] text-[var(--sf-text)] md:text-[64px]">
+          Turn 2D Floor Plans into
+          <span className="text-[var(--sf-accent-blue)]"> SpaceForge-ready </span>
+          3D Venue Scenes
+        </h1>
 
-        <div className="mx-auto mt-6 grid w-full max-w-5xl gap-4 md:grid-cols-3">
-          <QuickActionCard
-            title="Upload File"
-            description="Import XML, draw.io, or HTML floor plans and convert them into editable 3D layouts."
-          />
-          <QuickActionCard
-            title="Draw 3D Layout"
-            description="Create venue layouts manually with your drag-and-place 3D editor and asset library."
-          />
-          <QuickActionCard
-            title="Draw 2D Layout"
-            description="Create venue layouts manually with your drag-and-place 2D editor and asset library."
-          />
-        </div>
-      </section>
-      <section id="features" className="pb-24">
-        <div className="mx-auto max-w-7xl px-6">
-          <div className="text-center">
-            <h2 className="text-4xl font-semibold text-[#2F3E46] md:text-5xl">
-              Why this platform?
-            </h2>
-            <p className="mt-4 text-lg text-[#52796F]">
-              Everything event professionals need to bring venues to life.
-            </p>
-          </div>
+        <p className="mx-auto mt-5 max-w-[700px] text-[17px] leading-8 text-[var(--sf-text-muted)]">
+          Keep your current flow and backend, but operate it inside a cleaner
+          planning experience: prompt generation, draw.io import, project
+          storage, editing, sharing, and exports in one workflow.
+        </p>
 
-          <div className="mt-16 grid gap-8 md:grid-cols-3">
-            <FeatureCard
-              title="2D to 3D Conversion"
-              description="Import structured floor plans from draw.io, XML, or HTML and convert them into editable 3D projects."
-            />
-            <FeatureCard
-              title="Manual 3D Layout Creation"
-              description="Build layouts from scratch using real 3D assets like chairs, podiums, cameras, desks, screens, and more."
-            />
-            <FeatureCard
-              title="Prompt-Based Generation"
-              description="Generate venue layouts from text prompts, then refine them further inside the same editor."
-            />
-          </div>
+        <div id="launch" className="mt-9 flex flex-wrap justify-center gap-3">
+          <Link
+            href="/dashboard"
+            className="rounded-[7px] bg-[var(--sf-text)] px-6 py-3 text-[14px] font-medium text-white transition hover:bg-[#333333]"
+          >
+            Open Workspace
+          </Link>
+          <a
+            href="#prompt-studio"
+            className="rounded-[7px] border border-[var(--sf-border-strong)] px-6 py-3 text-[14px] font-medium text-[var(--sf-text)] transition hover:bg-[var(--sf-surface-soft)]"
+          >
+            Start with AI
+          </a>
         </div>
       </section>
 
-      <section id="how-it-works" className=" pb-24">
-        <div className="mx-auto max-w-7xl px-6">
-          <div className="text-center">
-            <h2 className="text-4xl font-semibold text-[#2F3E46] md:text-5xl">
-              Three pipelines. One unified editor.
-            </h2>
-            <p className="mt-4 text-lg text-zinc-500">
-              Create, import, or generate — then refine everything in the same
-              3D workspace.
-            </p>
-          </div>
+      <section id="prompt-studio" className="mx-auto max-w-[960px] px-6 pb-16">
+        <PromptLayoutSection />
+      </section>
 
-          <div className="mt-20 grid gap-12 md:grid-cols-3">
-            <StepCard
-              number="01"
-              title="Create or Upload"
-              description="Start manually, upload a structured floor plan, or describe your venue in natural language."
-            />
-            <StepCard
-              number="02"
-              title="Convert to Project"
-              description="The system transforms the input into a structured project model ready for editing."
-            />
-            <StepCard
-              number="03"
-              title="Edit in 3D"
-              description="Preview the room, move assets around, duplicate items, label them, and save your final setup."
-            />
-          </div>
+      <section id="features" className="mx-auto max-w-[960px] px-6 pb-16">
+        <h2 className="sf-title text-[22px] font-semibold">Why SpaceForge UI</h2>
+        <p className="mt-2 text-[14px] text-[var(--sf-text-muted)]">
+          Your existing venue simulation capabilities, reorganized into a more
+          professional workflow shell.
+        </p>
+
+        <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {FEATURES.map((feature) => (
+            <div key={feature.title} className="sf-panel p-5">
+              <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-[8px] bg-[var(--sf-surface-muted)] text-[18px]">
+                {feature.icon}
+              </div>
+              <h3 className="text-[14px] font-semibold text-[var(--sf-text)]">
+                {feature.title}
+              </h3>
+              <p className="mt-2 text-[13px] leading-6 text-[var(--sf-text-muted)]">
+                {feature.description}
+              </p>
+            </div>
+          ))}
         </div>
       </section>
 
-      <section>
-        <div className="mx-auto max-w-4xl px-6 text-center">
-          <h2 className="text-4xl font-semibold text-[#2F3E46] md:text-5xl">
-            Ready to transform your venue presentations?
-          </h2>
-          <p className="mt-5 text-lg text-[#52796F]">
-            Start building, importing, and generating venue layouts in 3D.
-          </p>
+      <section id="pipelines" className="mx-auto max-w-[960px] px-6 pb-16">
+        <h2 className="sf-title text-[22px] font-semibold">Pipelines</h2>
+        <p className="mt-2 text-[14px] text-[var(--sf-text-muted)]">
+          All four creation paths now point toward the same SpaceForge-style editor.
+        </p>
 
-          <div className="mt-8">
-            <a
-              href="/dashboard"
-              className="inline-flex rounded-2xl bg-[#84A98C] px-8 py-4 text-lg font-medium text-white transition hover:bg-[#52796F]"
+        <div className="mt-8 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {PIPELINES.map((pipeline) => (
+            <div
+              key={pipeline.number}
+              className="cursor-default rounded-[8px] border border-[var(--sf-border)] bg-white p-5 transition hover:-translate-y-0.5 hover:shadow-[var(--sf-shadow-md)]"
             >
-              Get started
-            </a>
-          </div>
+              <div className="font-mono text-[11px] font-medium tracking-[0.12em] text-[var(--sf-text-faint)]">
+                {pipeline.number}
+              </div>
+              <h3 className="mt-3 text-[14px] font-semibold text-[var(--sf-text)]">
+                {pipeline.title}
+              </h3>
+              <p className="mt-2 text-[12px] leading-6 text-[var(--sf-text-muted)]">
+                {pipeline.description}
+              </p>
+            </div>
+          ))}
         </div>
       </section>
 
-      <Footer />
+      <section className="mx-auto max-w-[960px] px-6 pb-20">
+        <DrawioImportSection />
+      </section>
     </div>
   );
 }

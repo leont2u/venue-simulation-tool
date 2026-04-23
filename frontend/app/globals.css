@@ -1,15 +1,22 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #f7f8f5;
-  --panel: #ffffff;
-  --panel-soft: #cad2c5;
-  --text: #2f3e46;
-  --text-soft: #354f52;
-  --muted: #52796f;
-  --accent: #84a98c;
-  --accent-strong: #52796f;
-  --line: rgba(47, 62, 70, 0.08);
+  --sf-bg: #fafafa;
+  --sf-surface: #ffffff;
+  --sf-surface-soft: #f5f5f5;
+  --sf-surface-muted: #f0f0f0;
+  --sf-border: #e8e8e8;
+  --sf-border-strong: #d4d4d4;
+  --sf-text: #111111;
+  --sf-text-muted: #555555;
+  --sf-text-faint: #999999;
+  --sf-accent: #111111;
+  --sf-accent-blue: #2563eb;
+  --sf-success: #16a34a;
+  --sf-warn: #d97706;
+  --sf-radius: 8px;
+  --sf-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.06);
+  --sf-shadow-md: 0 8px 30px rgba(0, 0, 0, 0.08);
 }
 
 html,
@@ -19,11 +26,9 @@ body,
 }
 
 body {
-  font-family: var(--font-space-grotesk), sans-serif;
-  background:
-    radial-gradient(circle at top, rgba(132, 169, 140, 0.18), transparent 24%),
-    linear-gradient(180deg, #f9faf8 0%, #f3f5f2 100%);
-  color: var(--text);
+  font-family: var(--font-dm-sans), sans-serif;
+  background: var(--sf-bg);
+  color: var(--sf-text);
 }
 
 * {
@@ -35,4 +40,69 @@ input,
 textarea,
 select {
   outline: none;
+  font: inherit;
+}
+
+code,
+pre,
+.font-mono {
+  font-family: var(--font-dm-mono), monospace;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.sf-shell {
+  background: var(--sf-bg);
+  color: var(--sf-text);
+}
+
+.sf-panel {
+  background: var(--sf-surface);
+  border: 1px solid var(--sf-border);
+  border-radius: var(--sf-radius);
+  box-shadow: var(--sf-shadow);
+}
+
+.sf-panel-muted {
+  background: var(--sf-surface-soft);
+  border: 1px solid var(--sf-border);
+  border-radius: var(--sf-radius);
+}
+
+.sf-title {
+  letter-spacing: -0.03em;
+  color: var(--sf-text);
+}
+
+.sf-subtle {
+  color: var(--sf-text-muted);
+}
+
+.sf-faint {
+  color: var(--sf-text-faint);
+}
+
+.sf-chip {
+  border: 1px solid var(--sf-border);
+  background: var(--sf-surface-soft);
+  color: var(--sf-text-muted);
+  border-radius: 999px;
+}
+
+.sf-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #d4d4d4 transparent;
+}
+
+.sf-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.sf-scroll::-webkit-scrollbar-thumb {
+  background: #d4d4d4;
+  border-radius: 999px;
 }

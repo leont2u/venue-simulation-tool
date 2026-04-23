@@ -160,28 +160,28 @@ export default function ProjectModal({
   }) => (
     <button
       onClick={onClick}
-      className="flex w-full items-center gap-4 rounded-2xl border border-black/10 bg-white p-4 text-left transition hover:border-[#84A98C] hover:bg-[#F7F8F5]"
+      className="flex w-full items-center gap-4 rounded-[8px] border border-[var(--sf-border)] bg-white p-4 text-left transition hover:border-[var(--sf-border-strong)] hover:shadow-[var(--sf-shadow)]"
     >
-      <div className="flex h-12 w-12 flex-0 items-center justify-center rounded-xl bg-[#F1F4EF] text-xl text-[#52796F]">
+      <div className="flex h-11 w-11 flex-0 items-center justify-center rounded-[8px] bg-[var(--sf-surface-soft)] text-lg text-[var(--sf-text-muted)]">
         ⬢
       </div>
 
       <div>
-        <div className="text-base font-semibold text-[#2F3E46]">{title}</div>
-        <div className="text-sm text-[#52796F]">{subtitle}</div>
+        <div className="text-[14px] font-semibold text-[var(--sf-text)]">{title}</div>
+        <div className="text-[12px] text-[var(--sf-text-muted)]">{subtitle}</div>
       </div>
     </button>
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 px-6 py-6 backdrop-blur-sm">
-      <div className="w-full max-w-xl rounded-3xl border border-black/10 bg-[#FCFCFA] p-6 shadow-[0_30px_100px_rgba(47,62,70,0.18)]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 px-6 py-6 backdrop-blur-sm">
+      <div className="w-full max-w-xl rounded-[12px] border border-[var(--sf-border)] bg-white p-6 shadow-[var(--sf-shadow-md)]">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-semibold tracking-tight text-[#2F3E46]">
+            <h2 className="text-[28px] font-semibold tracking-[-0.04em] text-[var(--sf-text)]">
               {step === "menu" ? "Create a new project" : "Project Details"}
             </h2>
-            <p className="mt-1 text-sm text-[#52796F]">
+            <p className="mt-2 text-[13px] text-[var(--sf-text-muted)]">
               {step === "menu"
                 ? "Choose how you want to build your venue layout."
                 : "Complete the details below to continue."}
@@ -196,14 +196,14 @@ export default function ProjectModal({
                   setError("");
                   setLoading(false);
                 }}
-                className="rounded-lg border border-black/10 px-3 py-1.5 text-sm font-medium text-[#354F52] transition hover:bg-[#F1F4EF]"
+                className="rounded-[6px] border border-[var(--sf-border-strong)] px-3 py-1.5 text-[13px] font-medium text-[var(--sf-text)] transition hover:bg-[var(--sf-surface-soft)]"
               >
                 Back
               </button>
             )}
             <button
               onClick={handleClose}
-              className="flex h-8 w-8 items-center justify-center rounded-full text-2xl leading-none text-[#52796F] transition hover:bg-black/5 hover:text-[#2F3E46]"
+              className="flex h-8 w-8 items-center justify-center rounded-full text-2xl leading-none text-[var(--sf-text-muted)] transition hover:bg-[var(--sf-surface-soft)] hover:text-[var(--sf-text)]"
             >
               ×
             </button>
@@ -240,10 +240,10 @@ export default function ProjectModal({
 
         {step === "upload" && (
           <div>
-            <div className="text-lg font-semibold text-[#2F3E46]">
+            <div className="text-[15px] font-semibold text-[var(--sf-text)]">
               Import from file
             </div>
-            <p className="mt-1 text-sm text-[#52796F]">
+            <p className="mt-1 text-[13px] text-[var(--sf-text-muted)]">
               Upload a structured floor plan file and convert it into an
               editable 3D project.
             </p>
@@ -252,11 +252,11 @@ export default function ProjectModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Project name"
-              className="mt-4 w-full rounded-xl border border-black/10 bg-white px-4 py-3 text-sm text-[#2F3E46] placeholder:text-[#52796F]"
+              className="mt-4 w-full rounded-[8px] border border-[var(--sf-border-strong)] bg-white px-4 py-3 text-[13px] text-[var(--sf-text)] placeholder:text-[var(--sf-text-faint)]"
             />
 
-            <div className="mt-4 rounded-2xl border border-dashed border-black/10 bg-[#F7F8F5] p-5">
-              <div className="text-sm font-medium text-[#2F3E46]">
+            <div className="mt-4 rounded-[8px] border border-dashed border-[var(--sf-border-strong)] bg-[var(--sf-surface-soft)] p-5">
+              <div className="text-[13px] font-medium text-[var(--sf-text)]">
                 Select .drawio, .xml, or exported .html
               </div>
 
@@ -264,12 +264,12 @@ export default function ProjectModal({
                 ref={fileInputRef}
                 type="file"
                 accept=".drawio,.xml,.html,.htm"
-                className="mt-3 block w-full text-sm text-[#52796F] file:mr-4 file:rounded-lg file:border-0 file:bg-[#84A98C] file:px-4 file:py-1.5 file:text-white"
+                className="mt-3 block w-full text-[13px] text-[var(--sf-text-muted)] file:mr-4 file:rounded-[6px] file:border-0 file:bg-[var(--sf-text)] file:px-4 file:py-2 file:text-white"
                 onChange={(e) => setFile(e.target.files?.[0] || null)}
               />
 
               {file ? (
-                <div className="mt-3 text-sm font-medium text-[#52796F]">
+                <div className="mt-3 text-[13px] font-medium text-[var(--sf-success)]">
                   Selected: {file.name}
                 </div>
               ) : null}
@@ -279,7 +279,7 @@ export default function ProjectModal({
               <button
                 onClick={handleGenerateFromFile}
                 disabled={loading}
-                className="rounded-xl bg-[#84A98C] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#52796F] disabled:opacity-60"
+                className="rounded-[6px] bg-[var(--sf-accent-blue)] px-5 py-2.5 text-[13px] font-medium text-white transition hover:bg-[#1d4ed8] disabled:opacity-60"
               >
                 {loading ? "Generating..." : "Generate project"}
               </button>
@@ -289,10 +289,10 @@ export default function ProjectModal({
 
         {step === "prompt" && (
           <div>
-            <div className="text-lg font-semibold text-[#2F3E46]">
+            <div className="text-[15px] font-semibold text-[var(--sf-text)]">
               Generate from prompt
             </div>
-            <p className="mt-1 text-sm text-[#52796F]">
+            <p className="mt-1 text-[13px] text-[var(--sf-text-muted)]">
               Describe the venue you want and generate a layout automatically.
             </p>
 
@@ -300,21 +300,21 @@ export default function ProjectModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Project name"
-              className="mt-4 w-full rounded-xl border border-black/10 bg-white px-4 py-3 text-sm text-[#2F3E46] placeholder:text-[#52796F]"
+              className="mt-4 w-full rounded-[8px] border border-[var(--sf-border-strong)] bg-white px-4 py-3 text-[13px] text-[var(--sf-text)] placeholder:text-[var(--sf-text-faint)]"
             />
 
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="Create a church event layout with 120 chairs..."
-              className="mt-4 min-h-30 w-full rounded-xl border border-black/10 bg-white px-4 py-3 text-sm text-[#2F3E46] placeholder:text-[#52796F]"
+              className="mt-4 min-h-30 w-full rounded-[8px] border border-[var(--sf-border-strong)] bg-white px-4 py-3 text-[13px] text-[var(--sf-text)] placeholder:text-[var(--sf-text-faint)]"
             />
 
             <div className="mt-5 flex justify-end">
               <button
                 onClick={handleGenerateFromPrompt}
                 disabled={loading}
-                className="rounded-xl bg-[#84A98C] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#52796F] disabled:opacity-60"
+                className="rounded-[6px] bg-[var(--sf-accent-blue)] px-5 py-2.5 text-[13px] font-medium text-white transition hover:bg-[#1d4ed8] disabled:opacity-60"
               >
                 {loading ? "Generating..." : "Generate project"}
               </button>
@@ -324,10 +324,10 @@ export default function ProjectModal({
 
         {step === "draw3d" && (
           <div>
-            <div className="text-lg font-semibold text-[#2F3E46]">
+            <div className="text-[15px] font-semibold text-[var(--sf-text)]">
               Draw 3D layout
             </div>
-            <p className="mt-1 text-sm text-[#52796F]">
+            <p className="mt-1 text-[13px] text-[var(--sf-text-muted)]">
               Start with a blank 3D project and place venue elements manually.
             </p>
 
@@ -335,14 +335,14 @@ export default function ProjectModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Project name"
-              className="mt-4 w-full rounded-xl border border-black/10 bg-white px-4 py-3 text-sm text-[#2F3E46] placeholder:text-[#52796F]"
+              className="mt-4 w-full rounded-[8px] border border-[var(--sf-border-strong)] bg-white px-4 py-3 text-[13px] text-[var(--sf-text)] placeholder:text-[var(--sf-text-faint)]"
             />
 
             <div className="mt-5 flex justify-end">
               <button
                 onClick={handleCreate3D}
                 disabled={loading}
-                className="rounded-xl bg-[#84A98C] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#52796F] disabled:opacity-60"
+                className="rounded-[6px] bg-[var(--sf-text)] px-5 py-2.5 text-[13px] font-medium text-white transition hover:bg-[#333333] disabled:opacity-60"
               >
                 {loading ? "Creating..." : "Open 3D editor"}
               </button>
@@ -352,10 +352,10 @@ export default function ProjectModal({
 
         {step === "draw2d" && (
           <div>
-            <div className="text-lg font-semibold text-[#2F3E46]">
+            <div className="text-[15px] font-semibold text-[var(--sf-text)]">
               Draw 2D layout
             </div>
-            <p className="mt-1 text-sm text-[#52796F]">
+            <p className="mt-1 text-[13px] text-[var(--sf-text-muted)]">
               Start from a blank 2D canvas, then preview it in 3D.
             </p>
 
@@ -363,14 +363,14 @@ export default function ProjectModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Project name"
-              className="mt-4 w-full rounded-xl border border-black/10 bg-white px-4 py-3 text-sm text-[#2F3E46] placeholder:text-[#52796F]"
+              className="mt-4 w-full rounded-[8px] border border-[var(--sf-border-strong)] bg-white px-4 py-3 text-[13px] text-[var(--sf-text)] placeholder:text-[var(--sf-text-faint)]"
             />
 
             <div className="mt-5 flex justify-end">
               <button
                 onClick={handleCreate2D}
                 disabled={loading}
-                className="rounded-xl bg-[#84A98C] px-5 py-2.5 text-sm font-medium text-white transition hover:bg-[#52796F] disabled:opacity-60"
+                className="rounded-[6px] bg-[var(--sf-text)] px-5 py-2.5 text-[13px] font-medium text-white transition hover:bg-[#333333] disabled:opacity-60"
               >
                 {loading ? "Creating..." : "Open 2D canvas"}
               </button>
@@ -379,7 +379,7 @@ export default function ProjectModal({
         )}
 
         {error && (
-          <div className="mt-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          <div className="mt-4 rounded-[8px] border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-600">
             {error}
           </div>
         )}

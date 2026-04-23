@@ -251,7 +251,7 @@ export function SceneCanvas({
 
   return (
     <div
-      className="h-full w-full"
+      className="relative h-full w-full overflow-hidden"
       onDragOver={(event) => event.preventDefault()}
       onDrop={(event) => {
         event.preventDefault();
@@ -261,7 +261,7 @@ export function SceneCanvas({
       }}
     >
       <Canvas
-        shadows
+        shadows={{ type: THREE.PCFShadowMap }}
         camera={{ position: [18 / viewportZoom, 14 / viewportZoom, 18 / viewportZoom], fov: 50 }}
         onPointerMissed={() => {
           if (!readOnly) selectItem(null);
@@ -287,7 +287,16 @@ export function SceneCanvas({
             />
           ) : null}
 
-          <RoomShell width={project.room.width} depth={project.room.depth} />
+          <RoomShell
+            width={project.room.width}
+            depth={project.room.depth}
+            height={project.room.height}
+            wallThickness={
+              project.room.wallThickness ?? project.sceneSettings?.wallThickness
+            }
+            wallColor={project.sceneSettings?.wallColor}
+            floorColor={project.sceneSettings?.floorColor}
+          />
 
           {project.items.map((item) => (
             <group key={item.id}>
@@ -375,6 +384,10 @@ export function SceneCanvas({
           ) : null}
         </Suspense>
       </Canvas>
+
+      <div className="pointer-events-none absolute bottom-5 left-5 rounded-[10px] bg-[#111111]/78 px-3 py-2 text-[12px] text-white shadow-lg">
+        Mouse: rotate · Scroll: zoom · Shift+drag: pan
+      </div>
     </div>
   );
 }

@@ -38,87 +38,88 @@ export function DrawioImportSection() {
     }
   };
 
-  const handleCreateManual = () => {
-    router.push("/dashboard");
-  };
-
   return (
-    <section className="rounded-4xl border border-white/10 bg-zinc-950/40 p-8 shadow-[0_0_120px_rgba(73,210,77,0.05)] backdrop-blur">
-      <div className="max-w-3xl">
-        <h2 className="text-3xl font-semibold text-white">
-          Start your project
-        </h2>
-        <p className="mt-4 text-lg leading-8 text-zinc-400">
-          Upload a structured floor plan file and generate a 3D project, or
-          start a new venue layout manually from your dashboard.
-        </p>
-      </div>
-
-      <div className="mt-8 grid gap-6 md:grid-cols-2">
-        <div className="rounded-3xl border border-white/10 bg-white/2 p-6">
-          <div className="text-lg font-medium text-white">Import from file</div>
-          <p className="mt-2 text-sm leading-6 text-zinc-500">
-            Upload a .drawio, .xml, or exported .html file and convert it into
-            an editable 3D layout.
-          </p>
-
-          <label className="mt-5 flex cursor-pointer flex-col rounded-2xl border border-dashed border-white/10 bg-zinc-900/40 px-5 py-5 text-zinc-300 transition hover:border-green-400/40">
-            <span className="text-sm font-medium text-white">
-              Select .drawio, .xml, or exported .html
-            </span>
-            <span className="mt-1 text-xs text-zinc-500">
-              Structured formats are more reliable for 2D to 3D conversion
-            </span>
-
-            <input
-              type="file"
-              accept=".drawio,.xml,.html,.htm"
-              className="mt-4 text-sm text-zinc-400 file:mr-4 file:rounded-xl file:border-0 file:bg-green-500 file:px-4 file:py-2 file:text-white"
-              onChange={(e) => setFile(e.target.files?.[0] || null)}
-            />
-
-            {file ? (
-              <span className="mt-3 text-sm text-green-400">{file.name}</span>
-            ) : null}
-          </label>
-
-          <button
-            onClick={handleGenerate}
-            disabled={loading}
-            className="mt-5 rounded-xl bg-green-500 px-5 py-3 text-sm font-medium text-white transition hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {loading ? "Generating..." : "Generate 3D"}
-          </button>
+    <section className="grid gap-4 md:grid-cols-2">
+      <div className="sf-panel p-6">
+        <div className="text-[15px] font-semibold text-[var(--sf-text)]">
+          Import 2D Layout
         </div>
+        <p className="mt-2 text-[13px] leading-6 text-[var(--sf-text-muted)]">
+          Upload `.drawio`, `.xml`, or exported `.html` floor plans and convert
+          them into editable 3D scenes with your backend import pipeline.
+        </p>
 
-        <div className="rounded-3xl border border-white/10 bg-white/2 p-6">
-          <div className="text-lg font-medium text-white">Create manually</div>
-          <p className="mt-2 text-sm leading-6 text-zinc-500">
-            Start a project from scratch and build your venue layout directly in
-            the 3D editor.
-          </p>
-
-          <div className="mt-5 rounded-2xl border border-white/10 bg-zinc-900/40 px-5 py-5">
-            <div className="text-sm font-medium text-white">
-              Manual 3D workflow
-            </div>
-            <p className="mt-2 text-xs leading-6 text-zinc-500">
-              Ideal when you want full control over layout placement, object
-              movement, and scene composition.
-            </p>
+        <label className="mt-5 block cursor-pointer rounded-[8px] border-2 border-dashed border-[var(--sf-border-strong)] bg-[var(--sf-surface-soft)] px-5 py-6 transition hover:border-[var(--sf-accent-blue)] hover:bg-[#eff6ff]">
+          <div className="text-[14px] font-medium text-[var(--sf-text)]">
+            Select a layout file
+          </div>
+          <div className="mt-1 text-[12px] text-[var(--sf-text-muted)]">
+            Structured draw.io exports produce the best object placement.
           </div>
 
-          <button
-            onClick={handleCreateManual}
-            className="mt-5 rounded-xl border border-white/10 bg-white/4px-5 py-3 text-sm font-medium text-white transition hover:border-green-400/40 hover:bg-white/8"
-          >
-            Create New Project
-          </button>
+          <input
+            type="file"
+            accept=".drawio,.xml,.html,.htm"
+            className="mt-4 block w-full text-[13px] text-[var(--sf-text-muted)] file:mr-4 file:rounded-md file:border-0 file:bg-[var(--sf-text)] file:px-3 file:py-2 file:text-white"
+            onChange={(event) => setFile(event.target.files?.[0] || null)}
+          />
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            {["DRAWIO", "XML", "HTML"].map((format) => (
+              <span
+                key={format}
+                className="rounded-[4px] border border-[var(--sf-border)] bg-white px-2 py-1 font-mono text-[11px] text-[var(--sf-text-muted)]"
+              >
+                {format}
+              </span>
+            ))}
+          </div>
+
+          {file ? (
+            <div className="mt-4 text-[13px] font-medium text-[var(--sf-success)]">
+              {file.name}
+            </div>
+          ) : null}
+        </label>
+
+        <button
+          onClick={handleGenerate}
+          disabled={loading}
+          className="mt-5 rounded-[6px] bg-[var(--sf-accent-blue)] px-4 py-2 text-[13px] font-medium text-white transition hover:bg-[#1d4ed8] disabled:opacity-50"
+        >
+          {loading ? "Importing..." : "Convert to 3D"}
+        </button>
+      </div>
+
+      <div className="sf-panel p-6">
+        <div className="text-[15px] font-semibold text-[var(--sf-text)]">
+          Manual Creation
         </div>
+        <p className="mt-2 text-[13px] leading-6 text-[var(--sf-text-muted)]">
+          Jump directly into your editor shell and build layouts from scratch in
+          2D or 3D using the same project flow you already have.
+        </p>
+
+        <div className="mt-5 rounded-[8px] border border-[var(--sf-border)] bg-[var(--sf-surface-soft)] p-5">
+          <div className="text-[13px] font-medium text-[var(--sf-text)]">
+            SpaceForge editor workflow
+          </div>
+          <p className="mt-2 text-[12px] leading-6 text-[var(--sf-text-muted)]">
+            Asset library, transform tools, prompt generation, draw.io import,
+            save, share, export, and client-safe read-only viewing.
+          </p>
+        </div>
+
+        <button
+          onClick={() => router.push("/dashboard")}
+          className="mt-5 rounded-[6px] border border-[var(--sf-border-strong)] px-4 py-2 text-[13px] font-medium text-[var(--sf-text)] transition hover:bg-[var(--sf-surface-soft)]"
+        >
+          Open Workspace
+        </button>
       </div>
 
       {error ? (
-        <div className="mt-4 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+        <div className="md:col-span-2 rounded-[8px] border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-600">
           {error}
         </div>
       ) : null}

@@ -4,39 +4,52 @@ import Link from "next/link";
 
 export function Navbar() {
   return (
-    <header className="sticky top-0 z-50  backdrop-blur">
-      <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-5">
-        <div>
-          <div className="text-2xl font-semibold tracking-tight text-[#2F3E46]">
-            Leon Manhimanzi
+    <header className="sticky top-0 z-50 border-b border-[var(--sf-border)] bg-white/95 backdrop-blur">
+      <div className="mx-auto flex h-[52px] w-full max-w-[1400px] items-center gap-4 px-6">
+        <Link href="/" className="flex items-center gap-2.5">
+          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-[var(--sf-text)] text-[10px] font-semibold text-white">
+            SF
           </div>
-          <div className="text-xs uppercase tracking-[0.32em] text-[#52796F]">
-            3D Venue Simulation Tool
+          <div className="text-[15px] font-semibold tracking-[-0.03em] text-[var(--sf-text)]">
+            SpaceForge
           </div>
-        </div>
+        </Link>
 
-        <nav className="hidden items-center gap-10 text-base text-[#354F52] md:flex">
-          <a href="#features" className="transition hover:text-[#2F3E46]">
+        <nav className="hidden items-center gap-1 md:flex">
+          <a
+            href="#pipelines"
+            className="rounded-md px-3 py-1.5 text-[13px] text-[var(--sf-text-muted)] transition hover:bg-[var(--sf-surface-muted)] hover:text-[var(--sf-text)]"
+          >
+            Pipelines
+          </a>
+          <a
+            href="#features"
+            className="rounded-md px-3 py-1.5 text-[13px] text-[var(--sf-text-muted)] transition hover:bg-[var(--sf-surface-muted)] hover:text-[var(--sf-text)]"
+          >
             Features
           </a>
-          <a href="#how-it-works" className="transition hover:text-[#2F3E46]">
-            How it works
+          <a
+            href="#launch"
+            className="rounded-md px-3 py-1.5 text-[13px] text-[var(--sf-text-muted)] transition hover:bg-[var(--sf-surface-muted)] hover:text-[var(--sf-text)]"
+          >
+            Launch
           </a>
         </nav>
 
-        <div className="flex items-center gap-3">
-          <Link
-            href="/dashboard"
-            className="rounded-xl px-4 py-2 text-sm font-medium text-[#354F52] transition hover:text-[#2F3E46]"
-          >
-            Log in
-          </Link>
+        <div className="flex-1" />
 
+        <div className="flex items-center gap-2">
           <Link
-            href="/dashboard"
-            className="rounded-xl bg-[#84A98C] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#52796F]"
+            href="/login"
+            className="rounded-md border border-transparent px-3.5 py-1.5 text-[13px] font-medium text-[var(--sf-text-muted)] transition hover:bg-[var(--sf-surface-muted)] hover:text-[var(--sf-text)]"
           >
-            Sign up
+            Log In
+          </Link>
+          <Link
+            href="/register"
+            className="rounded-md bg-[var(--sf-text)] px-3.5 py-1.5 text-[13px] font-medium text-white transition hover:bg-[#333333]"
+          >
+            Get Started
           </Link>
         </div>
       </div>

@@ -1,15 +1,31 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
-import { clearPendingPrompt, readPendingPrompt, savePendingPrompt } from "@/lib/pendingPrompt";
+import {
+  clearPendingPrompt,
+  readPendingPrompt,
+  savePendingPrompt,
+} from "@/lib/pendingPrompt";
 import { generateProjectFromPrompt } from "@/lib/promptLayout";
 import { getProjects, upsertProject } from "@/lib/storage";
 import { Project } from "@/types/types";
 import ProjectModal from "@/components/dashboard/ProjectModal";
 import ProjectPreviewCard from "@/components/dashboard/ProjectPreviewCard";
+
+const SIDEBAR_SECTIONS = [
+  {
+    title: "Workspace",
+    items: ["Projects", "AI Studio", "Imports", "Shared Links"],
+  },
+  {
+    title: "Library",
+    items: ["Assets", "Templates", "Favorites"],
+  },
+];
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -19,6 +35,7 @@ export default function DashboardPage() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
   const [isResumingPrompt, setIsResumingPrompt] = useState(false);
   const resumeAttemptedRef = useRef(false);
 
@@ -79,84 +96,219 @@ export default function DashboardPage() {
     void resume();
   }, [router, searchParams]);
 
+  const filteredProjects = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return projects;
+    return projects.filter((project) => {
+      return (
+        project.name.toLowerCase().includes(query) ||
+        `${project.room.width}x${project.room.depth}`.includes(query)
+      );
+    });
+  }, [projects, search]);
+
+  const projectCount = projects.length;
+  const assetCount = projects.reduce((sum, project) => sum + project.items.length, 0);
+  const importCount = projects.filter((project) =>
+    /drawio|import|xml|html/i.test(project.name),
+  ).length;
+
   return (
     <ProtectedRoute>
-      <main className="min-h-screen bg-transparent px-6 py-12">
-        <div className="mx-auto max-w-7xl">
-          <div className="mb-12 flex items-start justify-between gap-6">
-            <div>
-              <h1 className="text-5xl font-semibold tracking-tight text-[#2F3E46]">
-                Projects
-              </h1>
-              <p className="mt-3 text-xl text-[#52796F]">
-                Manage your venue layouts
-              </p>
+      <main className="flex min-h-screen flex-col bg-[var(--sf-bg)]">
+        <div className="flex h-[52px] items-center gap-4 border-b border-[var(--sf-border)] bg-white px-6">
+          <Link href="/" className="flex items-center gap-2.5">
+            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-[var(--sf-text)] text-[10px] font-semibold text-white">
+              SF
             </div>
+            <div className="text-[15px] font-semibold tracking-[-0.03em] text-[var(--sf-text)]">
+              SpaceForge
+            </div>
+          </Link>
 
-            <div className="mt-8 flex items-center gap-3">
-              <div className="hidden rounded-2xl bg-white px-4 py-3 text-sm text-[#52796F] shadow-[0_12px_30px_rgba(47,62,70,0.04)] md:block">
-                {user?.email}
+          <div className="hidden items-center gap-1 md:flex">
+            {["Dashboard", "Projects", "Editor"].map((tab, index) => (
+              <div
+                key={tab}
+                className={`rounded-md px-3 py-1.5 text-[13px] ${
+                  index === 0
+                    ? "bg-[var(--sf-surface-muted)] font-medium text-[var(--sf-text)]"
+                    : "text-[var(--sf-text-muted)]"
+                }`}
+              >
+                {tab}
               </div>
-              <button
-                onClick={() => setOpen(true)}
-                className="inline-flex items-center gap-3 rounded-2xl bg-[#84A98C] px-6 py-4 text-base font-medium text-white transition hover:bg-[#52796F]"
-              >
-                <span className="text-xl leading-none">＋</span>
-                <span>New project</span>
-              </button>
-              <button
-                onClick={logout}
-                className="inline-flex items-center gap-2 rounded-2xl border border-black/10 bg-white px-5 py-4 text-base font-medium text-[#52796F] transition hover:bg-[#F7F8F5] hover:text-[#2F3E46]"
-              >
-                Logout
-              </button>
-            </div>
+            ))}
           </div>
 
-          {isResumingPrompt ? (
-            <div className="rounded-[28px] border border-black/5 bg-white p-16 text-center shadow-[0_12px_40px_rgba(47,62,70,0.04)]">
-              <div className="text-2xl font-semibold text-[#2F3E46]">
-                Generating your layout...
+          <div className="flex-1" />
+
+          <div className="text-[12px] text-[var(--sf-text-muted)]">{user?.email}</div>
+          <button
+            onClick={logout}
+            className="rounded-[6px] border border-[var(--sf-border-strong)] px-3 py-1.5 text-[13px] font-medium text-[var(--sf-text)] transition hover:bg-[var(--sf-surface-soft)]"
+          >
+            Logout
+          </button>
+        </div>
+
+        <div className="flex min-h-0 flex-1">
+          <aside className="sf-scroll hidden w-[220px] shrink-0 overflow-y-auto border-r border-[var(--sf-border)] bg-white px-3 py-4 lg:block">
+            {SIDEBAR_SECTIONS.map((section) => (
+              <div key={section.title} className="mb-5">
+                <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--sf-text-faint)]">
+                  {section.title}
+                </div>
+                <div className="mt-1 space-y-1">
+                  {section.items.map((item, index) => (
+                    <div
+                      key={item}
+                      className={`rounded-[6px] px-3 py-2 text-[13px] ${
+                        section.title === "Workspace" && index === 0
+                          ? "bg-[var(--sf-surface-muted)] font-medium text-[var(--sf-text)]"
+                          : "text-[var(--sf-text-muted)]"
+                      }`}
+                    >
+                      {item}
+                    </div>
+                  ))}
+                </div>
               </div>
-              <p className="mt-3 text-base text-[#52796F]">
-                We picked up your prompt after login and are building the scene now.
-              </p>
+            ))}
+          </aside>
+
+          <section className="sf-scroll min-w-0 flex-1 overflow-y-auto p-7">
+            <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <h1 className="text-[18px] font-semibold tracking-[-0.03em] text-[var(--sf-text)]">
+                  Projects
+                </h1>
+                <p className="mt-1 text-[14px] text-[var(--sf-text-muted)]">
+                  Manage venue scenes, imports, prompt generation, and sharing from one workspace.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-2 rounded-[6px] border border-[var(--sf-border)] bg-[var(--sf-surface-soft)] px-3 py-2">
+                  <span className="text-[13px] text-[var(--sf-text-faint)]">⌕</span>
+                  <input
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Search projects"
+                    className="bg-transparent text-[13px] text-[var(--sf-text)] placeholder:text-[var(--sf-text-faint)]"
+                  />
+                </div>
+                <button
+                  onClick={() => setOpen(true)}
+                  className="rounded-[6px] bg-[var(--sf-text)] px-4 py-2 text-[13px] font-medium text-white transition hover:bg-[#333333]"
+                >
+                  New Project
+                </button>
+              </div>
             </div>
-          ) : loading ? (
-            <div className="rounded-[28px] border border-black/5 bg-white p-16 text-center shadow-[0_12px_40px_rgba(47,62,70,0.04)]">
-              <div className="text-2xl font-semibold text-[#2F3E46]">
+
+            <div className="mb-6 grid gap-3 md:grid-cols-3">
+              <div className="sf-panel p-4">
+                <div className="text-[12px] text-[var(--sf-text-faint)]">PROJECTS</div>
+                <div className="mt-2 text-[28px] font-semibold tracking-[-0.05em] text-[var(--sf-text)]">
+                  {projectCount}
+                </div>
+              </div>
+              <div className="sf-panel p-4">
+                <div className="text-[12px] text-[var(--sf-text-faint)]">SCENE OBJECTS</div>
+                <div className="mt-2 text-[28px] font-semibold tracking-[-0.05em] text-[var(--sf-text)]">
+                  {assetCount}
+                </div>
+              </div>
+              <div className="sf-panel p-4">
+                <div className="text-[12px] text-[var(--sf-text-faint)]">IMPORT-BASED</div>
+                <div className="mt-2 text-[28px] font-semibold tracking-[-0.05em] text-[var(--sf-text)]">
+                  {importCount}
+                </div>
+              </div>
+            </div>
+
+            <div className="mb-6 grid gap-4 xl:grid-cols-[1.2fr,0.8fr]">
+              <div className="sf-panel p-5">
+                <div className="text-[15px] font-semibold text-[var(--sf-text)]">
+                  SpaceForge Flow
+                </div>
+                <p className="mt-2 text-[13px] leading-6 text-[var(--sf-text-muted)]">
+                  Use the same backend flows you already built: create manual
+                  layouts, import draw.io/XML/HTML, generate from prompts,
+                  edit in 2D/3D, then share or export.
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {["Prompt to 3D", "draw.io Import", "2D/3D Editor", "Share Links", "PNG / PDF Export"].map((item) => (
+                    <span key={item} className="sf-chip px-3 py-1.5 text-[12px]">
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="sf-panel p-5">
+                <div className="text-[15px] font-semibold text-[var(--sf-text)]">
+                  Quick Launch
+                </div>
+                <div className="mt-4 flex flex-col gap-2">
+                  <button
+                    onClick={() => setOpen(true)}
+                    className="rounded-[6px] bg-[var(--sf-accent-blue)] px-4 py-2 text-left text-[13px] font-medium text-white transition hover:bg-[#1d4ed8]"
+                  >
+                    Create, import, or generate a project
+                  </button>
+                  <Link
+                    href="/"
+                    className="rounded-[6px] border border-[var(--sf-border-strong)] px-4 py-2 text-[13px] font-medium text-[var(--sf-text)] transition hover:bg-[var(--sf-surface-soft)]"
+                  >
+                    Open landing pipelines
+                  </Link>
+                </div>
+              </div>
+            </div>
+
+            {isResumingPrompt ? (
+              <div className="sf-panel mb-6 p-8 text-center">
+                <div className="text-[22px] font-semibold tracking-[-0.03em] text-[var(--sf-text)]">
+                  Generating your layout...
+                </div>
+                <p className="mt-3 text-[14px] text-[var(--sf-text-muted)]">
+                  Your saved landing prompt was restored after login and is being converted now.
+                </p>
+              </div>
+            ) : loading ? (
+              <div className="sf-panel mb-6 p-8 text-center text-[14px] text-[var(--sf-text-muted)]">
                 Loading projects...
               </div>
-            </div>
-          ) : error ? (
-            <div className="rounded-[28px] border border-red-500/20 bg-red-500/10 p-8 text-center text-red-400">
-              {error}
-            </div>
-          ) : projects.length === 0 ? (
-            <div className="rounded-[28px] border border-dashed border-black/10 bg-white p-16 text-center shadow-[0_12px_40px_rgba(47,62,70,0.04)]">
-              <div className="text-2xl font-semibold text-[#2F3E46]">
-                No projects yet
+            ) : error ? (
+              <div className="mb-6 rounded-[8px] border border-red-200 bg-red-50 p-5 text-[14px] text-red-600">
+                {error}
               </div>
-              <p className="mx-auto mt-3 max-w-lg text-base leading-7 text-[#52796F]">
-                Create your first venue project to start building layouts,
-                importing floor plans, or generating scenes from prompts.
-              </p>
-
-              <button
-                onClick={() => setOpen(true)}
-                className="mt-8 inline-flex items-center gap-3 rounded-2xl bg-[#84A98C] px-6 py-4 text-base font-medium text-white transition hover:bg-[#52796F]"
-              >
-                <span className="text-xl leading-none">＋</span>
-                <span>Create first project</span>
-              </button>
-            </div>
-          ) : (
-            <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-3">
-              {projects.map((project) => (
-                <ProjectPreviewCard key={project.id} project={project} />
-              ))}
-            </div>
-          )}
+            ) : filteredProjects.length === 0 ? (
+              <div className="sf-panel p-10 text-center">
+                <div className="text-[24px] font-semibold tracking-[-0.04em] text-[var(--sf-text)]">
+                  No projects yet
+                </div>
+                <p className="mx-auto mt-3 max-w-[640px] text-[14px] leading-7 text-[var(--sf-text-muted)]">
+                  Create your first venue layout from a prompt, import an
+                  existing floor plan, or start manually in 2D or 3D.
+                </p>
+                <button
+                  onClick={() => setOpen(true)}
+                  className="mt-6 rounded-[6px] bg-[var(--sf-text)] px-4 py-2 text-[13px] font-medium text-white transition hover:bg-[#333333]"
+                >
+                  Create First Project
+                </button>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                {filteredProjects.map((project) => (
+                  <ProjectPreviewCard key={project.id} project={project} />
+                ))}
+              </div>
+            )}
+          </section>
         </div>
 
         <ProjectModal
