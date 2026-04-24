@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { SceneCanvas } from "@/components/scene/SceneCanvas";
 import { getSharedProjectByToken } from "@/lib/shareProject";
 import { Project } from "@/types/types";
 
-export default function SharedProjectPage() {
+function SharedProjectContent() {
   const searchParams = useSearchParams();
   const token = searchParams.get("s") || "";
   const [project, setProject] = useState<Project | null>(null);
@@ -96,5 +96,23 @@ export default function SharedProjectPage() {
         <SceneCanvas projectOverride={project} readOnly />
       </div>
     </main>
+  );
+}
+
+export default function SharedProjectPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center bg-[var(--sf-bg)] px-6">
+          <div className="max-w-xl rounded-[12px] border border-[var(--sf-border)] bg-white p-8 shadow-[var(--sf-shadow-md)]">
+            <div className="text-[28px] font-semibold tracking-[-0.04em] text-[var(--sf-text)]">
+              Loading shared layout...
+            </div>
+          </div>
+        </main>
+      }
+    >
+      <SharedProjectContent />
+    </Suspense>
   );
 }
