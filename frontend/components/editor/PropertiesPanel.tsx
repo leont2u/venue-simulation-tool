@@ -66,7 +66,10 @@ export function PropertiesPanel() {
   if (!project) return null;
 
   return (
-    <aside className="sf-scroll flex w-[292px] shrink-0 flex-col overflow-y-auto border-l border-[#ececec] bg-white px-5 py-5">
+    <aside
+      data-tour="editor-properties"
+      className="sf-scroll flex w-[292px] shrink-0 flex-col overflow-y-auto border-l border-[#ececec] bg-white px-5 py-5"
+    >
       {!item ? (
         <div className="space-y-7">
           <section className="space-y-3">

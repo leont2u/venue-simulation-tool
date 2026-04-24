@@ -65,7 +65,10 @@ export function AssetCatalog() {
     }));
 
   return (
-    <aside className="flex shrink-0 border-r border-[#ececec] bg-white">
+    <aside
+      data-tour="editor-assets"
+      className="flex shrink-0 border-r border-[#ececec] bg-white"
+    >
       <div className="flex w-[72px] flex-col items-center gap-4 border-r border-[#ececec] py-6">
         {[
           { mode: "select" as const, icon: MousePointer2 },

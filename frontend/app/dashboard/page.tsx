@@ -5,16 +5,21 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { OnboardingWizard } from "@/components/dashboard/OnboardingWizard";
 import {
   clearPendingPrompt,
   readPendingPrompt,
   savePendingPrompt,
 } from "@/lib/pendingPrompt";
+import {
+  hasCompletedOnboarding,
+  markOnboardingComplete,
+} from "@/lib/onboarding";
 import { PROJECT_TEMPLATES } from "@/lib/projectTemplates";
 import { generateProjectFromPrompt } from "@/lib/promptLayout";
 import { getProjects, upsertProject } from "@/lib/storage";
 import { Project } from "@/types/types";
-import ProjectModal from "@/components/dashboard/ProjectModal";
+import ProjectModal, { ProjectPipeline } from "@/components/dashboard/ProjectModal";
 import ProjectPreviewCard from "@/components/dashboard/ProjectPreviewCard";
 
 const SIDEBAR_SECTIONS = [
@@ -34,6 +39,9 @@ export default function DashboardPage() {
   const { user, logout } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [open, setOpen] = useState(false);
+  const [projectModalStep, setProjectModalStep] = useState<ProjectPipeline>("menu");
+  const [continueTourInEditor, setContinueTourInEditor] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -57,6 +65,14 @@ export default function DashboardPage() {
   useEffect(() => {
     void loadProjects();
   }, [loadProjects]);
+
+  useEffect(() => {
+    if (!user?.email || loading || isResumingPrompt) return;
+    if (projects.length > 0) return;
+    if (hasCompletedOnboarding(user.email)) return;
+
+    setShowOnboarding(true);
+  }, [isResumingPrompt, loading, projects.length, user?.email]);
 
   useEffect(() => {
     const shouldResumePrompt = searchParams.get("resumePrompt") === "1";
@@ -114,6 +130,22 @@ export default function DashboardPage() {
     /drawio|import|xml|html/i.test(project.name),
   ).length;
 
+  const openProjectCreation = useCallback((
+    initialStep: ProjectPipeline = "menu",
+    continueIntoEditor = false,
+  ) => {
+    setProjectModalStep(initialStep);
+    setContinueTourInEditor(continueIntoEditor);
+    setOpen(true);
+  }, []);
+
+  const completeOnboarding = useCallback(() => {
+    if (user?.email) {
+      markOnboardingComplete(user.email);
+    }
+    setShowOnboarding(false);
+  }, [user?.email]);
+
   return (
     <ProtectedRoute>
       <main className="flex min-h-screen flex-col bg-[var(--sf-bg)]">
@@ -145,6 +177,12 @@ export default function DashboardPage() {
           <div className="flex-1" />
 
           <div className="text-[12px] text-[var(--sf-text-muted)]">{user?.email}</div>
+          <button
+            onClick={() => setShowOnboarding(true)}
+            className="rounded-[6px] border border-[var(--sf-border-strong)] px-3 py-1.5 text-[13px] font-medium text-[var(--sf-text)] transition hover:bg-[var(--sf-surface-soft)]"
+          >
+            Onboarding
+          </button>
           <button
             onClick={logout}
             className="rounded-[6px] border border-[var(--sf-border-strong)] px-3 py-1.5 text-[13px] font-medium text-[var(--sf-text)] transition hover:bg-[var(--sf-surface-soft)]"
@@ -200,7 +238,8 @@ export default function DashboardPage() {
                   />
                 </div>
                 <button
-                  onClick={() => setOpen(true)}
+                  onClick={() => openProjectCreation()}
+                  data-tour="new-project"
                   className="rounded-[6px] bg-[var(--sf-text)] px-4 py-2 text-[13px] font-medium text-white transition hover:bg-[#333333]"
                 >
                   New Project
@@ -254,10 +293,24 @@ export default function DashboardPage() {
                 </div>
                 <div className="mt-4 flex flex-col gap-2">
                   <button
-                    onClick={() => setOpen(true)}
+                    onClick={() => openProjectCreation()}
                     className="rounded-[6px] bg-[var(--sf-accent-blue)] px-4 py-2 text-left text-[13px] font-medium text-white transition hover:bg-[#1d4ed8]"
                   >
                     Create, import, or generate a project
+                  </button>
+                  <button
+                    onClick={() => openProjectCreation("prompt")}
+                    data-tour="ai-generate"
+                    className="rounded-[6px] bg-[#7c3aed] px-4 py-2 text-left text-[13px] font-medium text-white transition hover:bg-[#6d28d9]"
+                  >
+                    Generate from AI prompt
+                  </button>
+                  <button
+                    onClick={() => openProjectCreation("upload")}
+                    data-tour="import-launch"
+                    className="rounded-[6px] border border-[var(--sf-border-strong)] px-4 py-2 text-left text-[13px] font-medium text-[var(--sf-text)] transition hover:bg-[var(--sf-surface-soft)]"
+                  >
+                    Import draw.io / XML / HTML
                   </button>
                   <Link
                     href="/"
@@ -269,7 +322,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="mb-6">
+            <div className="mb-6" data-tour="templates-section">
               <div className="mb-3 flex items-center justify-between">
                 <div>
                   <div className="text-[15px] font-semibold text-[var(--sf-text)]">
@@ -280,7 +333,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 <button
-                  onClick={() => setOpen(true)}
+                  onClick={() => openProjectCreation("template")}
                   className="rounded-[6px] border border-[var(--sf-border-strong)] px-4 py-2 text-[13px] font-medium text-[var(--sf-text)] transition hover:bg-[var(--sf-surface-soft)]"
                 >
                   Open Template Picker
@@ -346,7 +399,7 @@ export default function DashboardPage() {
                   existing floor plan, or start manually in 2D or 3D.
                 </p>
                 <button
-                  onClick={() => setOpen(true)}
+                  onClick={() => openProjectCreation()}
                   className="mt-6 rounded-[6px] bg-[var(--sf-text)] px-4 py-2 text-[13px] font-medium text-white transition hover:bg-[#333333]"
                 >
                   Create First Project
@@ -364,10 +417,27 @@ export default function DashboardPage() {
 
         <ProjectModal
           open={open}
-          onClose={() => setOpen(false)}
+          onClose={() => {
+            setOpen(false);
+            setContinueTourInEditor(false);
+          }}
           onProjectCreated={loadProjects}
           onOpenProject={(projectId) => router.push(`/editor/${projectId}`)}
+          initialStep={projectModalStep}
+          continueTourInEditor={continueTourInEditor}
         />
+        {user?.email ? (
+          <OnboardingWizard
+            key={`${user.email}-${showOnboarding ? "open" : "closed"}`}
+            open={showOnboarding}
+            onClose={completeOnboarding}
+            onFinish={completeOnboarding}
+            onLaunchPipeline={(pipeline) => {
+              completeOnboarding();
+              openProjectCreation(pipeline, true);
+            }}
+          />
+        ) : null}
       </main>
     </ProtectedRoute>
   );

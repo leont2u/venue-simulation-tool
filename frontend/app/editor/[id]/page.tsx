@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
+import { EditorOnboardingTour } from "@/components/editor/EditorOnboardingTour";
 import { useEditorStore } from "@/store/UseEditorStore";
 import { PropertiesPanel } from "@/components/editor/PropertiesPanel";
 import { EditorShortcuts } from "@/components/editor/EditorShortcuts";
@@ -10,6 +11,7 @@ import { TopToolbar } from "@/components/editor/TopToolBar";
 import { AssetCatalog } from "@/components/editor/AssetsCatalog";
 import { SceneCanvas } from "@/components/scene/SceneCanvas";
 import { FloorplanCanvas } from "@/components/editor/FloorplanCanvas";
+import { clearQueuedEditorTour, hasQueuedEditorTour } from "@/lib/onboardingTour";
 
 export default function EditorPage() {
   const params = useParams();
@@ -21,12 +23,26 @@ export default function EditorPage() {
   const setActiveView = useEditorStore((s) => s.setActiveView);
   const isProjectLoading = useEditorStore((s) => s.isProjectLoading);
   const projectError = useEditorStore((s) => s.projectError);
+  const [showEditorTour, setShowEditorTour] = useState(false);
 
   useEffect(() => {
     if (id) {
       void loadProject(id);
     }
   }, [id, loadProject]);
+
+  useEffect(() => {
+    if (!project || !hasQueuedEditorTour()) return;
+
+    clearQueuedEditorTour();
+    setActiveView("2d");
+
+    const frameId = window.requestAnimationFrame(() => {
+      setShowEditorTour(true);
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [project, setActiveView]);
 
   if (!id) {
     return (
@@ -67,8 +83,14 @@ export default function EditorPage() {
 
         <div className="flex min-h-0 flex-1">
           <AssetCatalog />
-          <div className="relative min-w-0 flex-1 bg-[#f3f3f0]">
-            <div className="absolute right-8 top-4 z-20 flex items-center rounded-[12px] border border-[#dcdcdc] bg-white p-1 shadow-sm">
+          <div
+            data-tour="editor-canvas"
+            className="relative min-w-0 flex-1 bg-[#f3f3f0]"
+          >
+            <div
+              data-tour="editor-view-toggle"
+              className="absolute right-8 top-4 z-20 flex items-center rounded-[12px] border border-[#dcdcdc] bg-white p-1 shadow-sm"
+            >
               {(["2d", "3d"] as const).map((view) => (
                 <button
                   key={view}
@@ -90,6 +112,12 @@ export default function EditorPage() {
         </div>
 
         <EditorShortcuts />
+        <EditorOnboardingTour
+          key={showEditorTour ? "open" : "closed"}
+          open={showEditorTour}
+          onClose={() => setShowEditorTour(false)}
+          onFinish={() => setShowEditorTour(false)}
+        />
       </div>
     </ProtectedRoute>
   );
