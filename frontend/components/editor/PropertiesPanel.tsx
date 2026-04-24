@@ -342,18 +342,14 @@ export function PropertiesPanel() {
             ))}
           </section>
 
-          <section className="space-y-4">
-            <SectionTitle>Appearance</SectionTitle>
-            <label className="block">
-              <div className="mb-2 text-[13px] text-[#4a4a4a]">Color</div>
-              <input
-                type="color"
-                value={item.color || "#ffffff"}
-                onChange={(event) => updateItem(item.id, { color: event.target.value })}
-                className="h-11 w-full rounded-[10px] border border-[#d8d8d8] bg-white p-2"
-              />
-            </label>
-          </section>
+          {item.attribution ? (
+            <section className="space-y-3">
+              <SectionTitle>Source</SectionTitle>
+              <div className="text-[13px] leading-6 text-[#4a4a4a]">
+                {item.attribution}
+              </div>
+            </section>
+          ) : null}
         </div>
       )}
     </aside>

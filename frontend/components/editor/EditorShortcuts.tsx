@@ -3,6 +3,17 @@
 import { useEffect } from "react";
 import { useEditorStore } from "@/store/UseEditorStore";
 
+function isTypingTarget(target: EventTarget | null) {
+  const element = target as HTMLElement | null;
+  if (!element) return false;
+
+  return Boolean(
+    element.closest(
+      "input, textarea, select, [contenteditable='true'], [contenteditable='']",
+    ),
+  );
+}
+
 export function EditorShortcuts() {
   const selectedIds = useEditorStore((s) => s.selectedIds);
   const project = useEditorStore((s) => s.project);
@@ -11,11 +22,14 @@ export function EditorShortcuts() {
   const duplicateSelected = useEditorStore((s) => s.duplicateSelected);
   const moveSelectedBy = useEditorStore((s) => s.moveSelectedBy);
   const setToolMode = useEditorStore((s) => s.setToolMode);
+  const setSelectedIds = useEditorStore((s) => s.setSelectedIds);
+  const clearSelection = useEditorStore((s) => s.clearSelection);
   const undo = useEditorStore((s) => s.undo);
   const redo = useEditorStore((s) => s.redo);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      if (isTypingTarget(e.target)) return;
       if (!project) return;
 
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
@@ -31,6 +45,18 @@ export function EditorShortcuts() {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "d") {
         e.preventDefault();
         duplicateSelected();
+        return;
+      }
+
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "a") {
+        e.preventDefault();
+        setSelectedIds(project.items.map((item) => item.id));
+        return;
+      }
+
+      if (e.key === "Escape") {
+        e.preventDefault();
+        clearSelection();
         return;
       }
 
@@ -74,25 +100,25 @@ export function EditorShortcuts() {
 
       if (e.key === "ArrowLeft") {
         e.preventDefault();
-        moveSelectedBy(-0.25, 0);
+        moveSelectedBy(e.shiftKey ? -1 : -0.25, 0);
         return;
       }
 
       if (e.key === "ArrowRight") {
         e.preventDefault();
-        moveSelectedBy(0.25, 0);
+        moveSelectedBy(e.shiftKey ? 1 : 0.25, 0);
         return;
       }
 
       if (e.key === "ArrowUp") {
         e.preventDefault();
-        moveSelectedBy(0, -0.25);
+        moveSelectedBy(0, e.shiftKey ? -1 : -0.25);
         return;
       }
 
       if (e.key === "ArrowDown") {
         e.preventDefault();
-        moveSelectedBy(0, 0.25);
+        moveSelectedBy(0, e.shiftKey ? 1 : 0.25);
         return;
       }
 
@@ -113,8 +139,10 @@ export function EditorShortcuts() {
     updateItem,
     deleteSelected,
     duplicateSelected,
+    clearSelection,
     moveSelectedBy,
     redo,
+    setSelectedIds,
     setToolMode,
     undo,
   ]);

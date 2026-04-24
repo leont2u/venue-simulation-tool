@@ -4,7 +4,13 @@ import { Environment, Grid, OrbitControls, TransformControls } from "@react-thre
 import { Canvas, useThree } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
-import { AlignmentGuide, clampToRoom, collidesWithOthers, snapPositionToNeighbors } from "@/lib/editorPhysics";
+import {
+  AlignmentGuide,
+  clampToRoom,
+  collidesWithOthers,
+  getItemFootprint,
+  snapPositionToNeighbors,
+} from "@/lib/editorPhysics";
 import {
   getCableColor,
   getCablePathPoints,
@@ -16,6 +22,111 @@ import { RoomShell } from "@/components/scene/RoomShell";
 import { PrimitiveAsset } from "@/components/scene/PrimitiveAsset";
 import { useEditorStore } from "@/store/UseEditorStore";
 import { Project } from "@/types/types";
+
+type SelectionRect = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  mode: "select" | "deselect";
+};
+
+type MarqueeState = {
+  startX: number;
+  startY: number;
+  currentX: number;
+  currentY: number;
+  mode: "select" | "deselect";
+};
+
+type DragState = {
+  itemId: string;
+  selectedIds: string[];
+  startPoint: THREE.Vector3;
+  originalItems: Map<string, { x: number; y: number; z: number }>;
+  beforeProject: Project;
+  didMove: boolean;
+  pointerId: number;
+  raf: number | null;
+  latestDelta: THREE.Vector3;
+};
+
+type CanvasPointerEvent = React.PointerEvent<HTMLDivElement> & {
+  sourceEvent?: PointerEvent;
+  ray?: THREE.Ray;
+};
+
+const DRAG_THRESHOLD = 0.04;
+const POINTER_SELECT_THRESHOLD = 4;
+const GROUND_PLANE = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+
+function rectFromPoints(a: { x: number; y: number }, b: { x: number; y: number }) {
+  const left = Math.min(a.x, b.x);
+  const top = Math.min(a.y, b.y);
+  return {
+    left,
+    top,
+    width: Math.abs(a.x - b.x),
+    height: Math.abs(a.y - b.y),
+  };
+}
+
+function projectItemToScreen(
+  item: { x: number; y: number; z: number },
+  camera: THREE.Camera,
+  bounds: DOMRect,
+) {
+  const projected = new THREE.Vector3(item.x, item.y, item.z).project(camera);
+  return {
+    x: bounds.left + ((projected.x + 1) / 2) * bounds.width,
+    y: bounds.top + ((1 - projected.y) / 2) * bounds.height,
+  };
+}
+
+function pointInsideRect(point: { x: number; y: number }, rect: SelectionRect) {
+  return (
+    point.x >= rect.left &&
+    point.x <= rect.left + rect.width &&
+    point.y >= rect.top &&
+    point.y <= rect.top + rect.height
+  );
+}
+
+function itemFullyInsideRect(
+  item: Project["items"][number],
+  rect: SelectionRect,
+  camera: THREE.Camera,
+  bounds: DOMRect,
+) {
+  const footprint = getItemFootprint(item);
+  const corners = [
+    { x: item.x - footprint.halfWidth, y: item.y, z: item.z - footprint.halfDepth },
+    { x: item.x + footprint.halfWidth, y: item.y, z: item.z - footprint.halfDepth },
+    { x: item.x - footprint.halfWidth, y: item.y, z: item.z + footprint.halfDepth },
+    { x: item.x + footprint.halfWidth, y: item.y, z: item.z + footprint.halfDepth },
+  ];
+
+  return corners.every((corner) =>
+    pointInsideRect(projectItemToScreen(corner, camera, bounds), rect),
+  );
+}
+
+function ViewportBridge({
+  cameraRef,
+  elementRef,
+}: {
+  cameraRef: React.MutableRefObject<THREE.Camera | null>;
+  elementRef: React.MutableRefObject<HTMLCanvasElement | null>;
+}) {
+  const { camera, gl } = useThree();
+
+  useEffect(() => {
+    cameraRef.current = camera;
+    elementRef.current = gl.domElement;
+  }, [camera, cameraRef, elementRef, gl]);
+
+  return null;
+}
 
 function CameraCoverage({
   position,
@@ -53,62 +164,108 @@ function TransformGizmo({
   onGuidesChange,
 }: {
   project: Project;
-  orbitRef: React.MutableRefObject<THREE.EventDispatcher | null>;
+  orbitRef: React.MutableRefObject<{ enabled: boolean } | null>;
   onGuidesChange: (guides: AlignmentGuide[]) => void;
 }) {
   const selectedIds = useEditorStore((s) => s.selectedIds);
   const toolMode = useEditorStore((s) => s.toolMode);
-  const updateItem = useEditorStore((s) => s.updateItem);
+  const updateItemsTransient = useEditorStore((s) => s.updateItemsTransient);
+  const commitProjectSnapshot = useEditorStore((s) => s.commitProjectSnapshot);
   const snapToGrid = useEditorStore((s) => s.project?.sceneSettings?.snapToGrid ?? true);
-  const transformRef = useRef<THREE.EventDispatcher | null>(null);
+  const transformRef = useRef<{
+    addEventListener: (type: string, fn: () => void) => void;
+    removeEventListener: (type: string, fn: () => void) => void;
+    dragging: boolean;
+  } | null>(null);
   const targetRef = useRef<THREE.Object3D>(null);
+  const beforeTransformRef = useRef<Project | null>(null);
+  const transformStartRef = useRef<{
+    center: THREE.Vector3;
+    items: Map<string, { x: number; y: number; z: number }>;
+  } | null>(null);
   const lastValidRef = useRef<{
     position: THREE.Vector3;
     rotationY: number;
     scale: [number, number, number];
   } | null>(null);
 
-  const item = useMemo(() => {
-    if (selectedIds.length !== 1) return null;
-    return project.items.find((entry) => entry.id === selectedIds[0]) ?? null;
+  const selectedItems = useMemo(() => {
+    const selected = new Set(selectedIds);
+    return project.items.filter((entry) => selected.has(entry.id));
   }, [project.items, selectedIds]);
+
+  const primaryItem = selectedItems[0] ?? null;
+
+  const transformCenter = useMemo(() => {
+    if (selectedItems.length === 0) return new THREE.Vector3();
+    const center = new THREE.Vector3();
+    for (const item of selectedItems) center.add(new THREE.Vector3(item.x, item.y, item.z));
+    return center.divideScalar(selectedItems.length);
+  }, [selectedItems]);
 
   useEffect(() => {
     if (!transformRef.current || !orbitRef.current) return;
 
-    const controls = transformRef.current as unknown as {
-      addEventListener: (type: string, fn: () => void) => void;
-      removeEventListener: (type: string, fn: () => void) => void;
-      dragging: boolean;
-    };
-    const orbit = orbitRef.current as unknown as { enabled: boolean };
+    const controls = transformRef.current;
+    const orbit = orbitRef.current;
 
     const onDragChange = () => {
+      if (controls.dragging && !beforeTransformRef.current) {
+        beforeTransformRef.current = project;
+        transformStartRef.current = {
+          center: transformCenter.clone(),
+          items: new Map(
+            selectedItems.map((entry) => [
+              entry.id,
+              { x: entry.x, y: entry.y, z: entry.z },
+            ]),
+          ),
+        };
+      }
+
+      if (!controls.dragging && beforeTransformRef.current) {
+        commitProjectSnapshot(beforeTransformRef.current);
+        beforeTransformRef.current = null;
+        transformStartRef.current = null;
+      }
+
       orbit.enabled = !controls.dragging;
     };
 
     controls.addEventListener("dragging-changed", onDragChange);
     return () => controls.removeEventListener("dragging-changed", onDragChange);
-  }, [orbitRef, transformRef]);
+  }, [
+    commitProjectSnapshot,
+    orbitRef,
+    project,
+    selectedItems,
+    transformCenter,
+    transformRef,
+  ]);
 
   useEffect(() => {
-    if (!item) return;
+    if (!primaryItem) return;
     lastValidRef.current = {
-      position: new THREE.Vector3(item.x, item.y, item.z),
-      rotationY: item.rotationY,
-      scale: [...item.scale],
+      position: new THREE.Vector3(primaryItem.x, primaryItem.y, primaryItem.z),
+      rotationY: primaryItem.rotationY,
+      scale: [...primaryItem.scale],
     };
-  }, [item]);
+  }, [primaryItem]);
 
-  if (!item || toolMode === "select" || toolMode === "connect") {
+  if (
+    !primaryItem ||
+    toolMode === "select" ||
+    toolMode === "connect" ||
+    (selectedItems.length > 1 && toolMode !== "move")
+  ) {
     onGuidesChange([]);
     return null;
   }
 
   return (
     <TransformControls
-      ref={transformRef}
-      mode={toolMode === "scale" ? "scale" : toolMode}
+      ref={transformRef as never}
+      mode={toolMode === "move" ? "translate" : toolMode}
       translationSnap={snapToGrid ? 0.25 : undefined}
       rotationSnap={snapToGrid ? Math.PI / 12 : undefined}
       scaleSnap={snapToGrid ? 0.1 : undefined}
@@ -116,6 +273,31 @@ function TransformGizmo({
         const object = targetRef.current;
         if (!object) return;
 
+        if (selectedItems.length > 1) {
+          const transformStart = transformStartRef.current;
+          if (!transformStart) return;
+
+          const delta = object.position.clone().sub(transformStart.center);
+          updateItemsTransient(selectedIds, (item) => {
+            const original = transformStart.items.get(item.id);
+            if (!original) return item;
+            const candidate = {
+              ...item,
+              x: original.x + delta.x,
+              y: original.y,
+              z: original.z + delta.z,
+            };
+            const clamped = clampToRoom(candidate, project.room);
+            return {
+              ...candidate,
+              x: snapToGrid ? Math.round(clamped.x * 4) / 4 : clamped.x,
+              z: snapToGrid ? Math.round(clamped.z * 4) / 4 : clamped.z,
+            };
+          });
+          return;
+        }
+
+        const item = primaryItem;
         const others = project.items.filter((entry) => entry.id !== item.id);
         const snapped = snapPositionToNeighbors(
           {
@@ -178,20 +360,23 @@ function TransformGizmo({
         };
         onGuidesChange(snapped.guides);
 
-        updateItem(item.id, {
+        updateItemsTransient([item.id], () => ({
+          ...item,
           x: candidate.x,
           y: candidate.y,
           z: candidate.z,
           rotationY: candidate.rotationY,
           scale: candidate.scale,
-        });
+        }));
       }}
     >
       <group
         ref={targetRef}
-        position={[item.x, item.y, item.z]}
-        rotation={[0, item.rotationY, 0]}
-        scale={item.scale}
+        position={[transformCenter.x, transformCenter.y, transformCenter.z]}
+        rotation={
+          selectedItems.length === 1 ? [0, primaryItem.rotationY, 0] : [0, 0, 0]
+        }
+        scale={selectedItems.length === 1 ? primaryItem.scale : [1, 1, 1]}
       />
     </TransformControls>
   );
@@ -200,9 +385,9 @@ function TransformGizmo({
 function SceneControls({
   orbitRef,
 }: {
-  orbitRef: React.MutableRefObject<THREE.EventDispatcher | null>;
+  orbitRef: React.MutableRefObject<{ enabled: boolean } | null>;
 }) {
-  const controlsRef = useRef<THREE.EventDispatcher | null>(null);
+  const controlsRef = useRef<{ enabled: boolean } | null>(null);
   const { camera } = useThree();
 
   useEffect(() => {
@@ -212,7 +397,7 @@ function SceneControls({
   return (
     <>
       <OrbitControls
-        ref={controlsRef}
+        ref={controlsRef as never}
         makeDefault
         enablePan
         minDistance={6}
@@ -223,6 +408,48 @@ function SceneControls({
         camera={camera}
       />
     </>
+  );
+}
+
+function SelectionBounds({
+  project,
+  selectedIds,
+}: {
+  project: Project;
+  selectedIds: string[];
+}) {
+  const selectedItems = project.items.filter((item) => selectedIds.includes(item.id));
+  if (selectedItems.length === 0) return null;
+
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minZ = Infinity;
+  let maxZ = -Infinity;
+
+  for (const item of selectedItems) {
+    const footprint = getItemFootprint(item);
+    minX = Math.min(minX, item.x - footprint.halfWidth);
+    maxX = Math.max(maxX, item.x + footprint.halfWidth);
+    minZ = Math.min(minZ, item.z - footprint.halfDepth);
+    maxZ = Math.max(maxZ, item.z + footprint.halfDepth);
+  }
+
+  const width = Math.max(0.8, maxX - minX);
+  const depth = Math.max(0.8, maxZ - minZ);
+  const centerX = (minX + maxX) / 2;
+  const centerZ = (minZ + maxZ) / 2;
+
+  return (
+    <group position={[centerX, 0.09, centerZ]}>
+      <mesh rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[width, depth]} />
+        <meshBasicMaterial color="#4D96FF" transparent opacity={0.06} />
+      </mesh>
+      <lineSegments position={[0, 0.01, 0]}>
+        <edgesGeometry args={[new THREE.BoxGeometry(width, 0.02, depth)]} />
+        <lineBasicMaterial color="#4D96FF" transparent opacity={0.95} />
+      </lineSegments>
+    </group>
   );
 }
 
@@ -237,23 +464,40 @@ export function SceneCanvas({
   const selectedIds = useEditorStore((s) => s.selectedIds);
   const activeLayer = useEditorStore((s) => s.activeLayer);
   const toolMode = useEditorStore((s) => s.toolMode);
-  const selectItem = useEditorStore((s) => s.selectItem);
+  const setSelectedIds = useEditorStore((s) => s.setSelectedIds);
+  const clearSelection = useEditorStore((s) => s.clearSelection);
   const addItemFromAsset = useEditorStore((s) => s.addItemFromAsset);
   const addConnection = useEditorStore((s) => s.addConnection);
+  const updateItemsTransient = useEditorStore((s) => s.updateItemsTransient);
+  const commitProjectSnapshot = useEditorStore((s) => s.commitProjectSnapshot);
   const viewportZoom = useEditorStore((s) => s.viewportZoom);
-  const orbitRef = useRef<THREE.EventDispatcher | null>(null);
+  const orbitRef = useRef<{ enabled: boolean } | null>(null);
+  const cameraRef = useRef<THREE.Camera | null>(null);
+  const canvasElementRef = useRef<HTMLCanvasElement | null>(null);
+  const dragStateRef = useRef<DragState | null>(null);
+  const marqueeStateRef = useRef<MarqueeState | null>(null);
+  const pointerDownRef = useRef<{ x: number; y: number } | null>(null);
 
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [guides, setGuides] = useState<AlignmentGuide[]>([]);
+  const [selectionRect, setSelectionRect] = useState<SelectionRect | null>(null);
   const project = projectOverride ?? storedProject;
 
   useEffect(() => {
     if (readOnly) return;
-    document.body.style.cursor = hoveredId ? "grab" : "default";
+    if (dragStateRef.current) {
+      document.body.style.cursor = "grabbing";
+    } else if (hoveredId) {
+      document.body.style.cursor = toolMode === "select" ? "grab" : "pointer";
+    } else if (toolMode === "connect") {
+      document.body.style.cursor = "crosshair";
+    } else {
+      document.body.style.cursor = "default";
+    }
     return () => {
       document.body.style.cursor = "default";
     };
-  }, [hoveredId, readOnly]);
+  }, [hoveredId, readOnly, toolMode]);
 
   if (!project) return null;
 
@@ -270,6 +514,214 @@ export function SceneCanvas({
           Boolean(resolveConnectionItems(project, connection)),
         );
 
+  const intersectGround = (ray: THREE.Ray) => {
+    const point = new THREE.Vector3();
+    return ray.intersectPlane(GROUND_PLANE, point) ? point : null;
+  };
+
+  const toggleSelection = (itemId: string) => {
+    if (selectedIds.includes(itemId)) {
+      setSelectedIds(selectedIds.filter((id) => id !== itemId));
+    } else {
+      setSelectedIds([...selectedIds, itemId]);
+    }
+  };
+
+  const beginItemPointer = (
+    itemId: string,
+    event: {
+      shiftKey: boolean;
+      ctrlKey: boolean;
+      metaKey: boolean;
+      altKey: boolean;
+      ray: THREE.Ray;
+      pointerId: number;
+      target: EventTarget;
+    },
+  ) => {
+    if (!project || readOnly) return;
+
+    if (toolMode === "connect") {
+      if (selectedIds.length === 1 && selectedIds[0] !== itemId) {
+        const source = project.items.find((entry) => entry.id === selectedIds[0]);
+        const target = project.items.find((entry) => entry.id === itemId);
+        if (source && target) {
+          addConnection(source.id, target.id, inferCableType(source, target));
+        }
+      } else {
+        setSelectedIds([itemId]);
+      }
+      return;
+    }
+
+    const additive = event.shiftKey || event.ctrlKey || event.metaKey;
+    if (additive) {
+      toggleSelection(itemId);
+      return;
+    }
+
+    const startPoint = intersectGround(event.ray);
+    if (!startPoint) return;
+
+    const nextSelectedIds = selectedIds.includes(itemId) ? selectedIds : [itemId];
+    if (!selectedIds.includes(itemId)) {
+      setSelectedIds(nextSelectedIds);
+    }
+
+    const originalItems = new Map<string, { x: number; y: number; z: number }>();
+    for (const item of project.items) {
+      if (nextSelectedIds.includes(item.id)) {
+        originalItems.set(item.id, { x: item.x, y: item.y, z: item.z });
+      }
+    }
+
+    const target = event.target as HTMLElement;
+    target.setPointerCapture?.(event.pointerId);
+    if (orbitRef.current) orbitRef.current.enabled = false;
+    dragStateRef.current = {
+      itemId,
+      selectedIds: nextSelectedIds,
+      startPoint,
+      originalItems,
+      beforeProject: project,
+      didMove: false,
+      pointerId: event.pointerId,
+      raf: null,
+      latestDelta: new THREE.Vector3(),
+    };
+  };
+
+  const updateDrag = (ray: THREE.Ray) => {
+    const state = dragStateRef.current;
+    if (!state || !project) return;
+
+    const point = intersectGround(ray);
+    if (!point) return;
+
+    const delta = point.clone().sub(state.startPoint);
+    if (delta.length() < DRAG_THRESHOLD && !state.didMove) return;
+
+    state.didMove = true;
+    state.latestDelta.copy(delta);
+    if (state.raf !== null) return;
+
+    state.raf = window.requestAnimationFrame(() => {
+      const activeState = dragStateRef.current;
+      if (!activeState || !project) return;
+      activeState.raf = null;
+
+      let guidesForDrag: AlignmentGuide[] = [];
+      const selectedSet = new Set(activeState.selectedIds);
+      const others = project.items.filter((item) => !selectedSet.has(item.id));
+      const snapToGrid = project.sceneSettings?.snapToGrid ?? true;
+
+      updateItemsTransient(activeState.selectedIds, (item) => {
+        const original = activeState.originalItems.get(item.id);
+        if (!original) return item;
+
+        const rawCandidate = {
+          ...item,
+          x: original.x + activeState.latestDelta.x,
+          z: original.z + activeState.latestDelta.z,
+        };
+
+        const snapped =
+          item.id === activeState.itemId
+            ? snapPositionToNeighbors(rawCandidate, others)
+            : { x: rawCandidate.x, z: rawCandidate.z, guides: [] };
+        if (item.id === activeState.itemId) guidesForDrag = snapped.guides;
+
+        const clamped = clampToRoom(
+          {
+            ...rawCandidate,
+            x: snapped.x,
+            z: snapped.z,
+          },
+          project.room,
+        );
+
+        const candidate = {
+          ...rawCandidate,
+          x: snapToGrid ? Math.round(clamped.x * 4) / 4 : clamped.x,
+          z: snapToGrid ? Math.round(clamped.z * 4) / 4 : clamped.z,
+        };
+
+        if (collidesWithOthers(candidate, others)) return item;
+        return candidate;
+      });
+
+      setGuides(guidesForDrag);
+    });
+  };
+
+  const endDrag = () => {
+    const state = dragStateRef.current;
+    if (!state) return;
+    if (state.raf !== null) {
+      window.cancelAnimationFrame(state.raf);
+    }
+    if (state.didMove) {
+      commitProjectSnapshot(state.beforeProject);
+    }
+    dragStateRef.current = null;
+    setGuides([]);
+    if (orbitRef.current) orbitRef.current.enabled = true;
+  };
+
+  const selectByRect = (rect: SelectionRect) => {
+    if (!project || !cameraRef.current || !canvasElementRef.current) return;
+    const bounds = canvasElementRef.current.getBoundingClientRect();
+    const selectedByBox = visibleItems
+      .filter((item) => itemFullyInsideRect(item, rect, cameraRef.current!, bounds))
+      .map((item) => item.id);
+
+    if (rect.mode === "deselect") {
+      setSelectedIds(selectedIds.filter((id) => !selectedByBox.includes(id)));
+    } else {
+      setSelectedIds(selectedByBox);
+    }
+  };
+
+  const beginMarquee = (event: { clientX: number; clientY: number; altKey: boolean; shiftKey: boolean }) => {
+    const mode = event.altKey && event.shiftKey ? "deselect" : "select";
+    marqueeStateRef.current = {
+      startX: event.clientX,
+      startY: event.clientY,
+      currentX: event.clientX,
+      currentY: event.clientY,
+      mode,
+    };
+    pointerDownRef.current = { x: event.clientX, y: event.clientY };
+  };
+
+  const updateMarquee = (event: { clientX: number; clientY: number }) => {
+    const state = marqueeStateRef.current;
+    if (!state) return;
+    state.currentX = event.clientX;
+    state.currentY = event.clientY;
+    const rect = rectFromPoints(
+      { x: state.startX, y: state.startY },
+      { x: state.currentX, y: state.currentY },
+    );
+    if (rect.width > POINTER_SELECT_THRESHOLD || rect.height > POINTER_SELECT_THRESHOLD) {
+      setSelectionRect({ ...rect, mode: state.mode });
+    }
+  };
+
+  const endMarquee = () => {
+    const state = marqueeStateRef.current;
+    const rect = selectionRect;
+    marqueeStateRef.current = null;
+    pointerDownRef.current = null;
+
+    if (rect && state) {
+      selectByRect(rect);
+    } else if (!readOnly) {
+      clearSelection();
+    }
+    setSelectionRect(null);
+  };
+
   return (
     <div
       className="relative h-full w-full overflow-hidden"
@@ -284,10 +736,38 @@ export function SceneCanvas({
       <Canvas
         shadows={{ type: THREE.PCFShadowMap }}
         camera={{ position: [18 / viewportZoom, 14 / viewportZoom, 18 / viewportZoom], fov: 50 }}
-        onPointerMissed={() => {
-          if (!readOnly) selectItem(null);
+        onPointerDown={(event: CanvasPointerEvent) => {
+          if (readOnly) return;
+          const sourceEvent = event.sourceEvent ?? event.nativeEvent ?? event;
+          beginMarquee({
+            clientX: sourceEvent.clientX,
+            clientY: sourceEvent.clientY,
+            altKey: sourceEvent.altKey,
+            shiftKey: sourceEvent.shiftKey,
+          });
+        }}
+        onPointerMove={(event: CanvasPointerEvent) => {
+          if (readOnly) return;
+          const sourceEvent = event.sourceEvent ?? event.nativeEvent ?? event;
+          if (dragStateRef.current && event.ray) {
+            updateDrag(event.ray);
+            return;
+          }
+          updateMarquee({
+            clientX: sourceEvent.clientX,
+            clientY: sourceEvent.clientY,
+          });
+        }}
+        onPointerUp={() => {
+          if (readOnly) return;
+          if (dragStateRef.current) {
+            endDrag();
+            return;
+          }
+          if (marqueeStateRef.current) endMarquee();
         }}
       >
+        <ViewportBridge cameraRef={cameraRef} elementRef={canvasElementRef} />
         <ambientLight intensity={settings?.ambientLightIntensity ?? 1.1} />
         <directionalLight
           position={[14, 20, 10]}
@@ -353,36 +833,16 @@ export function SceneCanvas({
                 position={[item.x, item.y, item.z]}
                 rotation={[0, item.rotationY, 0]}
                 scale={item.scale}
-                selected={!readOnly && item.id === selectedIds[0]}
+                selected={!readOnly && selectedIds.includes(item.id)}
                 hovered={item.id === hoveredId}
                 color={item.color}
                 material={item.material}
                 onPointerEnter={readOnly ? undefined : () => setHoveredId(item.id)}
                 onPointerLeave={readOnly ? undefined : () => setHoveredId((current) => (current === item.id ? null : current))}
-                onClick={
+                onPointerDown={
                   readOnly
                     ? undefined
-                    : () => {
-                        if (toolMode === "connect") {
-                          if (selectedIds.length === 1 && selectedIds[0] !== item.id) {
-                            const source = project.items.find(
-                              (entry) => entry.id === selectedIds[0],
-                            );
-                            if (source) {
-                              addConnection(
-                                source.id,
-                                item.id,
-                                inferCableType(source, item),
-                              );
-                            }
-                          } else {
-                            selectItem(item.id);
-                          }
-                          return;
-                        }
-
-                        selectItem(item.id);
-                      }
+                    : (event) => beginItemPointer(item.id, event)
                 }
               />
 
@@ -395,6 +855,10 @@ export function SceneCanvas({
               ) : null}
             </group>
           ))}
+
+          {!readOnly ? (
+            <SelectionBounds project={project} selectedIds={selectedIds} />
+          ) : null}
 
           {guides.map((guide, index) =>
             guide.orientation === "vertical" ? (
@@ -452,6 +916,22 @@ export function SceneCanvas({
           ) : null}
         </Suspense>
       </Canvas>
+
+      {selectionRect ? (
+        <div
+          className={`pointer-events-none fixed z-40 border ${
+            selectionRect.mode === "deselect"
+              ? "border-red-400 bg-red-400/10"
+              : "border-[#4D96FF] bg-[#4D96FF]/10"
+          }`}
+          style={{
+            left: selectionRect.left,
+            top: selectionRect.top,
+            width: selectionRect.width,
+            height: selectionRect.height,
+          }}
+        />
+      ) : null}
 
       <div className="pointer-events-none absolute bottom-5 left-5 rounded-[10px] bg-[#111111]/78 px-3 py-2 text-[12px] text-white shadow-lg">
         {toolMode === "connect"

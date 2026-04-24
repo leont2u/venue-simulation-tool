@@ -5,6 +5,22 @@ import os
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
+def load_env_file(path: Path) -> None:
+    if not path.exists():
+        return
+
+    for line in path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#") or "=" not in stripped:
+            continue
+
+        key, value = stripped.split("=", 1)
+        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+
+
+load_env_file(BASE_DIR / ".env")
+
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-change-me")
 DEBUG = os.getenv("DJANGO_DEBUG", "true").lower() == "true"
 ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost").split(",")
@@ -26,6 +42,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "accounts",
     "ai_layout",
+    "assets",
     "layout_imports",
     "projects",
 ]
@@ -89,6 +106,18 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "static/"
+POLY_PIZZA_API_KEY = os.getenv("POLY_PIZZA_API_KEY", "")
+_POLY_PIZZA_CACHE_DIR = Path(
+    os.getenv(
+        "POLY_PIZZA_CACHE_DIR",
+        str(BASE_DIR / ".cache" / "poly_pizza"),
+    )
+)
+POLY_PIZZA_CACHE_DIR = str(
+    _POLY_PIZZA_CACHE_DIR
+    if _POLY_PIZZA_CACHE_DIR.is_absolute()
+    else BASE_DIR / _POLY_PIZZA_CACHE_DIR
+)
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 REST_FRAMEWORK = {

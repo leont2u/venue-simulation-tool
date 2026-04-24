@@ -4,8 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
+  Cable,
+  MousePointer2,
+  Move3D,
   Redo2,
+  RotateCw,
   Save,
+  Scale3D,
   Share2,
   Undo2,
 } from "lucide-react";
@@ -25,6 +30,8 @@ export function TopToolbar() {
   const setActiveLayer = useEditorStore((s) => s.setActiveLayer);
   const historyPast = useEditorStore((s) => s.historyPast);
   const historyFuture = useEditorStore((s) => s.historyFuture);
+  const toolMode = useEditorStore((s) => s.toolMode);
+  const setToolMode = useEditorStore((s) => s.setToolMode);
 
   const [shareOpen, setShareOpen] = useState(false);
 
@@ -51,6 +58,33 @@ export function TopToolbar() {
         </div>
 
         <div className="flex items-center gap-3">
+          <div className="hidden items-center rounded-[12px] border border-[#d8d8d8] bg-white p-1 lg:flex">
+            {[
+              { mode: "select" as const, icon: MousePointer2, label: "Select" },
+              { mode: "move" as const, icon: Move3D, label: "Move" },
+              { mode: "rotate" as const, icon: RotateCw, label: "Rotate" },
+              { mode: "scale" as const, icon: Scale3D, label: "Scale" },
+              { mode: "connect" as const, icon: Cable, label: "Connect" },
+            ].map((entry) => {
+              const Icon = entry.icon;
+              const active = toolMode === entry.mode;
+
+              return (
+                <button
+                  key={entry.mode}
+                  onClick={() => setToolMode(entry.mode)}
+                  title={entry.label}
+                  className={`flex h-10 w-10 items-center justify-center rounded-[10px] transition ${
+                    active
+                      ? "bg-[#111111] text-white"
+                      : "text-[#555555] hover:bg-[#f6f6f4]"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                </button>
+              );
+            })}
+          </div>
           <div
             data-tour="editor-layer-toggle"
             className="hidden items-center rounded-[12px] border border-[#d8d8d8] bg-white p-1 xl:flex"
