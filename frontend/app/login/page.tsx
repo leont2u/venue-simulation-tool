@@ -1,10 +1,13 @@
+import { Suspense } from "react";
 import { AuthGate } from "@/components/auth/AuthGate";
-import { AuthForm } from "@/components/auth/AuthForm";
+import { AuthExperience } from "@/components/auth/AuthExperience";
 
 export default function LoginPage() {
   return (
-    <AuthGate>
-      <AuthForm mode="login" />
-    </AuthGate>
+    <Suspense fallback={null}>
+      <AuthGate>
+        <AuthExperience mode="login" />
+      </AuthGate>
+    </Suspense>
   );
 }

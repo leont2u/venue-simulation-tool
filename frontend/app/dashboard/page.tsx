@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -12,12 +12,18 @@ import {
   savePendingPrompt,
 } from "@/lib/pendingPrompt";
 import {
+  clearPendingVenueInput,
+  pendingStoredFileToFile,
+  readPendingVenueInput,
+  savePendingVenueInput,
+} from "@/lib/pendingVenueInput";
+import {
   hasCompletedOnboarding,
   markOnboardingComplete,
 } from "@/lib/onboarding";
 import { PROJECT_TEMPLATES } from "@/lib/projectTemplates";
-import { generateProjectFromPrompt } from "@/lib/promptLayout";
-import { getProjects, upsertProject } from "@/lib/storage";
+import { createProjectFromVenueInput } from "@/lib/landingFlow";
+import { getProjects } from "@/lib/storage";
 import { Project } from "@/types/types";
 import ProjectModal, { ProjectPipeline } from "@/components/dashboard/ProjectModal";
 import ProjectPreviewCard from "@/components/dashboard/ProjectPreviewCard";
@@ -33,7 +39,7 @@ const SIDEBAR_SECTIONS = [
   },
 ];
 
-export default function DashboardPage() {
+function DashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, logout } = useAuth();
@@ -80,8 +86,13 @@ export default function DashboardPage() {
       return;
     }
 
-    const prompt = readPendingPrompt().trim();
-    if (!prompt) {
+    const pendingInput = readPendingVenueInput();
+    const prompt = pendingInput?.prompt.trim() || readPendingPrompt().trim();
+    const file = pendingInput?.file
+      ? pendingStoredFileToFile(pendingInput.file)
+      : null;
+
+    if (!prompt && !file) {
       resumeAttemptedRef.current = true;
       router.replace("/dashboard");
       return;
@@ -93,16 +104,20 @@ export default function DashboardPage() {
       try {
         setIsResumingPrompt(true);
         setError("");
+        clearPendingVenueInput();
         clearPendingPrompt();
-        const project = await generateProjectFromPrompt(prompt);
-        const savedProject = await upsertProject(project);
-        router.replace(`/editor/${savedProject.id}`);
+        const project = await createProjectFromVenueInput({ prompt, file });
+        router.replace(`/editor/${project.id}`);
       } catch (err) {
-        savePendingPrompt(prompt);
+        if (pendingInput) {
+          await savePendingVenueInput(prompt, file);
+        } else {
+          savePendingPrompt(prompt);
+        }
         setError(
           err instanceof Error
             ? err.message
-            : "Failed to generate layout from your saved prompt.",
+            : "Failed to create a layout from your saved landing input.",
         );
         router.replace("/dashboard");
       } finally {
@@ -440,5 +455,19 @@ export default function DashboardPage() {
         ) : null}
       </main>
     </ProtectedRoute>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center bg-[var(--sf-bg)] text-[14px] text-[var(--sf-text-muted)]">
+          Loading dashboard...
+        </main>
+      }
+    >
+      <DashboardContent />
+    </Suspense>
   );
 }
