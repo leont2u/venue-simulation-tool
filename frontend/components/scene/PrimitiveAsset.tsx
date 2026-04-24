@@ -209,6 +209,14 @@ function PrimitiveShape({
       return new THREE.CylinderGeometry(0.5, 0.5, 1, 24);
     }
 
+    if (type === "speaker") {
+      return new THREE.BoxGeometry(0.7, 1.2, 0.7);
+    }
+
+    if (type === "mixing_desk") {
+      return new THREE.BoxGeometry(1.2, 0.45, 0.8);
+    }
+
     return new THREE.BoxGeometry(1, 1, 1);
   }, [type]);
 
@@ -223,6 +231,8 @@ function PrimitiveShape({
       bar: "#9c6644",
       plant: "#6a994e",
       entrance: "#52796f",
+      speaker: "#ba7517",
+      mixing_desk: "#534ab7",
     };
 
     return new THREE.MeshStandardMaterial({

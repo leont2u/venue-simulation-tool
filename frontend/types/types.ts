@@ -4,6 +4,8 @@ export type AssetType =
   | "podium"
   | "piano"
   | "camera"
+  | "speaker"
+  | "mixing_desk"
   | "altar"
   | "banquet_table"
   | "church_bench"
@@ -15,7 +17,8 @@ export type AssetCategory =
   | "Seating"
   | "Tables"
   | "Stage & Decor"
-  | "Media Equipment";
+  | "Media Equipment"
+  | "AV Gear";
 
 export type AssetDefinition = {
   id: string;
@@ -54,6 +57,16 @@ export type SceneItem = {
     roughness: number;
     metalness: number;
   };
+  layer?: "layout" | "av";
+};
+
+export type CableType = "power" | "video" | "audio" | "data" | "lighting";
+
+export type SceneConnection = {
+  id: string;
+  fromItemId: string;
+  toItemId: string;
+  cableType: CableType;
 };
 
 export type SceneSettings = {
@@ -70,6 +83,7 @@ export type SceneSettings = {
 };
 
 export type EditorViewMode = "2d" | "3d";
+export type EditorLayerMode = "layout" | "av" | "combined";
 
 export type Project = {
   id: string;
@@ -83,6 +97,7 @@ export type Project = {
     wallThickness?: number;
   };
   items: SceneItem[];
+  connections?: SceneConnection[];
   measurements?: MeasurementLine[];
   sceneSettings?: SceneSettings;
 };

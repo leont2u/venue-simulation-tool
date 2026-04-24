@@ -8,6 +8,7 @@ class ProjectSerializer(serializers.ModelSerializer):
     createdAt = serializers.DateTimeField(source="created_at", required=False)
     updatedAt = serializers.DateTimeField(source="updated_at", required=False)
     measurements = serializers.JSONField(required=False)
+    connections = serializers.JSONField(required=False)
     sceneSettings = serializers.JSONField(source="scene_settings", required=False)
 
     class Meta:
@@ -19,6 +20,7 @@ class ProjectSerializer(serializers.ModelSerializer):
             "updatedAt",
             "room",
             "items",
+            "connections",
             "measurements",
             "sceneSettings",
         ]
@@ -26,6 +28,7 @@ class ProjectSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         request = self.context["request"]
         validated_data.setdefault("measurements", [])
+        validated_data.setdefault("connections", [])
         validated_data.setdefault("scene_settings", {})
         return Project.objects.create(owner=request.user, **validated_data)
 
@@ -34,6 +37,7 @@ class ProjectSerializer(serializers.ModelSerializer):
             "name",
             "room",
             "items",
+            "connections",
             "measurements",
             "scene_settings",
             "created_at",
@@ -44,4 +48,3 @@ class ProjectSerializer(serializers.ModelSerializer):
 
         instance.save()
         return instance
-

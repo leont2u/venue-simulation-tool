@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { clampToRoom } from "@/lib/editorPhysics";
 import { exportProjectAsPdf, exportProjectAsPng } from "@/lib/floorplanExport";
+import { getCableColor } from "@/lib/sceneConnections";
 import { useEditorStore } from "@/store/UseEditorStore";
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
@@ -43,6 +44,7 @@ const WALL_SWATCHES = ["#F6F2EC", "#EAE4D8", "#E6ECF4", "#E4EEDA", "#D7D7D7"];
 export function PropertiesPanel() {
   const project = useEditorStore((s) => s.project);
   const selectedIds = useEditorStore((s) => s.selectedIds);
+  const activeLayer = useEditorStore((s) => s.activeLayer);
   const updateItem = useEditorStore((s) => s.updateItem);
   const updateSceneSettings = useEditorStore((s) => s.updateSceneSettings);
   const applyProjectMutation = useEditorStore((s) => s.applyProjectMutation);
@@ -223,6 +225,45 @@ export function PropertiesPanel() {
               )}
             </div>
           </section>
+
+          {activeLayer !== "layout" ? (
+            <section className="space-y-3">
+              <SectionTitle>AV Layer</SectionTitle>
+              <div className="space-y-2 text-[13px] text-[#4a4a4a]">
+                <div className="flex items-center justify-between">
+                  <span>AV items</span>
+                  <span className="font-medium">
+                    {
+                      project.items.filter((entry) =>
+                        ["camera", "speaker", "mixing_desk", "screen", "tv"].includes(
+                          entry.type,
+                        ),
+                      ).length
+                    }
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Cable runs</span>
+                  <span className="font-medium">{project.connections?.length ?? 0}</span>
+                </div>
+                {([
+                  ["power", "Power"],
+                  ["video", "Video"],
+                  ["audio", "Audio"],
+                  ["data", "Data"],
+                  ["lighting", "Lighting"],
+                ] as const).map(([type, label]) => (
+                  <div key={type} className="flex items-center gap-2">
+                    <span
+                      className="h-[3px] w-8 rounded-full"
+                      style={{ backgroundColor: getCableColor(type) }}
+                    />
+                    <span>{label}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
 
           <section className="space-y-3">
             <SectionTitle>Export</SectionTitle>

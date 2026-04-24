@@ -4,13 +4,15 @@ import { create } from "zustand";
 import { getProjectById, upsertProject } from "@/lib/storage";
 import { ASSET_CATALOG } from "@/lib/DemoAssets";
 import {
+  CableType,
+  EditorLayerMode,
   EditorViewMode,
   Project,
   SceneItem,
   SceneSettings,
 } from "@/types/types";
 
-type ToolMode = "select" | "move" | "rotate" | "scale";
+type ToolMode = "select" | "move" | "rotate" | "scale" | "connect";
 
 type HistoryState = {
   project: Project;
@@ -34,6 +36,7 @@ interface EditorState {
   selectedIds: string[];
   toolMode: ToolMode;
   activeView: EditorViewMode;
+  activeLayer: EditorLayerMode;
   assetLibraryTab: "Assets" | "Uploads" | "Favorites";
   assetSearch: string;
   viewportZoom: number;
@@ -52,6 +55,7 @@ interface EditorState {
 
   setToolMode: (mode: ToolMode) => void;
   setActiveView: (view: EditorViewMode) => void;
+  setActiveLayer: (layer: EditorLayerMode) => void;
   setAssetLibraryTab: (tab: "Assets" | "Uploads" | "Favorites") => void;
   setAssetSearch: (value: string) => void;
   setViewportZoom: (value: number) => void;
@@ -62,6 +66,8 @@ interface EditorState {
   updateItem: (id: string, patch: Partial<SceneItem>) => void;
   updateItems: (ids: string[], updater: (item: SceneItem) => SceneItem) => void;
   applyProjectMutation: (updater: (project: Project) => Project) => void;
+  addConnection: (fromItemId: string, toItemId: string, cableType?: CableType) => void;
+  removeConnectionsForItem: (itemId: string) => void;
 
   deleteSelected: () => void;
   duplicateSelected: () => void;
@@ -76,6 +82,7 @@ interface EditorState {
 function withSceneSettings(project: Project): Project {
   return {
     ...project,
+    connections: project.connections ?? [],
     room: {
       ...project.room,
       wallThickness:
@@ -93,6 +100,7 @@ function snapshot(project: Project): HistoryState {
     project: {
       ...project,
       room: { ...project.room },
+      connections: (project.connections ?? []).map((connection) => ({ ...connection })),
       sceneSettings: project.sceneSettings
         ? { ...project.sceneSettings }
         : { ...DEFAULT_SCENE_SETTINGS },
@@ -138,6 +146,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   selectedIds: [],
   toolMode: "select",
   activeView: "3d",
+  activeLayer: "combined",
   assetLibraryTab: "Assets",
   assetSearch: "",
   viewportZoom: 1,
@@ -205,6 +214,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   clearSelection: () => set({ selectedIds: [] }),
   setToolMode: (mode) => set({ toolMode: mode }),
   setActiveView: (view) => set({ activeView: view }),
+  setActiveLayer: (layer) => set({ activeLayer: layer }),
   setAssetLibraryTab: (tab) => set({ assetLibraryTab: tab }),
   setAssetSearch: (value) => set({ assetSearch: value }),
   setViewportZoom: (value) => set({ viewportZoom: Math.min(2.5, Math.max(0.5, value)) }),
@@ -243,6 +253,46 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     get().addItem(item);
   },
 
+  addConnection: (fromItemId, toItemId, cableType = "video") => {
+    if (fromItemId === toItemId) return;
+
+    get().applyProjectMutation((project) => {
+      const existing = project.connections ?? [];
+      const duplicate = existing.some(
+        (connection) =>
+          (connection.fromItemId === fromItemId &&
+            connection.toItemId === toItemId) ||
+          (connection.fromItemId === toItemId &&
+            connection.toItemId === fromItemId),
+      );
+
+      if (duplicate) return project;
+
+      return {
+        ...project,
+        connections: [
+          ...existing,
+          {
+            id: crypto.randomUUID(),
+            fromItemId,
+            toItemId,
+            cableType,
+          },
+        ],
+      };
+    });
+  },
+
+  removeConnectionsForItem: (itemId) => {
+    get().applyProjectMutation((project) => ({
+      ...project,
+      connections: (project.connections ?? []).filter(
+        (connection) =>
+          connection.fromItemId !== itemId && connection.toItemId !== itemId,
+      ),
+    }));
+  },
+
   clearScene: () => {
     get().applyProjectMutation((project) => ({
       ...project,
@@ -276,6 +326,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     get().applyProjectMutation((project) => ({
       ...project,
       items: project.items.filter((item) => !selectedIds.includes(item.id)),
+      connections: (project.connections ?? []).filter(
+        (connection) =>
+          !selectedIds.includes(connection.fromItemId) &&
+          !selectedIds.includes(connection.toItemId),
+      ),
     }));
     set({ selectedIds: [] });
   },
