@@ -30,7 +30,10 @@ export function TopToolbar() {
 
   return (
     <>
-      <header className="flex h-[68px] items-center justify-between border-b border-[#ececec] bg-white px-4 sm:px-6">
+      <header
+        data-tour="editor-toolbar"
+        className="flex h-[68px] items-center justify-between border-b border-[#ececec] bg-white px-4 sm:px-6"
+      >
         <div className="flex min-w-0 items-center gap-5">
           <button
             onClick={() => router.push("/dashboard")}
@@ -48,7 +51,10 @@ export function TopToolbar() {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="hidden items-center rounded-[12px] border border-[#d8d8d8] bg-white p-1 xl:flex">
+          <div
+            data-tour="editor-layer-toggle"
+            className="hidden items-center rounded-[12px] border border-[#d8d8d8] bg-white p-1 xl:flex"
+          >
             {([
               ["layout", "Layout"],
               ["av", "AV Layer"],

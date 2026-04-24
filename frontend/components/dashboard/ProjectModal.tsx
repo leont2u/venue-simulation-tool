@@ -1,13 +1,14 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createProjectFromDrawioFile } from "@/lib/drawioImport";
+import { queueEditorTour } from "@/lib/onboardingTour";
 import { PROJECT_TEMPLATES } from "@/lib/projectTemplates";
 import { generateProjectFromPrompt } from "@/lib/promptLayout";
 import { upsertProject } from "@/lib/storage";
 import { Project } from "@/types/types";
 
-type ProjectPipeline =
+export type ProjectPipeline =
   | "menu"
   | "template"
   | "upload"
@@ -20,13 +21,17 @@ export default function ProjectModal({
   onClose,
   onProjectCreated,
   onOpenProject,
+  initialStep = "menu",
+  continueTourInEditor = false,
 }: {
   open: boolean;
   onClose: () => void;
   onProjectCreated?: () => void | Promise<void>;
   onOpenProject: (projectId: string) => void;
+  initialStep?: ProjectPipeline;
+  continueTourInEditor?: boolean;
 }) {
-  const [step, setStep] = useState<ProjectPipeline>("menu");
+  const [step, setStep] = useState<ProjectPipeline>(initialStep);
   const [name, setName] = useState("");
   const [prompt, setPrompt] = useState("");
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
@@ -36,10 +41,16 @@ export default function ProjectModal({
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  useEffect(() => {
+    if (open) {
+      setStep(initialStep);
+    }
+  }, [initialStep, open]);
+
   if (!open) return null;
 
   const resetState = () => {
-    setStep("menu");
+    setStep(initialStep);
     setName("");
     setPrompt("");
     setSelectedTemplateId("");
@@ -76,6 +87,9 @@ export default function ProjectModal({
 
     try {
       const savedProject = await upsertProject(project);
+      if (continueTourInEditor) {
+        queueEditorTour();
+      }
       await onProjectCreated?.();
       handleClose();
       onOpenProject(savedProject.id);
@@ -101,6 +115,9 @@ export default function ProjectModal({
     try {
       const project = template.buildProject(name.trim() || template.name);
       const savedProject = await upsertProject(project);
+      if (continueTourInEditor) {
+        queueEditorTour();
+      }
       await onProjectCreated?.();
       handleClose();
       onOpenProject(savedProject.id);
@@ -120,6 +137,9 @@ export default function ProjectModal({
 
     try {
       const savedProject = await upsertProject(project);
+      if (continueTourInEditor) {
+        queueEditorTour();
+      }
       await onProjectCreated?.();
       handleClose();
       onOpenProject(savedProject.id);
@@ -149,6 +169,9 @@ export default function ProjectModal({
       };
 
       const savedProject = await upsertProject(finalProject);
+      if (continueTourInEditor) {
+        queueEditorTour();
+      }
       await onProjectCreated?.();
       handleClose();
       onOpenProject(savedProject.id);
@@ -172,6 +195,9 @@ export default function ProjectModal({
       setError("");
 
       const savedProject = await createProjectFromDrawioFile(file, name.trim());
+      if (continueTourInEditor) {
+        queueEditorTour();
+      }
       await onProjectCreated?.();
       handleClose();
       onOpenProject(savedProject.id);
