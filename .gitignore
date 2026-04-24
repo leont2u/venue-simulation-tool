@@ -24,6 +24,7 @@ db.sqlite3
 /backend/db.sqlite3
 /backend/.venv/
 /backend/venv/
+/backend/.cache/
 
 # Root build artifacts
 /.next/

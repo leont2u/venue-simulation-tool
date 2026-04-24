@@ -1,4 +1,4 @@
-export type AssetType =
+export type KnownAssetType =
   | "chair"
   | "desk"
   | "podium"
@@ -13,12 +13,16 @@ export type AssetType =
   | "tv"
   | "stand-up";
 
-export type AssetCategory =
+export type AssetType = KnownAssetType | `poly_pizza_${string}` | (string & {});
+
+export type KnownAssetCategory =
   | "Seating"
   | "Tables"
   | "Stage & Decor"
   | "Media Equipment"
   | "AV Gear";
+
+export type AssetCategory = KnownAssetCategory | (string & {});
 
 export type AssetDefinition = {
   id: string;
@@ -40,6 +44,15 @@ export type AssetDefinition = {
     depth: number;
     height: number;
   };
+  source?: string;
+  polyPizzaId?: string;
+  polyPizzaUrl?: string;
+  attribution?: string;
+  license?: string;
+  creator?: string;
+  triCount?: number;
+  animated?: boolean;
+  tags?: string[];
 };
 
 export type SceneItem = {
@@ -58,6 +71,12 @@ export type SceneItem = {
     metalness: number;
   };
   layer?: "layout" | "av";
+  source?: string;
+  sourceId?: string;
+  sourceUrl?: string;
+  attribution?: string;
+  license?: string;
+  creator?: string;
 };
 
 export type CableType = "power" | "video" | "audio" | "data" | "lighting";

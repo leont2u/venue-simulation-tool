@@ -2,8 +2,8 @@
 
 import { create } from "zustand";
 import { getProjectById, upsertProject } from "@/lib/storage";
-import { ASSET_CATALOG } from "@/lib/DemoAssets";
 import {
+  AssetDefinition,
   CableType,
   EditorLayerMode,
   EditorViewMode,
@@ -39,6 +39,7 @@ interface EditorState {
   activeLayer: EditorLayerMode;
   assetLibraryTab: "Assets" | "Uploads" | "Favorites";
   assetSearch: string;
+  assetCatalog: AssetDefinition[];
   viewportZoom: number;
   historyPast: HistoryState[];
   historyFuture: HistoryState[];
@@ -58,6 +59,7 @@ interface EditorState {
   setActiveLayer: (layer: EditorLayerMode) => void;
   setAssetLibraryTab: (tab: "Assets" | "Uploads" | "Favorites") => void;
   setAssetSearch: (value: string) => void;
+  setAssetCatalog: (assets: AssetDefinition[]) => void;
   setViewportZoom: (value: number) => void;
 
   addItem: (item: SceneItem) => void;
@@ -65,7 +67,9 @@ interface EditorState {
   clearScene: () => void;
   updateItem: (id: string, patch: Partial<SceneItem>) => void;
   updateItems: (ids: string[], updater: (item: SceneItem) => SceneItem) => void;
+  updateItemsTransient: (ids: string[], updater: (item: SceneItem) => SceneItem) => void;
   applyProjectMutation: (updater: (project: Project) => Project) => void;
+  commitProjectSnapshot: (beforeProject: Project) => void;
   addConnection: (fromItemId: string, toItemId: string, cableType?: CableType) => void;
   removeConnectionsForItem: (itemId: string) => void;
 
@@ -117,8 +121,12 @@ function applySnap(value: number, enabled: boolean) {
   return enabled ? Math.round(value * 4) / 4 : value;
 }
 
-function createItemFromAsset(assetId: string, existingCount: number): SceneItem {
-  const asset = ASSET_CATALOG.find((entry) => entry.id === assetId);
+function createItemFromAsset(
+  assetId: string,
+  existingCount: number,
+  assetCatalog: AssetDefinition[],
+): SceneItem {
+  const asset = assetCatalog.find((entry) => entry.id === assetId);
   if (!asset) {
     throw new Error(`Asset "${assetId}" not found.`);
   }
@@ -133,11 +141,12 @@ function createItemFromAsset(assetId: string, existingCount: number): SceneItem 
     scale: asset.defaultScale,
     assetUrl: asset.modelUrl,
     label: asset.name,
-    color: "#ffffff",
-    material: {
-      roughness: 0.65,
-      metalness: 0.1,
-    },
+    source: asset.source,
+    sourceId: asset.polyPizzaId,
+    sourceUrl: asset.polyPizzaUrl,
+    attribution: asset.attribution,
+    license: asset.license,
+    creator: asset.creator,
   };
 }
 
@@ -149,6 +158,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   activeLayer: "combined",
   assetLibraryTab: "Assets",
   assetSearch: "",
+  assetCatalog: [],
   viewportZoom: 1,
   historyPast: [],
   historyFuture: [],
@@ -217,6 +227,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setActiveLayer: (layer) => set({ activeLayer: layer }),
   setAssetLibraryTab: (tab) => set({ assetLibraryTab: tab }),
   setAssetSearch: (value) => set({ assetSearch: value }),
+  setAssetCatalog: (assets) => set({ assetCatalog: assets }),
   setViewportZoom: (value) => set({ viewportZoom: Math.min(2.5, Math.max(0.5, value)) }),
 
   applyProjectMutation: (updater) => {
@@ -236,6 +247,20 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }));
   },
 
+  commitProjectSnapshot: (beforeProject) => {
+    const project = get().project;
+    if (!project) return;
+
+    set((state) => ({
+      project: {
+        ...project,
+        updatedAt: new Date().toISOString(),
+      },
+      historyPast: [...state.historyPast.slice(-49), snapshot(beforeProject)],
+      historyFuture: [],
+    }));
+  },
+
   addItem: (item) => {
     get().applyProjectMutation((project) => ({
       ...project,
@@ -249,7 +274,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     const project = get().project;
     if (!project) return;
 
-    const item = createItemFromAsset(assetId, project.items.length);
+    const item = createItemFromAsset(assetId, project.items.length, get().assetCatalog);
     get().addItem(item);
   },
 
@@ -317,6 +342,20 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         ids.includes(item.id) ? updater(item) : item,
       ),
     }));
+  },
+
+  updateItemsTransient: (ids, updater) => {
+    const project = get().project;
+    if (!project) return;
+
+    set({
+      project: withSceneSettings({
+        ...project,
+        items: project.items.map((item) =>
+          ids.includes(item.id) ? updater(item) : item,
+        ),
+      }),
+    });
   },
 
   deleteSelected: () => {

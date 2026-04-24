@@ -1,30 +1,49 @@
 "use client";
 
-import Image from "next/image";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ChevronDown,
+  Camera,
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
+  Flame,
+  Grid3X3,
   Heart,
-  MousePointer2,
-  Move3D,
-  RotateCw,
-  Scale3D,
+  ListFilter,
+  PanelLeftClose,
+  PanelLeftOpen,
   Search,
-  Shapes,
+  Settings2,
   UploadCloud,
   Cable,
+  Star,
 } from "lucide-react";
-import { ASSET_CATALOG } from "@/lib/DemoAssets";
+import { fetchPolyPizzaAssets } from "@/lib/polyPizzaAssets";
 import { useEditorStore } from "@/store/UseEditorStore";
-import { AssetCategory } from "@/types/types";
+import { AssetCategory, AssetDefinition } from "@/types/types";
 
-const CATEGORIES: AssetCategory[] = [
-  "Seating",
-  "Tables",
-  "Stage & Decor",
-  "Media Equipment",
-  "AV Gear",
-];
+const PAGE_SIZE = 32;
+
+type CachedAssetPage = {
+  results: AssetDefinition[];
+  total: number;
+};
+
+const CATALOG_NAV = [
+  { label: "Seating", category: "Seating", icon: "chair" },
+  { label: "Tables", category: "Tables", icon: "table" },
+  { label: "Decor", category: "Stage & Decor", icon: "stage" },
+  { label: "Media", category: "Media Equipment", icon: "media" },
+  { label: "AV Gear", category: "AV Gear", icon: "av" },
+] as const;
+
+function CatalogIcon({ type }: { type: string }) {
+  if (type === "media") return <Camera className="h-4 w-4" />;
+  if (type === "av") return <Cable className="h-4 w-4" />;
+  if (type === "stage") return <Grid3X3 className="h-4 w-4" />;
+  if (type === "table") return <ListFilter className="h-4 w-4" />;
+  return <Star className="h-4 w-4" />;
+}
 
 export function AssetCatalog() {
   const addItemFromAsset = useEditorStore((s) => s.addItemFromAsset);
@@ -32,191 +51,395 @@ export function AssetCatalog() {
   const setAssetLibraryTab = useEditorStore((s) => s.setAssetLibraryTab);
   const assetSearch = useEditorStore((s) => s.assetSearch);
   const setAssetSearch = useEditorStore((s) => s.setAssetSearch);
-  const toolMode = useEditorStore((s) => s.toolMode);
-  const setToolMode = useEditorStore((s) => s.setToolMode);
+  const assetCatalog = useEditorStore((s) => s.assetCatalog);
+  const setAssetCatalog = useEditorStore((s) => s.setAssetCatalog);
   const activeLayer = useEditorStore((s) => s.activeLayer);
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isPolyLoading, setIsPolyLoading] = useState(false);
+  const [polyError, setPolyError] = useState("");
+  const [polyAssets, setPolyAssets] = useState<AssetDefinition[]>([]);
+  const [polyPage, setPolyPage] = useState(0);
+  const [polyTotal, setPolyTotal] = useState(0);
+  const [selectedCategory, setSelectedCategory] =
+    useState<AssetCategory | "All">("All");
+  const pageCacheRef = useRef(new Map<string, CachedAssetPage>());
+  const requestIdRef = useRef(0);
+
+  const effectiveSearch = useMemo(() => {
+    const query = assetSearch.trim();
+    return query.length >= 3 ? query : "";
+  }, [assetSearch]);
+
+  const pageCount = Math.max(1, Math.ceil(polyTotal / PAGE_SIZE));
+
+  const applyAssetPage = useCallback(
+    (page: number, payload: CachedAssetPage) => {
+      setPolyAssets(payload.results);
+      setPolyPage(page);
+      setPolyTotal(payload.total);
+      setAssetCatalog(payload.results);
+    },
+    [setAssetCatalog],
+  );
+
+  const loadPolyPage = useCallback(
+    async (page: number) => {
+      const safePage = Math.max(0, page);
+      const cacheKey = `${effectiveSearch || "__venue__"}:${safePage}`;
+      const cached = pageCacheRef.current.get(cacheKey);
+
+      setPolyError("");
+      if (cached) {
+        applyAssetPage(safePage, cached);
+        return;
+      }
+
+      const requestId = requestIdRef.current + 1;
+      requestIdRef.current = requestId;
+      setIsPolyLoading(true);
+
+      try {
+        const payload = await fetchPolyPizzaAssets({
+          q: effectiveSearch || undefined,
+          preset: "venue",
+          page: safePage,
+          limit: PAGE_SIZE,
+        });
+
+        if (requestIdRef.current !== requestId) return;
+
+        const nextPage = {
+          results: payload.results,
+          total: payload.total,
+        };
+        pageCacheRef.current.set(cacheKey, nextPage);
+        applyAssetPage(safePage, nextPage);
+      } catch (error) {
+        if (requestIdRef.current !== requestId) return;
+        setPolyAssets([]);
+        setPolyPage(0);
+        setPolyTotal(0);
+        setAssetCatalog([]);
+        setPolyError(
+          error instanceof Error ? error.message : "Poly Pizza assets unavailable.",
+        );
+      } finally {
+        if (requestIdRef.current === requestId) setIsPolyLoading(false);
+      }
+    },
+    [applyAssetPage, effectiveSearch, setAssetCatalog],
+  );
+
+  useEffect(() => {
+    const timeout = window.setTimeout(async () => {
+      await loadPolyPage(0);
+    }, 350);
+
+    return () => {
+      window.clearTimeout(timeout);
+    };
+  }, [loadPolyPage]);
 
   const filteredAssets = useMemo(() => {
-    const query = assetSearch.trim().toLowerCase();
-    return ASSET_CATALOG.filter((asset) => {
-      if (assetLibraryTab === "Favorites") return false;
-      if (assetLibraryTab === "Uploads") return false;
+    return assetCatalog.filter((asset) => {
+      if (asset.source !== "Poly Pizza") return false;
+      if (assetLibraryTab !== "Assets") return false;
+      if (selectedCategory !== "All" && asset.category !== selectedCategory) {
+        return false;
+      }
       if (activeLayer === "layout" && asset.category === "AV Gear") return false;
       if (
         activeLayer === "av" &&
         asset.category !== "AV Gear" &&
-        asset.category !== "Media Equipment"
+          asset.category !== "Media Equipment"
       ) {
         return false;
       }
-      if (!query) return true;
-      return (
-        asset.name.toLowerCase().includes(query) ||
-        asset.category.toLowerCase().includes(query)
-      );
+      return true;
     });
-  }, [activeLayer, assetLibraryTab, assetSearch]);
+  }, [activeLayer, assetCatalog, assetLibraryTab, selectedCategory]);
 
-  const toggleCategory = (category: AssetCategory) =>
-    setCollapsed((current) => ({
-      ...current,
-      [category]: !current[category],
-    }));
+  if (isCollapsed) {
+    return (
+      <aside
+        data-tour="editor-assets"
+        className="flex w-[58px] shrink-0 flex-col items-center gap-3 border-r border-[#e5e5e5] bg-white py-3"
+      >
+        <button
+          onClick={() => setIsCollapsed(false)}
+          title="Expand assets"
+          className="flex h-10 w-10 items-center justify-center rounded-[8px] bg-[#f6f6f6] text-[#555a61] transition hover:bg-[#eeeeee]"
+        >
+          <PanelLeftOpen className="h-5 w-5" />
+        </button>
+        <button
+          onClick={() => {
+            setIsCollapsed(false);
+            setAssetLibraryTab("Assets");
+          }}
+          title="Assets"
+          className="flex h-10 w-10 items-center justify-center rounded-[8px] text-[#555a61] transition hover:bg-[#f6f6f6]"
+        >
+          <Grid3X3 className="h-5 w-5" />
+        </button>
+        <button
+          onClick={() => {
+            setIsCollapsed(false);
+            setTimeout(() => {
+              const input = document.querySelector<HTMLInputElement>(
+                "[data-asset-search-input]",
+              );
+              input?.focus();
+            }, 0);
+          }}
+          title="Search assets"
+          className="flex h-10 w-10 items-center justify-center rounded-[8px] text-[#555a61] transition hover:bg-[#f6f6f6]"
+        >
+          <Search className="h-5 w-5" />
+        </button>
+      </aside>
+    );
+  }
 
   return (
     <aside
       data-tour="editor-assets"
-      className="flex shrink-0 border-r border-[#ececec] bg-white"
+      className="flex w-[390px] shrink-0 flex-col border-r border-[#e5e5e5] bg-white"
     >
-      <div className="flex w-[72px] flex-col items-center gap-4 border-r border-[#ececec] py-6">
-        {[
-          { mode: "select" as const, icon: MousePointer2 },
-          { mode: "move" as const, icon: Move3D },
-          { mode: "rotate" as const, icon: RotateCw },
-          { mode: "scale" as const, icon: Scale3D },
-          { mode: "connect" as const, icon: Cable },
-        ].map((entry) => {
-          const Icon = entry.icon;
-          const active = toolMode === entry.mode;
-          return (
-            <button
-              key={entry.mode}
-              onClick={() => setToolMode(entry.mode)}
-              className={`flex h-12 w-12 items-center justify-center rounded-[14px] border transition ${
-                active
-                  ? "border-[#111111] bg-[#111111] text-white"
-                  : "border-transparent text-[#555555] hover:bg-[#f6f6f4]"
-              }`}
-            >
-              <Icon className="h-5 w-5" />
-            </button>
-          );
-        })}
-
-        <div className="mt-2 h-px w-8 bg-[#ececec]" />
-
-        <button className="flex h-12 w-12 items-center justify-center rounded-[14px] border border-[#d9d9d9] bg-[#f8f8f6] text-[#555555]">
-          <Shapes className="h-5 w-5" />
+      <div className="flex items-center gap-2 border-b border-[#e6e6e6] px-3 py-3">
+        <button
+          onClick={() => setIsCollapsed(true)}
+          title="Collapse assets"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[8px] bg-[#f6f6f6] text-[#686c72] transition hover:bg-[#eeeeee]"
+        >
+          <PanelLeftClose className="h-5 w-5" />
         </button>
+
+        <div className="relative h-11 flex-1">
+          <div className="absolute inset-y-0 right-11 w-px bg-[#dddddd]" />
+          <Search className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[#676b71]" />
+          <input
+            data-asset-search-input
+            value={assetSearch}
+            onChange={(event) => setAssetSearch(event.target.value)}
+            placeholder="Search Poly Pizza..."
+            className="h-full w-full rounded-[8px] border border-transparent bg-[#f6f6f6] py-2 pl-4 pr-14 text-[14px] text-[#333941] placeholder:text-[#a8abb0] transition focus:border-[#d8d8d8] focus:bg-white"
+          />
+        </div>
       </div>
 
-      <div className="flex w-[220px] flex-col">
-        <div className="border-b border-[#ececec] px-4 py-4">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#989898]" />
-            <input
-              value={assetSearch}
-              onChange={(event) => setAssetSearch(event.target.value)}
-              placeholder="Search"
-              className="h-11 w-full rounded-[12px] border border-[#e1e1e1] bg-[#fafaf8] py-2 pl-10 pr-3 text-[13px] text-[#111111] outline-none"
+      <div className="flex min-h-0 flex-1">
+        <div className="sf-scroll w-[156px] shrink-0 overflow-y-auto border-r border-[#e5e5e5] bg-white">
+          <section className="border-b border-[#e5e5e5] px-2 py-3">
+            <SectionHeader>Personal</SectionHeader>
+            <NavButton
+              active={assetLibraryTab === "Favorites"}
+              icon={<Heart className="h-4 w-4" />}
+              label="Favorites"
+              onClick={() => setAssetLibraryTab("Favorites")}
             />
-          </div>
+            <NavButton
+              active={assetLibraryTab === "Uploads"}
+              icon={<UploadCloud className="h-4 w-4" />}
+              label="Uploads"
+              onClick={() => setAssetLibraryTab("Uploads")}
+            />
+            <NavButton
+              icon={<Clock3 className="h-4 w-4" />}
+              label="Recent"
+              onClick={() => setAssetLibraryTab("Assets")}
+            />
+          </section>
 
-          <div className="mt-3 grid grid-cols-3 gap-1">
-            {(["Assets", "Uploads", "Favorites"] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setAssetLibraryTab(tab)}
-                className={`rounded-[10px] px-2 py-2 text-[11px] font-medium transition ${
-                  assetLibraryTab === tab
-                    ? "bg-[#111111] text-white"
-                    : "text-[#666666] hover:bg-[#f6f6f4]"
-                }`}
-              >
-                <span className="inline-flex items-center gap-1.5">
-                  {tab === "Assets" ? null : tab === "Uploads" ? (
-                    <UploadCloud className="h-3.5 w-3.5" />
-                  ) : (
-                    <Heart className="h-3.5 w-3.5" />
-                  )}
-                  {tab}
-                </span>
-              </button>
+          <section className="border-b border-[#e5e5e5] px-2 py-3">
+            <SectionHeader>Explore</SectionHeader>
+            <NavButton
+              icon={<Flame className="h-4 w-4" />}
+              label="Popular"
+              onClick={() => {
+                setAssetLibraryTab("Assets");
+                setSelectedCategory("All");
+              }}
+            />
+            <NavButton
+              icon={<BadgeIcon />}
+              label="Recommended"
+              onClick={() => {
+                setAssetLibraryTab("Assets");
+                setSelectedCategory("All");
+              }}
+              dot
+            />
+          </section>
+
+          <section className="px-2 py-3">
+            <div className="mb-2 flex items-center justify-between">
+              <SectionHeader>Catalog</SectionHeader>
+              <Settings2 className="h-4 w-4 text-[#9b9da1]" />
+            </div>
+            <NavButton
+              active={selectedCategory === "All" && assetLibraryTab === "Assets"}
+              icon={<Grid3X3 className="h-4 w-4" />}
+              label="All assets"
+              onClick={() => {
+                setAssetLibraryTab("Assets");
+                setSelectedCategory("All");
+              }}
+            />
+            {CATALOG_NAV.map((entry) => (
+              <NavButton
+                key={entry.category}
+                active={
+                  selectedCategory === entry.category && assetLibraryTab === "Assets"
+                }
+                icon={<CatalogIcon type={entry.icon} />}
+                label={entry.label}
+                onClick={() => {
+                  setAssetLibraryTab("Assets");
+                  setSelectedCategory(entry.category);
+                }}
+              />
             ))}
-          </div>
+          </section>
         </div>
 
-        <div className="sf-scroll min-h-0 flex-1 overflow-y-auto px-3 py-4">
-          {assetLibraryTab !== "Assets" ? (
-            <div className="rounded-[14px] border border-dashed border-[#d6d6d6] bg-[#fafaf8] px-4 py-8 text-center text-[13px] text-[#707070]">
-              {assetLibraryTab === "Uploads"
-                ? "Uploads will appear here when custom asset ingestion is added."
-                : "Favorites will appear here once asset starring is enabled."}
+        <div className="flex min-w-0 flex-1 flex-col bg-white">
+          <div className="flex items-center gap-2 border-b border-[#eeeeee] px-3 py-3 text-[11px] text-[#8a8d92]">
+            <div className="min-w-0">
+              <div className="truncate font-medium text-[#555a61]">
+                {assetLibraryTab === "Assets"
+                  ? selectedCategory === "All"
+                    ? "Poly Pizza"
+                    : selectedCategory
+                  : assetLibraryTab}
+              </div>
+              <div>
+                {isPolyLoading
+                  ? "Loading"
+                  : polyError
+                    ? "Unavailable"
+                    : `${filteredAssets.length}/${polyAssets.length} shown`}
+              </div>
             </div>
-          ) : (
-            <div className="space-y-4">
-              {CATEGORIES.map((category) => {
-                const categoryAssets = filteredAssets.filter(
-                  (asset) => asset.category === category,
-                );
+            <button className="ml-auto flex h-9 w-9 items-center justify-center rounded-[6px] border border-[#d8d8d8] text-[#62666c]">
+              <ListFilter className="h-4 w-4" />
+            </button>
+          </div>
 
-                if (categoryAssets.length === 0) return null;
-
-                return (
-                  <section
-                    key={category}
-                    className="rounded-[14px] border border-[#ececec] bg-[#fcfcfb]"
+          <div className="sf-scroll min-h-0 flex-1 overflow-y-auto px-3 pb-3 pt-3">
+            {assetLibraryTab !== "Assets" ? (
+              <div className="rounded-[8px] border border-dashed border-[#d6d6d6] bg-[#fafaf8] px-3 py-8 text-center text-[12px] text-[#707070]">
+                {assetLibraryTab === "Uploads"
+                  ? "Uploads are disabled while Poly Pizza is the active source."
+                  : "Favorites will appear here once asset starring is enabled."}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                {filteredAssets.map((asset) => (
+                  <button
+                    key={asset.id}
+                    draggable
+                    onDragStart={(event) =>
+                      event.dataTransfer.setData("text/asset-id", asset.id)
+                    }
+                    onClick={() => addItemFromAsset(asset.id)}
+                    className="group relative aspect-square overflow-hidden rounded-[8px] bg-[#f1f1f1] text-left transition hover:ring-2 hover:ring-[#cfcfcf]"
+                    title={asset.attribution || asset.name}
                   >
-                    <button
-                      onClick={() => toggleCategory(category)}
-                      className="flex w-full items-center justify-between px-4 py-3 text-left"
-                    >
-                      <div>
-                        <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#9a9a9a]">
-                          {category}
-                        </div>
-                        <div className="mt-1 text-[12px] text-[#6d6d6d]">
-                          {categoryAssets.length} items
-                        </div>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={asset.thumbnail}
+                      alt={asset.name}
+                      className="h-full w-full object-cover"
+                    />
+                    <div className="absolute inset-x-0 bottom-0 bg-white/90 px-2 py-1 opacity-0 transition group-hover:opacity-100">
+                      <div className="truncate text-[10px] font-medium text-[#222831]">
+                        {asset.name}
                       </div>
-                      <ChevronDown
-                        className={`h-4 w-4 text-[#7b7b7b] transition ${
-                          collapsed[category] ? "-rotate-90" : ""
-                        }`}
-                      />
-                    </button>
+                      <div className="truncate text-[8px] uppercase text-[#8a8d92]">
+                        {asset.creator || asset.category}
+                      </div>
+                    </div>
+                  </button>
+                ))}
 
-                    {!collapsed[category] ? (
-                      <div className="grid gap-2 px-3 pb-3">
-                        {categoryAssets.map((asset) => (
-                          <button
-                            key={asset.id}
-                            draggable
-                            onDragStart={(event) =>
-                              event.dataTransfer.setData("text/asset-id", asset.id)
-                            }
-                            onClick={() => addItemFromAsset(asset.id)}
-                            className="flex items-center gap-3 rounded-[12px] border border-[#e6e6e6] bg-white p-2.5 text-left transition hover:border-[#cfcfcf] hover:shadow-sm"
-                          >
-                            <div className="relative h-12 w-14 overflow-hidden rounded-[10px] border border-[#ececec] bg-[#f6f6f4]">
-                              <Image
-                                src={asset.thumbnail}
-                                alt={asset.name}
-                                fill
-                                sizes="56px"
-                                className="object-cover"
-                              />
-                            </div>
-                            <div className="min-w-0">
-                              <div className="truncate text-[12px] font-medium text-[#111111]">
-                                {asset.name}
-                              </div>
-                              <div className="mt-1 text-[10px] uppercase tracking-[0.08em] text-[#9a9a9a]">
-                                {asset.category}
-                              </div>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    ) : null}
-                  </section>
-                );
-              })}
+                {filteredAssets.length === 0 && !isPolyLoading ? (
+                  <div className="col-span-2 rounded-[8px] border border-dashed border-[#d6d6d6] bg-[#fafaf8] px-3 py-8 text-center text-[12px] text-[#707070]">
+                    No Poly Pizza assets on this page.
+                  </div>
+                ) : null}
+              </div>
+            )}
+          </div>
+
+          <div className="flex h-12 items-center justify-center gap-3 border-t border-[#eeeeee] text-[14px] text-[#555a61]">
+            <button
+              onClick={() => void loadPolyPage(polyPage - 1)}
+              disabled={isPolyLoading || polyPage === 0}
+              className="flex h-8 w-8 items-center justify-center rounded-[6px] text-[#555a61] transition hover:bg-[#f6f6f6] disabled:opacity-35"
+              title="Previous page"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <div className="flex h-8 min-w-12 items-center justify-center rounded-[6px] border border-[#d8d8d8] bg-white px-3">
+              {polyPage + 1}
             </div>
-          )}
+            <span>/ {pageCount}</span>
+            <button
+              onClick={() => void loadPolyPage(polyPage + 1)}
+              disabled={isPolyLoading || polyPage + 1 >= pageCount}
+              className="flex h-8 w-8 items-center justify-center rounded-[6px] text-[#555a61] transition hover:bg-[#f6f6f6] disabled:opacity-35"
+              title="Next page"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
     </aside>
+  );
+}
+
+function SectionHeader({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="mb-2 flex items-center gap-1 text-[14px] font-semibold text-[#9b9da1]">
+      <ChevronRight className="h-3 w-3 rotate-90" />
+      {children}
+    </div>
+  );
+}
+
+function NavButton({
+  active,
+  icon,
+  label,
+  onClick,
+  dot,
+}: {
+  active?: boolean;
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  dot?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`mb-1 flex w-full items-center gap-2 rounded-[8px] px-2 py-2 text-left text-[13px] transition ${
+        active ? "bg-[#f5f5f5] text-[#222831]" : "text-[#333941] hover:bg-[#f7f7f7]"
+      }`}
+    >
+      <span className="flex h-5 w-5 shrink-0 items-center justify-center">{icon}</span>
+      <span className="min-w-0 truncate">{label}</span>
+      {dot ? <span className="ml-auto h-2 w-2 rounded-full bg-[#ff2e1f]" /> : null}
+    </button>
+  );
+}
+
+function BadgeIcon() {
+  return (
+    <span className="flex h-4 w-4 items-center justify-center rounded-full border border-[#686c72] text-[9px] font-semibold text-[#686c72]">
+      R
+    </span>
   );
 }

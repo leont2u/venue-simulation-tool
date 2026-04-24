@@ -17,6 +17,17 @@ type Props = {
     metalness: number;
   };
   onClick?: (event: { shiftKey: boolean }) => void;
+  onPointerDown?: (event: {
+    shiftKey: boolean;
+    ctrlKey: boolean;
+    metaKey: boolean;
+    altKey: boolean;
+    ray: THREE.Ray;
+    point: THREE.Vector3;
+    stopPropagation: () => void;
+    target: EventTarget;
+    pointerId: number;
+  }) => void;
   onPointerEnter?: () => void;
   onPointerLeave?: () => void;
 };
@@ -31,6 +42,7 @@ function PrimitiveAssetComponent({
   color,
   material,
   onClick,
+  onPointerDown,
   onPointerEnter,
   onPointerLeave,
 }: Props) {
@@ -46,6 +58,7 @@ function PrimitiveAssetComponent({
         color={color}
         material={material}
         onClick={onClick}
+        onPointerDown={onPointerDown}
         onPointerEnter={onPointerEnter}
         onPointerLeave={onPointerLeave}
       />
@@ -63,6 +76,7 @@ function PrimitiveAssetComponent({
       color={color}
       material={material}
       onClick={onClick}
+      onPointerDown={onPointerDown}
       onPointerEnter={onPointerEnter}
       onPointerLeave={onPointerLeave}
     />
@@ -136,6 +150,7 @@ function GltfAsset({
   color,
   material,
   onClick,
+  onPointerDown,
   onPointerEnter,
   onPointerLeave,
 }: Props) {
@@ -166,6 +181,20 @@ function GltfAsset({
         event.stopPropagation();
         onClick?.({ shiftKey: event.shiftKey });
       }}
+      onPointerDown={(event) => {
+        event.stopPropagation();
+        onPointerDown?.({
+          shiftKey: event.shiftKey,
+          ctrlKey: event.ctrlKey,
+          metaKey: event.metaKey,
+          altKey: event.altKey,
+          ray: event.ray.clone(),
+          point: event.point.clone(),
+          stopPropagation: event.stopPropagation,
+          target: (event.target ?? event.currentTarget) as EventTarget,
+          pointerId: event.pointerId,
+        });
+      }}
       onPointerEnter={(event) => {
         event.stopPropagation();
         onPointerEnter?.();
@@ -191,6 +220,10 @@ function GltfAsset({
   );
 }
 
+type PrimitiveShapeProps = Omit<Props, "url"> & {
+  type: string;
+};
+
 function PrimitiveShape({
   type,
   position,
@@ -201,9 +234,10 @@ function PrimitiveShape({
   color,
   material,
   onClick,
+  onPointerDown,
   onPointerEnter,
   onPointerLeave,
-}: Props & { type: string }) {
+}: PrimitiveShapeProps) {
   const geometry = useMemo(() => {
     if (type === "round_table" || type === "plant") {
       return new THREE.CylinderGeometry(0.5, 0.5, 1, 24);
@@ -251,6 +285,20 @@ function PrimitiveShape({
       onClick={(event) => {
         event.stopPropagation();
         onClick?.({ shiftKey: event.shiftKey });
+      }}
+      onPointerDown={(event) => {
+        event.stopPropagation();
+        onPointerDown?.({
+          shiftKey: event.shiftKey,
+          ctrlKey: event.ctrlKey,
+          metaKey: event.metaKey,
+          altKey: event.altKey,
+          ray: event.ray.clone(),
+          point: event.point.clone(),
+          stopPropagation: event.stopPropagation,
+          target: (event.target ?? event.currentTarget) as EventTarget,
+          pointerId: event.pointerId,
+        });
       }}
       onPointerEnter={(event) => {
         event.stopPropagation();
