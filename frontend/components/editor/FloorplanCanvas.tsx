@@ -15,6 +15,13 @@ import {
   getItemFootprint,
   snapPositionToNeighbors,
 } from "@/lib/editorPhysics";
+import {
+  getCableColor,
+  getCablePathPoints,
+  inferCableType,
+  isAvItem,
+  resolveConnectionItems,
+} from "@/lib/sceneConnections";
 import { Project, SceneItem } from "@/types/types";
 import { useEditorStore } from "@/store/UseEditorStore";
 
@@ -28,6 +35,10 @@ function getColor(type: string) {
       return "#355070";
     case "camera":
       return "#457B9D";
+    case "speaker":
+      return "#BA7517";
+    case "mixing_desk":
+      return "#534AB7";
     case "banquet_table":
     case "desk":
       return "#D4A373";
@@ -48,9 +59,12 @@ export function FloorplanCanvas({
   const storedProject = useEditorStore((s) => s.project);
   const project = projectOverride ?? storedProject;
   const selectedIds = useEditorStore((s) => s.selectedIds);
+  const activeLayer = useEditorStore((s) => s.activeLayer);
+  const toolMode = useEditorStore((s) => s.toolMode);
   const selectItem = useEditorStore((s) => s.selectItem);
   const updateItem = useEditorStore((s) => s.updateItem);
   const applyProjectMutation = useEditorStore((s) => s.applyProjectMutation);
+  const addConnection = useEditorStore((s) => s.addConnection);
 
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [guides, setGuides] = useState<AlignmentGuide[]>([]);
@@ -66,6 +80,22 @@ export function FloorplanCanvas({
   } | null>(null);
 
   const snapToGrid = project?.sceneSettings?.snapToGrid ?? true;
+  const visibleItems = useMemo(() => {
+    if (!project) return [];
+    return project.items.filter((item) => {
+      if (activeLayer === "layout") return !isAvItem(item);
+      if (activeLayer === "av") return isAvItem(item);
+      return true;
+    });
+  }, [activeLayer, project]);
+
+  const visibleConnections = useMemo(() => {
+    if (!project || activeLayer === "layout") return [];
+    return (project.connections ?? []).filter((connection) =>
+      Boolean(resolveConnectionItems(project, connection)),
+    );
+  }, [activeLayer, project]);
+
   const viewBox = useMemo(() => {
     if (!project) return "0 0 100 100";
     return `${-project.room.width / 2 - 2} ${-project.room.depth / 2 - 2} ${
@@ -248,7 +278,32 @@ export function FloorplanCanvas({
           ),
         )}
 
-        {project.items.map((item) => {
+        {visibleConnections.map((connection) => {
+          const resolved = resolveConnectionItems(project, connection);
+          if (!resolved) return null;
+
+          const cablePoints = getCablePathPoints(
+            resolved.fromItem,
+            resolved.toItem,
+          );
+          const path = cablePoints
+            .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.z}`)
+            .join(" ");
+
+          return (
+            <path
+              key={connection.id}
+              d={path}
+              fill="none"
+              stroke={getCableColor(connection.cableType)}
+              strokeWidth="0.12"
+              strokeDasharray={connection.cableType === "power" ? "0.28 0.18" : undefined}
+              opacity="0.95"
+            />
+          );
+        })}
+
+        {visibleItems.map((item) => {
           const footprint = getItemFootprint(item);
           const isSelected = selectedIds.includes(item.id);
 
@@ -262,6 +317,24 @@ export function FloorplanCanvas({
                 event.stopPropagation();
                 const pointer = toCanvasPoint(event);
                 if (!pointer) return;
+                if (toolMode === "connect") {
+                  if (selectedIds.length === 1 && selectedIds[0] !== item.id) {
+                    const source = project.items.find(
+                      (entry) => entry.id === selectedIds[0],
+                    );
+                    if (source) {
+                      addConnection(
+                        source.id,
+                        item.id,
+                        inferCableType(source, item),
+                      );
+                    }
+                  } else {
+                    selectItem(item.id);
+                  }
+                  return;
+                }
+
                 selectItem(item.id, event.shiftKey);
                 interactionRef.current = {
                   itemId: item.id,
@@ -333,7 +406,9 @@ export function FloorplanCanvas({
       </svg>
 
       <div className="pointer-events-none absolute bottom-5 left-5 rounded-[10px] bg-[#111111]/78 px-3 py-2 text-[12px] text-white shadow-lg">
-        Drag furniture in 2D. Drag the corner handle to resize the room.
+        {toolMode === "connect"
+          ? "Connect mode: click one AV item, then another to create a cable run."
+          : "Drag furniture in 2D. Drag the corner handle to resize the room."}
       </div>
     </div>
   );

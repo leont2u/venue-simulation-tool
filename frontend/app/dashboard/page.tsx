@@ -10,6 +10,7 @@ import {
   readPendingPrompt,
   savePendingPrompt,
 } from "@/lib/pendingPrompt";
+import { PROJECT_TEMPLATES } from "@/lib/projectTemplates";
 import { generateProjectFromPrompt } from "@/lib/promptLayout";
 import { getProjects, upsertProject } from "@/lib/storage";
 import { Project } from "@/types/types";
@@ -265,6 +266,56 @@ export default function DashboardPage() {
                     Open landing pipelines
                   </Link>
                 </div>
+              </div>
+            </div>
+
+            <div className="mb-6">
+              <div className="mb-3 flex items-center justify-between">
+                <div>
+                  <div className="text-[15px] font-semibold text-[var(--sf-text)]">
+                    Templates
+                  </div>
+                  <div className="mt-1 text-[13px] text-[var(--sf-text-muted)]">
+                    Start from a prebuilt layout instead of beginning from scratch.
+                  </div>
+                </div>
+                <button
+                  onClick={() => setOpen(true)}
+                  className="rounded-[6px] border border-[var(--sf-border-strong)] px-4 py-2 text-[13px] font-medium text-[var(--sf-text)] transition hover:bg-[var(--sf-surface-soft)]"
+                >
+                  Open Template Picker
+                </button>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-3">
+                {PROJECT_TEMPLATES.map((template) => (
+                  <div key={template.id} className="sf-panel overflow-hidden">
+                    <div
+                      className="h-28 border-b border-[var(--sf-border)]"
+                      style={{ background: template.previewTone }}
+                    />
+                    <div className="p-4">
+                      <div className="flex items-center gap-2">
+                        <div className="text-[14px] font-semibold text-[var(--sf-text)]">
+                          {template.name}
+                        </div>
+                        {template.avReady ? (
+                          <span className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-medium text-emerald-700">
+                            AV ready
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="mt-2 text-[12px] leading-6 text-[var(--sf-text-muted)]">
+                        {template.description}
+                      </div>
+                      <div className="mt-3">
+                        <span className="sf-chip px-2 py-1 text-[11px]">
+                          {template.category}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 

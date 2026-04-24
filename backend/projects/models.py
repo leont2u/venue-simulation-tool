@@ -14,6 +14,7 @@ class Project(models.Model):
     name = models.CharField(max_length=255)
     room = models.JSONField()
     items = models.JSONField(default=list)
+    connections = models.JSONField(default=list, blank=True)
     measurements = models.JSONField(default=list, blank=True)
     scene_settings = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField()

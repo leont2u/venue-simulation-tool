@@ -58,6 +58,12 @@ export function EditorShortcuts() {
         return;
       }
 
+      if (e.key.toLowerCase() === "c") {
+        e.preventDefault();
+        setToolMode("connect");
+        return;
+      }
+
       if (selectedIds.length === 0) return;
 
       if (e.key === "Delete" || e.key === "Backspace") {

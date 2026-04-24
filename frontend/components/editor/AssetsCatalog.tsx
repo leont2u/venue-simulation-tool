@@ -12,6 +12,7 @@ import {
   Search,
   Shapes,
   UploadCloud,
+  Cable,
 } from "lucide-react";
 import { ASSET_CATALOG } from "@/lib/DemoAssets";
 import { useEditorStore } from "@/store/UseEditorStore";
@@ -22,6 +23,7 @@ const CATEGORIES: AssetCategory[] = [
   "Tables",
   "Stage & Decor",
   "Media Equipment",
+  "AV Gear",
 ];
 
 export function AssetCatalog() {
@@ -32,6 +34,7 @@ export function AssetCatalog() {
   const setAssetSearch = useEditorStore((s) => s.setAssetSearch);
   const toolMode = useEditorStore((s) => s.toolMode);
   const setToolMode = useEditorStore((s) => s.setToolMode);
+  const activeLayer = useEditorStore((s) => s.activeLayer);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   const filteredAssets = useMemo(() => {
@@ -39,13 +42,21 @@ export function AssetCatalog() {
     return ASSET_CATALOG.filter((asset) => {
       if (assetLibraryTab === "Favorites") return false;
       if (assetLibraryTab === "Uploads") return false;
+      if (activeLayer === "layout" && asset.category === "AV Gear") return false;
+      if (
+        activeLayer === "av" &&
+        asset.category !== "AV Gear" &&
+        asset.category !== "Media Equipment"
+      ) {
+        return false;
+      }
       if (!query) return true;
       return (
         asset.name.toLowerCase().includes(query) ||
         asset.category.toLowerCase().includes(query)
       );
     });
-  }, [assetLibraryTab, assetSearch]);
+  }, [activeLayer, assetLibraryTab, assetSearch]);
 
   const toggleCategory = (category: AssetCategory) =>
     setCollapsed((current) => ({
@@ -61,6 +72,7 @@ export function AssetCatalog() {
           { mode: "move" as const, icon: Move3D },
           { mode: "rotate" as const, icon: RotateCw },
           { mode: "scale" as const, icon: Scale3D },
+          { mode: "connect" as const, icon: Cable },
         ].map((entry) => {
           const Icon = entry.icon;
           const active = toolMode === entry.mode;

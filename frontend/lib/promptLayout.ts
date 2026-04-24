@@ -24,6 +24,13 @@ function isValidProject(project: unknown): project is Project {
     return false;
   }
   if (!("items" in project) || !Array.isArray(project.items)) return false;
+  if (
+    "connections" in project &&
+    project.connections !== undefined &&
+    !Array.isArray(project.connections)
+  ) {
+    return false;
+  }
 
   return project.items.every((item) => {
     if (!isObject(item)) return false;

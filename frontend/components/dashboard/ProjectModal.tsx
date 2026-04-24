@@ -2,11 +2,18 @@
 
 import { useRef, useState } from "react";
 import { createProjectFromDrawioFile } from "@/lib/drawioImport";
+import { PROJECT_TEMPLATES } from "@/lib/projectTemplates";
 import { generateProjectFromPrompt } from "@/lib/promptLayout";
 import { upsertProject } from "@/lib/storage";
 import { Project } from "@/types/types";
 
-type ProjectPipeline = "menu" | "upload" | "draw2d" | "prompt" | "draw3d";
+type ProjectPipeline =
+  | "menu"
+  | "template"
+  | "upload"
+  | "draw2d"
+  | "prompt"
+  | "draw3d";
 
 export default function ProjectModal({
   open,
@@ -22,6 +29,7 @@ export default function ProjectModal({
   const [step, setStep] = useState<ProjectPipeline>("menu");
   const [name, setName] = useState("");
   const [prompt, setPrompt] = useState("");
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -34,6 +42,7 @@ export default function ProjectModal({
     setStep("menu");
     setName("");
     setPrompt("");
+    setSelectedTemplateId("");
     setFile(null);
     setError("");
     setLoading(false);
@@ -56,6 +65,7 @@ export default function ProjectModal({
         height: 4,
       },
       items: [],
+      connections: [],
     };
   };
 
@@ -72,6 +82,31 @@ export default function ProjectModal({
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to create project.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateFromTemplate = async () => {
+    const template = PROJECT_TEMPLATES.find((entry) => entry.id === selectedTemplateId);
+    if (!template) {
+      setError("Please choose a template.");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const project = template.buildProject(name.trim() || template.name);
+      const savedProject = await upsertProject(project);
+      await onProjectCreated?.();
+      handleClose();
+      onOpenProject(savedProject.id);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Failed to create template project.",
       );
     } finally {
       setLoading(false);
@@ -213,6 +248,12 @@ export default function ProjectModal({
         {step === "menu" && (
           <div className="grid gap-3">
             <PipelineCard
+              title="Start from Template"
+              subtitle="Use a prebuilt layout and make it your own"
+              onClick={() => setStep("template")}
+            />
+
+            <PipelineCard
               title="Upload File"
               subtitle="XML, draw.io, or HTML"
               onClick={() => setStep("upload")}
@@ -235,6 +276,72 @@ export default function ProjectModal({
               subtitle="Start directly in 3D"
               onClick={() => setStep("draw3d")}
             />
+          </div>
+        )}
+
+        {step === "template" && (
+          <div>
+            <div className="text-[15px] font-semibold text-[var(--sf-text)]">
+              Choose a template
+            </div>
+            <p className="mt-1 text-[13px] text-[var(--sf-text-muted)]">
+              Start from a proven room layout, rename it, edit it, and save your own copy.
+            </p>
+
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Project name"
+              className="mt-4 w-full rounded-[8px] border border-[var(--sf-border-strong)] bg-white px-4 py-3 text-[13px] text-[var(--sf-text)] placeholder:text-[var(--sf-text-faint)]"
+            />
+
+            <div className="mt-4 grid gap-3">
+              {PROJECT_TEMPLATES.map((template) => {
+                const active = selectedTemplateId === template.id;
+                return (
+                  <button
+                    key={template.id}
+                    onClick={() => setSelectedTemplateId(template.id)}
+                    className={`rounded-[10px] border p-4 text-left transition ${
+                      active
+                        ? "border-[var(--sf-accent-blue)] bg-blue-50"
+                        : "border-[var(--sf-border)] bg-white hover:border-[var(--sf-border-strong)]"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <div className="text-[14px] font-semibold text-[var(--sf-text)]">
+                          {template.name}
+                        </div>
+                        <div className="mt-1 text-[12px] text-[var(--sf-text-muted)]">
+                          {template.description}
+                        </div>
+                      </div>
+                      <div
+                        className="h-12 w-12 rounded-[10px] border border-white/60"
+                        style={{ background: template.previewTone }}
+                      />
+                    </div>
+                    <div className="mt-3 flex items-center gap-2">
+                      <span className="sf-chip px-2 py-1 text-[11px]">{template.category}</span>
+                      {template.avReady ? (
+                        <span className="rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-medium text-emerald-700">
+                          AV ready
+                        </span>
+                      ) : null}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={handleCreateFromTemplate}
+              disabled={loading}
+              className="mt-5 rounded-[8px] bg-[var(--sf-accent-blue)] px-4 py-2 text-[13px] font-medium text-white transition hover:bg-[#1d4ed8] disabled:opacity-50"
+            >
+              {loading ? "Creating..." : "Use Template"}
+            </button>
           </div>
         )}
 

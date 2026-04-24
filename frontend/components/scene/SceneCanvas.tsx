@@ -5,6 +5,13 @@ import { Canvas, useThree } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { AlignmentGuide, clampToRoom, collidesWithOthers, snapPositionToNeighbors } from "@/lib/editorPhysics";
+import {
+  getCableColor,
+  getCablePathPoints,
+  inferCableType,
+  isAvItem,
+  resolveConnectionItems,
+} from "@/lib/sceneConnections";
 import { RoomShell } from "@/components/scene/RoomShell";
 import { PrimitiveAsset } from "@/components/scene/PrimitiveAsset";
 import { useEditorStore } from "@/store/UseEditorStore";
@@ -93,7 +100,7 @@ function TransformGizmo({
     };
   }, [item]);
 
-  if (!item || toolMode === "select") {
+  if (!item || toolMode === "select" || toolMode === "connect") {
     onGuidesChange([]);
     return null;
   }
@@ -228,8 +235,11 @@ export function SceneCanvas({
 }) {
   const storedProject = useEditorStore((s) => s.project);
   const selectedIds = useEditorStore((s) => s.selectedIds);
+  const activeLayer = useEditorStore((s) => s.activeLayer);
+  const toolMode = useEditorStore((s) => s.toolMode);
   const selectItem = useEditorStore((s) => s.selectItem);
   const addItemFromAsset = useEditorStore((s) => s.addItemFromAsset);
+  const addConnection = useEditorStore((s) => s.addConnection);
   const viewportZoom = useEditorStore((s) => s.viewportZoom);
   const orbitRef = useRef<THREE.EventDispatcher | null>(null);
 
@@ -248,6 +258,17 @@ export function SceneCanvas({
   if (!project) return null;
 
   const settings = project.sceneSettings;
+  const visibleItems = project.items.filter((item) => {
+    if (activeLayer === "layout") return !isAvItem(item);
+    if (activeLayer === "av") return isAvItem(item);
+    return true;
+  });
+  const visibleConnections =
+    activeLayer === "layout"
+      ? []
+      : (project.connections ?? []).filter((connection) =>
+          Boolean(resolveConnectionItems(project, connection)),
+        );
 
   return (
     <div
@@ -298,7 +319,34 @@ export function SceneCanvas({
             floorColor={project.sceneSettings?.floorColor}
           />
 
-          {project.items.map((item) => (
+          {visibleConnections.map((connection) => {
+            const resolved = resolveConnectionItems(project, connection);
+            if (!resolved) return null;
+
+            const cablePoints = getCablePathPoints(
+              resolved.fromItem,
+              resolved.toItem,
+            );
+
+            return (
+              <line key={connection.id}>
+                <bufferGeometry>
+                  <bufferAttribute
+                    attach="attributes-position"
+                    args={[
+                      new Float32Array(
+                        cablePoints.flatMap((point) => [point.x, 0.08, point.z]),
+                      ),
+                      3,
+                    ]}
+                  />
+                </bufferGeometry>
+                <lineBasicMaterial color={getCableColor(connection.cableType)} />
+              </line>
+            );
+          })}
+
+          {visibleItems.map((item) => (
             <group key={item.id}>
               <PrimitiveAsset
                 url={item.assetUrl}
@@ -314,7 +362,27 @@ export function SceneCanvas({
                 onClick={
                   readOnly
                     ? undefined
-                    : (event) => selectItem(item.id, event.shiftKey)
+                    : () => {
+                        if (toolMode === "connect") {
+                          if (selectedIds.length === 1 && selectedIds[0] !== item.id) {
+                            const source = project.items.find(
+                              (entry) => entry.id === selectedIds[0],
+                            );
+                            if (source) {
+                              addConnection(
+                                source.id,
+                                item.id,
+                                inferCableType(source, item),
+                              );
+                            }
+                          } else {
+                            selectItem(item.id);
+                          }
+                          return;
+                        }
+
+                        selectItem(item.id);
+                      }
                 }
               />
 
@@ -386,7 +454,9 @@ export function SceneCanvas({
       </Canvas>
 
       <div className="pointer-events-none absolute bottom-5 left-5 rounded-[10px] bg-[#111111]/78 px-3 py-2 text-[12px] text-white shadow-lg">
-        Mouse: rotate · Scroll: zoom · Shift+drag: pan
+        {toolMode === "connect"
+          ? "Connect mode: click one AV item, then another to create a cable run."
+          : "Mouse: rotate · Scroll: zoom · Shift+drag: pan"}
       </div>
     </div>
   );
