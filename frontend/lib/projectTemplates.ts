@@ -126,4 +126,146 @@ export const PROJECT_TEMPLATES: ProjectTemplate[] = [
       return project;
     },
   },
+  {
+    id: "tmpl-concert-main-stage",
+    name: "Outdoor Festival",
+    category: "Concert",
+    description:
+      "Large open venue with stage, screens, front speakers, and camera positions.",
+    avReady: true,
+    previewTone: "#EEF0E8",
+    buildProject: (projectName) => {
+      const project = createBaseProject(projectName || "Outdoor Festival", {
+        width: 44,
+        depth: 54,
+        height: 6,
+        wallThickness: 0.15,
+      });
+
+      project.items = [
+        { id: crypto.randomUUID(), type: "screen", x: -8, y: 0, z: -21, rotationY: 0, scale: [1.2, 1.2, 1.2], assetUrl: "/models/screen.glb", label: "Screen L", layer: "layout" },
+        { id: crypto.randomUUID(), type: "screen", x: 8, y: 0, z: -21, rotationY: 0, scale: [1.2, 1.2, 1.2], assetUrl: "/models/screen.glb", label: "Screen R", layer: "layout" },
+        { id: crypto.randomUUID(), type: "podium", x: 0, y: 0, z: -18, rotationY: 0, scale: [0.2, 0.2, 0.2], assetUrl: "/models/podium.glb", label: "Main Stage", layer: "layout" },
+        { id: crypto.randomUUID(), type: "speaker", x: -11, y: 0, z: -17, rotationY: 0, scale: [1.1, 1.4, 1.1], assetUrl: "primitive://speaker", label: "Line Array L", layer: "av" },
+        { id: crypto.randomUUID(), type: "speaker", x: 11, y: 0, z: -17, rotationY: 0, scale: [1.1, 1.4, 1.1], assetUrl: "primitive://speaker", label: "Line Array R", layer: "av" },
+        { id: crypto.randomUUID(), type: "camera", x: 0, y: 0, z: 14, rotationY: 0, scale: [0.8, 0.8, 0.8], assetUrl: "/models/camera.glb", label: "FOH Camera", layer: "av" },
+        { id: crypto.randomUUID(), type: "mixing_desk", x: 0, y: 0, z: 20, rotationY: 0, scale: [1.4, 0.8, 0.9], assetUrl: "primitive://mixing_desk", label: "FOH Desk", layer: "av" },
+      ];
+
+      project.connections = [
+        { id: crypto.randomUUID(), fromItemId: project.items[6].id, toItemId: project.items[3].id, cableType: "audio" },
+        { id: crypto.randomUUID(), fromItemId: project.items[6].id, toItemId: project.items[4].id, cableType: "audio" },
+        { id: crypto.randomUUID(), fromItemId: project.items[5].id, toItemId: project.items[6].id, cableType: "video" },
+      ];
+
+      return project;
+    },
+  },
+  {
+    id: "tmpl-memorial-intimate",
+    name: "Memorial Service",
+    category: "Funeral",
+    description:
+      "Intimate seating layout with podium, screen, and a small livestream setup.",
+    avReady: true,
+    previewTone: "#EDF1F0",
+    buildProject: (projectName) => {
+      const project = createBaseProject(projectName || "Memorial Service", {
+        width: 18,
+        depth: 24,
+        height: 4,
+        wallThickness: 0.15,
+      });
+
+      project.items = [
+        { id: crypto.randomUUID(), type: "podium", x: 0, y: 0, z: -8, rotationY: 0, scale: [0.1, 0.1, 0.1], assetUrl: "/models/podium.glb", label: "Podium", layer: "layout" },
+        { id: crypto.randomUUID(), type: "screen", x: 0, y: 0, z: -10.5, rotationY: 0, scale: [0.8, 0.8, 0.8], assetUrl: "/models/screen.glb", label: "Photo Screen", layer: "layout" },
+        { id: crypto.randomUUID(), type: "camera", x: 0, y: 0, z: 8, rotationY: 0, scale: [0.7, 0.7, 0.7], assetUrl: "/models/camera.glb", label: "Livestream Camera", layer: "av" },
+        { id: crypto.randomUUID(), type: "mixing_desk", x: 5, y: 0, z: 7, rotationY: 0, scale: [1.1, 0.7, 0.8], assetUrl: "primitive://mixing_desk", label: "AV Desk", layer: "av" },
+      ];
+
+      return project;
+    },
+  },
+  {
+    id: "tmpl-corporate-town-hall",
+    name: "Corporate Town Hall",
+    category: "Corporate",
+    description:
+      "Hybrid town hall layout with presentation screen, podium, and AV control.",
+    avReady: true,
+    previewTone: "#E9EEF3",
+    buildProject: (projectName) => {
+      const project = createBaseProject(projectName || "Corporate Town Hall", {
+        width: 26,
+        depth: 32,
+        height: 4.5,
+        wallThickness: 0.15,
+      });
+
+      project.items = [
+        { id: crypto.randomUUID(), type: "screen", x: 0, y: 0, z: -13.5, rotationY: 0, scale: [1, 1, 1], assetUrl: "/models/screen.glb", label: "Main Screen", layer: "layout" },
+        { id: crypto.randomUUID(), type: "podium", x: -3, y: 0, z: -11.5, rotationY: 0, scale: [0.1, 0.1, 0.1], assetUrl: "/models/podium.glb", label: "Speaker Podium", layer: "layout" },
+        { id: crypto.randomUUID(), type: "desk", x: 3, y: 0, z: -10.5, rotationY: 0, scale: [1.1, 1, 1], assetUrl: "/models/desk.glb", label: "Panel Desk", layer: "layout" },
+        { id: crypto.randomUUID(), type: "camera", x: -6, y: 0, z: 9, rotationY: 0, scale: [0.7, 0.7, 0.7], assetUrl: "/models/camera.glb", label: "Camera L", layer: "av" },
+        { id: crypto.randomUUID(), type: "camera", x: 6, y: 0, z: 9, rotationY: 0, scale: [0.7, 0.7, 0.7], assetUrl: "/models/camera.glb", label: "Camera R", layer: "av" },
+        { id: crypto.randomUUID(), type: "mixing_desk", x: 0, y: 0, z: 12, rotationY: 0, scale: [1.2, 0.7, 0.8], assetUrl: "primitive://mixing_desk", label: "Hybrid Control", layer: "av" },
+      ];
+
+      return project;
+    },
+  },
+  {
+    id: "tmpl-livestream-studio",
+    name: "Livestream Studio",
+    category: "Livestream",
+    description:
+      "Compact four-camera studio starter layout for production planning.",
+    avReady: true,
+    previewTone: "#E8F2F0",
+    buildProject: (projectName) => {
+      const project = createBaseProject(projectName || "Livestream Studio", {
+        width: 16,
+        depth: 18,
+        height: 3.5,
+        wallThickness: 0.15,
+      });
+
+      project.items = [
+        { id: crypto.randomUUID(), type: "desk", x: 0, y: 0, z: -4, rotationY: 0, scale: [1.2, 1, 1], assetUrl: "/models/desk.glb", label: "Host Desk", layer: "layout" },
+        { id: crypto.randomUUID(), type: "screen", x: 0, y: 0, z: -7, rotationY: 0, scale: [0.8, 0.8, 0.8], assetUrl: "/models/screen.glb", label: "Backdrop Screen", layer: "layout" },
+        { id: crypto.randomUUID(), type: "camera", x: -5, y: 0, z: 2, rotationY: 0, scale: [0.7, 0.7, 0.7], assetUrl: "/models/camera.glb", label: "Camera 1", layer: "av" },
+        { id: crypto.randomUUID(), type: "camera", x: 5, y: 0, z: 2, rotationY: 0, scale: [0.7, 0.7, 0.7], assetUrl: "/models/camera.glb", label: "Camera 2", layer: "av" },
+        { id: crypto.randomUUID(), type: "camera", x: 0, y: 0, z: 6, rotationY: 0, scale: [0.7, 0.7, 0.7], assetUrl: "/models/camera.glb", label: "Camera 3", layer: "av" },
+        { id: crypto.randomUUID(), type: "mixing_desk", x: 0, y: 0, z: 7, rotationY: 0, scale: [1.2, 0.7, 0.8], assetUrl: "primitive://mixing_desk", label: "Control Desk", layer: "av" },
+      ];
+
+      return project;
+    },
+  },
+  {
+    id: "tmpl-trade-show-booth",
+    name: "Trade Show Booth",
+    category: "Trade Show",
+    description:
+      "Small exhibition booth with screens, desk space, and camera-ready product demo area.",
+    previewTone: "#F0F1EB",
+    buildProject: (projectName) => {
+      const project = createBaseProject(projectName || "Trade Show Booth", {
+        width: 20,
+        depth: 20,
+        height: 3.5,
+        wallThickness: 0.15,
+      });
+
+      project.items = [
+        { id: crypto.randomUUID(), type: "screen", x: -4, y: 0, z: -6, rotationY: 0, scale: [0.8, 0.8, 0.8], assetUrl: "/models/screen.glb", label: "Demo Screen L", layer: "layout" },
+        { id: crypto.randomUUID(), type: "screen", x: 4, y: 0, z: -6, rotationY: 0, scale: [0.8, 0.8, 0.8], assetUrl: "/models/screen.glb", label: "Demo Screen R", layer: "layout" },
+        { id: crypto.randomUUID(), type: "desk", x: 0, y: 0, z: 0, rotationY: 0, scale: [1.2, 1, 1], assetUrl: "/models/desk.glb", label: "Demo Counter", layer: "layout" },
+        { id: crypto.randomUUID(), type: "camera", x: 0, y: 0, z: 6, rotationY: 0, scale: [0.7, 0.7, 0.7], assetUrl: "/models/camera.glb", label: "Content Camera", layer: "av" },
+      ];
+
+      return project;
+    },
+  },
 ];
