@@ -16,26 +16,23 @@ export function Navbar() {
         <div className="flex-1" />
 
         <nav className="hidden items-center gap-9 md:flex">
-          <a className="text-[15px] font-medium text-[#314a43]" href="#features">
+          <a
+            className="text-[15px] font-medium text-[#314a43]"
+            href="#features"
+          >
             Features
           </a>
-          <a className="text-[15px] font-medium text-[#314a43]" href="#how-it-works">
+          <a
+            className="text-[15px] font-medium text-[#314a43]"
+            href="#how-it-works"
+          >
             How It Works
-          </a>
-          <a className="text-[15px] font-medium text-[#314a43]" href="#gallery">
-            Gallery
           </a>
         </nav>
 
         <Link
-          href="/login"
-          className="hidden rounded-[8px] px-5 py-2.5 text-[15px] font-medium text-[#0f1714] transition hover:bg-[#edf4f1] md:block"
-        >
-          Book Demo
-        </Link>
-        <Link
           href="/register"
-          className="rounded-[8px] border border-[#2f5d52] bg-[#4f796f] px-5 py-3 text-[15px] font-semibold text-white shadow-[0_2px_5px_rgba(0,0,0,0.18)] transition hover:bg-[#416b61]"
+          className="rounded-[8px] bg-[#4f796f] px-5 py-3 text-[15px] font-semibold text-white shadow-[0_2px_5px_rgba(0,0,0,0.18)] transition hover:bg-[#416b61]"
         >
           Start Free
         </Link>

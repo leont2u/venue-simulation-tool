@@ -76,9 +76,9 @@ export function Hero() {
         </h1>
 
         <p className="mt-6 max-w-[740px] text-[20px] leading-8 text-[#4e6962]">
-          Describe your event or upload a floorplan. Leon Manhimanzi turns it
-          into an editable 3D venue with seating, cameras, and livestream
-          coverage in minutes.
+          Describe your event or upload a floorplan. Venue Sim turns it into an
+          editable 3D venue with seating, cameras, and livestream coverage in
+          minutes.
         </p>
         <p className="mt-4 text-[15px] text-[#7a8984]">
           Perfect for weddings, conferences, livestream events, churches,
@@ -187,7 +187,6 @@ export function Hero() {
           ) : null}
         </div>
       </div>
-
     </section>
   );
 }

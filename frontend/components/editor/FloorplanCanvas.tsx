@@ -53,8 +53,10 @@ function applySnap(value: number, enabled: boolean) {
 
 export function FloorplanCanvas({
   projectOverride,
+  readOnly = false,
 }: {
   projectOverride?: Project | null;
+  readOnly?: boolean;
 }) {
   const storedProject = useEditorStore((s) => s.project);
   const project = projectOverride ?? storedProject;
@@ -222,13 +224,15 @@ export function FloorplanCanvas({
   if (!project) return null;
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-[#f5f5f2]">
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(0,0,0,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(0,0,0,0.025)_1px,transparent_1px)] bg-[size:28px_28px]" />
+    <div className="relative h-full w-full overflow-hidden bg-[#f8f9f8]">
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(85,105,98,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(85,105,98,0.035)_1px,transparent_1px)] bg-[size:24px_24px]" />
       <svg
         ref={svgRef}
         viewBox={viewBox}
         className="relative h-full w-full"
-        onPointerDown={() => selectItem(null)}
+        onPointerDown={() => {
+          if (!readOnly) selectItem(null);
+        }}
       >
         <rect
           x={-project.room.width / 2}
@@ -314,6 +318,7 @@ export function FloorplanCanvas({
                 (item.rotationY * 180) / Math.PI
               })`}
               onPointerDown={(event) => {
+                if (readOnly) return;
                 event.stopPropagation();
                 const pointer = toCanvasPoint(event);
                 if (!pointer) return;
@@ -372,6 +377,7 @@ export function FloorplanCanvas({
         <g
           transform={`translate(${project.room.width / 2} ${project.room.depth / 2})`}
           onPointerDown={(event) => {
+            if (readOnly) return;
             event.stopPropagation();
             interactionRef.current = {
               initialRoomWidth: project.room.width,
@@ -405,11 +411,13 @@ export function FloorplanCanvas({
         </g>
       </svg>
 
-      <div className="pointer-events-none absolute bottom-5 left-5 rounded-[10px] bg-[#111111]/78 px-3 py-2 text-[12px] text-white shadow-lg">
+      {!readOnly ? (
+      <div className="pointer-events-none absolute bottom-16 left-6 rounded-[10px] bg-white/92 px-3 py-2 text-[11px] font-medium text-[#687773] shadow-[0_2px_10px_rgba(15,23,42,0.08)]">
         {toolMode === "connect"
           ? "Connect mode: click one AV item, then another to create a cable run."
           : "Drag furniture in 2D. Drag the corner handle to resize the room."}
       </div>
+      ) : null}
     </div>
   );
 }

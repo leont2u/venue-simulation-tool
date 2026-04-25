@@ -4,13 +4,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
-  Cable,
-  MousePointer2,
-  Move3D,
+  CircleHelp,
+  Lock,
+  Search,
+  Trash2,
   Redo2,
-  RotateCw,
   Save,
-  Scale3D,
   Share2,
   Undo2,
 } from "lucide-react";
@@ -28,10 +27,9 @@ export function TopToolbar() {
   const setActiveView = useEditorStore((s) => s.setActiveView);
   const activeLayer = useEditorStore((s) => s.activeLayer);
   const setActiveLayer = useEditorStore((s) => s.setActiveLayer);
+  const clearScene = useEditorStore((s) => s.clearScene);
   const historyPast = useEditorStore((s) => s.historyPast);
   const historyFuture = useEditorStore((s) => s.historyFuture);
-  const toolMode = useEditorStore((s) => s.toolMode);
-  const setToolMode = useEditorStore((s) => s.setToolMode);
 
   const [shareOpen, setShareOpen] = useState(false);
 
@@ -39,110 +37,120 @@ export function TopToolbar() {
     <>
       <header
         data-tour="editor-toolbar"
-        className="flex h-[68px] items-center justify-between border-b border-[#ececec] bg-white px-4 sm:px-6"
+        className="flex h-[56px] shrink-0 items-center justify-between border-b border-[#ececec] bg-white px-4"
       >
-        <div className="flex min-w-0 items-center gap-5">
+        <div className="flex min-w-0 items-center gap-4">
           <button
             onClick={() => router.push("/dashboard")}
-            className="inline-flex h-12 items-center gap-2 rounded-[12px] border border-[#d8d8d8] bg-white px-4 text-[15px] font-medium text-[#1a1a1a]"
+            title="Back to dashboard"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] text-[#677773] transition hover:bg-[#f4f6f4]"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back
           </button>
 
-          <div className="hidden h-8 w-px bg-[#ececec] sm:block" />
+          <div className="hidden min-w-[172px] leading-none sm:block">
+            <div className="truncate text-[13px] font-semibold text-[#242a28]">
+              Leon Manhimamanzi
+            </div>
+            <div className="mt-1 truncate text-[10px] font-semibold uppercase tracking-[0.26em] text-[#7b8a86]">
+              Venue Simulation
+            </div>
+          </div>
 
-          <div className="min-w-0 text-[16px] font-semibold text-[#1a1a1a]">
+          <div className="hidden h-8 w-px bg-[#ececec] lg:block" />
+
+          <div className="min-w-0 text-[15px] font-semibold text-[#242a28]">
             <div className="truncate">{project?.name}</div>
+          </div>
+
+          <div className="hidden h-7 items-center gap-1 rounded-full bg-[#f8faf8] px-3 text-[11px] font-medium text-[#6d7b77] xl:flex">
+            <Lock className="h-3.5 w-3.5" />
+            {isProjectSaving ? "Saving..." : "Auto-saved 2m ago"}
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="hidden items-center rounded-[12px] border border-[#d8d8d8] bg-white p-1 lg:flex">
-            {[
-              { mode: "select" as const, icon: MousePointer2, label: "Select" },
-              { mode: "move" as const, icon: Move3D, label: "Move" },
-              { mode: "rotate" as const, icon: RotateCw, label: "Rotate" },
-              { mode: "scale" as const, icon: Scale3D, label: "Scale" },
-              { mode: "connect" as const, icon: Cable, label: "Connect" },
-            ].map((entry) => {
-              const Icon = entry.icon;
-              const active = toolMode === entry.mode;
-
-              return (
-                <button
-                  key={entry.mode}
-                  onClick={() => setToolMode(entry.mode)}
-                  title={entry.label}
-                  className={`flex h-10 w-10 items-center justify-center rounded-[10px] transition ${
-                    active
-                      ? "bg-[#111111] text-white"
-                      : "text-[#555555] hover:bg-[#f6f6f4]"
-                  }`}
-                >
-                  <Icon className="h-4 w-4" />
-                </button>
-              );
-            })}
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="hidden items-center gap-2 xl:flex">
+            <button
+              onClick={() => void saveProject()}
+              disabled={isProjectSaving}
+              className="flex h-10 w-12 flex-col items-center justify-center gap-0.5 text-[10px] font-medium text-[#677773] transition hover:text-[#26302d] disabled:opacity-50"
+            >
+              <Save className="h-4 w-4" />
+              Save
+            </button>
+            <button
+              onClick={undo}
+              disabled={historyPast.length === 0}
+              className="flex h-10 w-12 flex-col items-center justify-center gap-0.5 text-[10px] font-medium text-[#677773] transition hover:text-[#26302d] disabled:opacity-35"
+            >
+              <Undo2 className="h-4 w-4" />
+              Undo
+            </button>
+            <button
+              onClick={redo}
+              disabled={historyFuture.length === 0}
+              className="flex h-10 w-12 flex-col items-center justify-center gap-0.5 text-[10px] font-medium text-[#677773] transition hover:text-[#26302d] disabled:opacity-35"
+            >
+              <Redo2 className="h-4 w-4" />
+              Redo
+            </button>
+            <button
+              onClick={clearScene}
+              className="flex h-10 w-12 flex-col items-center justify-center gap-0.5 text-[10px] font-medium text-[#677773] transition hover:text-[#26302d]"
+            >
+              <Trash2 className="h-4 w-4" />
+              Clear
+            </button>
           </div>
+
+          <div className="hidden h-8 w-px bg-[#ececec] lg:block" />
+
           <div
             data-tour="editor-layer-toggle"
-            className="hidden items-center rounded-[12px] border border-[#d8d8d8] bg-white p-1 xl:flex"
+            className="hidden items-center rounded-[8px] border border-[#e6e9e7] bg-white p-0.5 2xl:flex"
           >
-            {([
-              ["layout", "Layout"],
-              ["av", "AV Layer"],
-              ["combined", "Combined"],
-            ] as const).map(([layer, label]) => (
+            {(
+              [
+                ["layout", "Layout"],
+                ["av", "AV Layer"],
+                ["combined", "Combined"],
+              ] as const
+            ).map(([layer, label]) => (
               <button
                 key={layer}
                 onClick={() => setActiveLayer(layer)}
-                className={`rounded-[10px] px-3 py-2 text-[13px] font-medium transition ${
+                className={`rounded-[7px] px-3 py-1.5 text-[11px] font-semibold transition ${
                   activeLayer === layer
-                    ? "bg-[#111111] text-white"
-                    : "text-[#4a4a4a]"
+                    ? "bg-[#6f8f84] text-white"
+                    : "text-[#62736f]"
                 }`}
               >
                 {label}
               </button>
             ))}
           </div>
+
           <button
-            onClick={undo}
-            disabled={historyPast.length === 0}
-            className="inline-flex h-12 items-center gap-2 rounded-[12px] border border-[#d8d8d8] bg-white px-4 text-[15px] font-medium text-[#1a1a1a] disabled:opacity-40"
+            title="Help"
+            className="hidden h-9 w-9 items-center justify-center rounded-[9px] text-[#697a76] transition hover:bg-[#f4f6f4] sm:flex"
           >
-            <Undo2 className="h-4 w-4" />
-            Undo
-          </button>
-          <button
-            onClick={redo}
-            disabled={historyFuture.length === 0}
-            className="inline-flex h-12 items-center gap-2 rounded-[12px] border border-[#d8d8d8] bg-white px-4 text-[15px] font-medium text-[#1a1a1a] disabled:opacity-40"
-          >
-            <Redo2 className="h-4 w-4" />
-            Redo
+            <CircleHelp className="h-4 w-4" />
           </button>
           <button
             onClick={() => void saveProject()}
             disabled={isProjectSaving}
-            className="inline-flex h-12 items-center gap-2 rounded-[12px] border border-[#d8d8d8] bg-white px-4 text-[15px] font-medium text-[#1a1a1a] disabled:opacity-50"
+            className="inline-flex h-9 items-center gap-2 rounded-[9px] border border-[#e2e6e3] bg-white px-3 text-[12px] font-semibold text-[#27312e] disabled:opacity-50 xl:hidden"
           >
             <Save className="h-4 w-4" />
             {isProjectSaving ? "Saving..." : "Save"}
           </button>
           <button
-            onClick={() => setShareOpen(true)}
-            className="inline-flex h-12 items-center gap-2 rounded-[12px] border border-[#d8d8d8] bg-white px-4 text-[15px] font-medium text-[#1a1a1a]"
+            onClick={() => setActiveView("3d")}
+            className="hidden h-9 items-center gap-2 rounded-[9px] bg-[#6f8f84] px-3 text-[12px] font-semibold text-white shadow-sm lg:inline-flex"
           >
             <Share2 className="h-4 w-4" />
-            Export
-          </button>
-          <button
-            onClick={() => setActiveView("3d")}
-            className="inline-flex h-12 items-center gap-2 rounded-[12px] bg-[#111111] px-4 text-[15px] font-medium text-white"
-          >
-            Generate 3D
+            3D
           </button>
         </div>
       </header>
@@ -158,5 +166,20 @@ export function TopToolbar() {
         </div>
       ) : null}
     </>
+  );
+}
+
+function ToolbarAction({
+  icon,
+  label,
+}: {
+  icon: React.ReactNode;
+  label: string;
+}) {
+  return (
+    <button className="flex h-10 w-12 flex-col items-center justify-center gap-0.5 text-[10px] font-medium text-[#677773] transition hover:text-[#26302d]">
+      {icon}
+      {label}
+    </button>
   );
 }

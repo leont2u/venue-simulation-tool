@@ -60,8 +60,9 @@ export function AssetCatalog() {
   const [polyAssets, setPolyAssets] = useState<AssetDefinition[]>([]);
   const [polyPage, setPolyPage] = useState(0);
   const [polyTotal, setPolyTotal] = useState(0);
-  const [selectedCategory, setSelectedCategory] =
-    useState<AssetCategory | "All">("All");
+  const [selectedCategory, setSelectedCategory] = useState<
+    AssetCategory | "All"
+  >("All");
   const pageCacheRef = useRef(new Map<string, CachedAssetPage>());
   const requestIdRef = useRef(0);
 
@@ -121,7 +122,9 @@ export function AssetCatalog() {
         setPolyTotal(0);
         setAssetCatalog([]);
         setPolyError(
-          error instanceof Error ? error.message : "Poly Pizza assets unavailable.",
+          error instanceof Error
+            ? error.message
+            : "Poly Pizza assets unavailable.",
         );
       } finally {
         if (requestIdRef.current === requestId) setIsPolyLoading(false);
@@ -147,11 +150,12 @@ export function AssetCatalog() {
       if (selectedCategory !== "All" && asset.category !== selectedCategory) {
         return false;
       }
-      if (activeLayer === "layout" && asset.category === "AV Gear") return false;
+      if (activeLayer === "layout" && asset.category === "AV Gear")
+        return false;
       if (
         activeLayer === "av" &&
         asset.category !== "AV Gear" &&
-          asset.category !== "Media Equipment"
+        asset.category !== "Media Equipment"
       ) {
         return false;
       }
@@ -163,12 +167,12 @@ export function AssetCatalog() {
     return (
       <aside
         data-tour="editor-assets"
-        className="flex w-[58px] shrink-0 flex-col items-center gap-3 border-r border-[#e5e5e5] bg-white py-3"
+        className="flex w-[58px] shrink-0 flex-col items-center gap-3 border-r border-[#edf0ee] bg-white py-3"
       >
         <button
           onClick={() => setIsCollapsed(false)}
           title="Expand assets"
-          className="flex h-10 w-10 items-center justify-center rounded-[8px] bg-[#f6f6f6] text-[#555a61] transition hover:bg-[#eeeeee]"
+          className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-[#eef4f1] text-[#647b73] transition hover:bg-[#e5eeea]"
         >
           <PanelLeftOpen className="h-5 w-5" />
         </button>
@@ -204,81 +208,40 @@ export function AssetCatalog() {
   return (
     <aside
       data-tour="editor-assets"
-      className="flex w-[390px] shrink-0 flex-col border-r border-[#e5e5e5] bg-white"
+      className="flex w-[388px] shrink-0 flex-col border-r border-[#edf0ee] bg-white"
     >
-      <div className="flex items-center gap-2 border-b border-[#e6e6e6] px-3 py-3">
+      <div className="flex h-16 shrink-0 items-center gap-3 border-b border-[#edf0ee] px-3">
         <button
           onClick={() => setIsCollapsed(true)}
           title="Collapse assets"
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[8px] bg-[#f6f6f6] text-[#686c72] transition hover:bg-[#eeeeee]"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[#eef4f1] text-[#647b73] transition hover:bg-[#e5eeea]"
         >
           <PanelLeftClose className="h-5 w-5" />
         </button>
 
-        <div className="relative h-11 flex-1">
-          <div className="absolute inset-y-0 right-11 w-px bg-[#dddddd]" />
-          <Search className="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[#676b71]" />
+        <div className="relative h-10 flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#70807b]" />
           <input
             data-asset-search-input
             value={assetSearch}
             onChange={(event) => setAssetSearch(event.target.value)}
-            placeholder="Search Poly Pizza..."
-            className="h-full w-full rounded-[8px] border border-transparent bg-[#f6f6f6] py-2 pl-4 pr-14 text-[14px] text-[#333941] placeholder:text-[#a8abb0] transition focus:border-[#d8d8d8] focus:bg-white"
+            placeholder="Search by entering key..."
+            className="h-full w-full rounded-[12px] border border-[#e8ece9] bg-white py-2 pl-10 pr-3 text-[13px] text-[#333941] shadow-[0_1px_4px_rgba(15,23,42,0.05)] placeholder:text-[#778782] transition focus:border-[#d8d8d8]"
           />
         </div>
       </div>
 
       <div className="flex min-h-0 flex-1">
-        <div className="sf-scroll w-[156px] shrink-0 overflow-y-auto border-r border-[#e5e5e5] bg-white">
-          <section className="border-b border-[#e5e5e5] px-2 py-3">
-            <SectionHeader>Personal</SectionHeader>
-            <NavButton
-              active={assetLibraryTab === "Favorites"}
-              icon={<Heart className="h-4 w-4" />}
-              label="Favorites"
-              onClick={() => setAssetLibraryTab("Favorites")}
-            />
-            <NavButton
-              active={assetLibraryTab === "Uploads"}
-              icon={<UploadCloud className="h-4 w-4" />}
-              label="Uploads"
-              onClick={() => setAssetLibraryTab("Uploads")}
-            />
-            <NavButton
-              icon={<Clock3 className="h-4 w-4" />}
-              label="Recent"
-              onClick={() => setAssetLibraryTab("Assets")}
-            />
-          </section>
-
-          <section className="border-b border-[#e5e5e5] px-2 py-3">
-            <SectionHeader>Explore</SectionHeader>
-            <NavButton
-              icon={<Flame className="h-4 w-4" />}
-              label="Popular"
-              onClick={() => {
-                setAssetLibraryTab("Assets");
-                setSelectedCategory("All");
-              }}
-            />
-            <NavButton
-              icon={<BadgeIcon />}
-              label="Recommended"
-              onClick={() => {
-                setAssetLibraryTab("Assets");
-                setSelectedCategory("All");
-              }}
-              dot
-            />
-          </section>
-
+        <div className="sf-scroll w-[158px] shrink-0 overflow-y-auto border-r border-[#edf0ee] bg-white">
           <section className="px-2 py-3">
             <div className="mb-2 flex items-center justify-between">
               <SectionHeader>Catalog</SectionHeader>
               <Settings2 className="h-4 w-4 text-[#9b9da1]" />
             </div>
             <NavButton
-              active={selectedCategory === "All" && assetLibraryTab === "Assets"}
+              active={
+                selectedCategory === "All" && assetLibraryTab === "Assets"
+              }
               icon={<Grid3X3 className="h-4 w-4" />}
               label="All assets"
               onClick={() => {
@@ -290,7 +253,8 @@ export function AssetCatalog() {
               <NavButton
                 key={entry.category}
                 active={
-                  selectedCategory === entry.category && assetLibraryTab === "Assets"
+                  selectedCategory === entry.category &&
+                  assetLibraryTab === "Assets"
                 }
                 icon={<CatalogIcon type={entry.icon} />}
                 label={entry.label}
@@ -304,7 +268,7 @@ export function AssetCatalog() {
         </div>
 
         <div className="flex min-w-0 flex-1 flex-col bg-white">
-          <div className="flex items-center gap-2 border-b border-[#eeeeee] px-3 py-3 text-[11px] text-[#8a8d92]">
+          <div className="flex h-12 shrink-0 items-center gap-2 border-b border-[#edf0ee] px-3 text-[11px] text-[#8a8d92]">
             <div className="min-w-0">
               <div className="truncate font-medium text-[#555a61]">
                 {assetLibraryTab === "Assets"
@@ -321,7 +285,7 @@ export function AssetCatalog() {
                     : `${filteredAssets.length}/${polyAssets.length} shown`}
               </div>
             </div>
-            <button className="ml-auto flex h-9 w-9 items-center justify-center rounded-[6px] border border-[#d8d8d8] text-[#62666c]">
+            <button className="ml-auto flex h-8 w-8 items-center justify-center rounded-[8px] border border-[#e8ece9] text-[#62666c]">
               <ListFilter className="h-4 w-4" />
             </button>
           </div>
@@ -343,7 +307,7 @@ export function AssetCatalog() {
                       event.dataTransfer.setData("text/asset-id", asset.id)
                     }
                     onClick={() => addItemFromAsset(asset.id)}
-                    className="group relative aspect-square overflow-hidden rounded-[8px] bg-[#f1f1f1] text-left transition hover:ring-2 hover:ring-[#cfcfcf]"
+                    className="group relative aspect-[1/1] overflow-hidden rounded-[10px] border border-[#edf0ee] bg-[#fbfcfb] text-left transition hover:ring-2 hover:ring-[#d9e3de]"
                     title={asset.attribution || asset.name}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -372,7 +336,7 @@ export function AssetCatalog() {
             )}
           </div>
 
-          <div className="flex h-12 items-center justify-center gap-3 border-t border-[#eeeeee] text-[14px] text-[#555a61]">
+          <div className="flex h-12 shrink-0 items-center justify-center gap-3 border-t border-[#edf0ee] text-[13px] text-[#61726d]">
             <button
               onClick={() => void loadPolyPage(polyPage - 1)}
               disabled={isPolyLoading || polyPage === 0}
@@ -381,10 +345,9 @@ export function AssetCatalog() {
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <div className="flex h-8 min-w-12 items-center justify-center rounded-[6px] border border-[#d8d8d8] bg-white px-3">
-              {polyPage + 1}
+            <div className="min-w-16 text-center">
+              {polyPage + 1} / {pageCount}
             </div>
-            <span>/ {pageCount}</span>
             <button
               onClick={() => void loadPolyPage(polyPage + 1)}
               disabled={isPolyLoading || polyPage + 1 >= pageCount}
@@ -402,7 +365,7 @@ export function AssetCatalog() {
 
 function SectionHeader({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mb-2 flex items-center gap-1 text-[14px] font-semibold text-[#9b9da1]">
+    <div className="mb-2 flex items-center gap-1 text-[11px] font-bold uppercase text-[#7b8985]">
       <ChevronRight className="h-3 w-3 rotate-90" />
       {children}
     </div>
@@ -425,13 +388,19 @@ function NavButton({
   return (
     <button
       onClick={onClick}
-      className={`mb-1 flex w-full items-center gap-2 rounded-[8px] px-2 py-2 text-left text-[13px] transition ${
-        active ? "bg-[#f5f5f5] text-[#222831]" : "text-[#333941] hover:bg-[#f7f7f7]"
+      className={`mb-1 flex w-full items-center gap-2 rounded-[7px] px-2 py-1.5 text-left text-[12px] font-medium transition ${
+        active
+          ? "bg-[#eef4f1] text-[#526f65]"
+          : "text-[#687773] hover:bg-[#f7f9f7]"
       }`}
     >
-      <span className="flex h-5 w-5 shrink-0 items-center justify-center">{icon}</span>
+      <span className="flex h-5 w-5 shrink-0 items-center justify-center">
+        {icon}
+      </span>
       <span className="min-w-0 truncate">{label}</span>
-      {dot ? <span className="ml-auto h-2 w-2 rounded-full bg-[#ff2e1f]" /> : null}
+      {dot ? (
+        <span className="ml-auto h-2 w-2 rounded-full bg-[#ff2e1f]" />
+      ) : null}
     </button>
   );
 }
