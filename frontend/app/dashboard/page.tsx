@@ -1,6 +1,13 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Bell,
   Building2,
@@ -22,8 +29,12 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { OnboardingWizard } from "@/components/dashboard/OnboardingWizard";
-import ProjectModal, { ProjectPipeline } from "@/components/dashboard/ProjectModal";
-import ProjectPreviewCard, { ProjectThumbnail } from "@/components/dashboard/ProjectPreviewCard";
+import ProjectModal, {
+  ProjectPipeline,
+} from "@/components/dashboard/ProjectModal";
+import ProjectPreviewCard, {
+  ProjectThumbnail,
+} from "@/components/dashboard/ProjectPreviewCard";
 import {
   clearPendingPrompt,
   readPendingPrompt,
@@ -36,7 +47,10 @@ import {
   savePendingVenueInput,
 } from "@/lib/pendingVenueInput";
 import { createProjectFromVenueInput } from "@/lib/landingFlow";
-import { hasCompletedOnboarding, markOnboardingComplete } from "@/lib/onboarding";
+import {
+  hasCompletedOnboarding,
+  markOnboardingComplete,
+} from "@/lib/onboarding";
 import { PROJECT_TEMPLATES, ProjectTemplate } from "@/lib/projectTemplates";
 import { getProjects } from "@/lib/storage";
 import { Project } from "@/types/types";
@@ -45,7 +59,15 @@ type DashboardView = "home" | "projects";
 type ViewMode = "grid" | "list";
 
 const FILTERS = ["All", "Wedding", "Conference", "Church", "Concert"];
-const TEMPLATE_FILTERS = ["All", "Wedding", "Conference", "Church", "Concert", "Corporate", "Livestream"];
+const TEMPLATE_FILTERS = [
+  "All",
+  "Wedding",
+  "Conference",
+  "Church",
+  "Concert",
+  "Corporate",
+  "Livestream",
+];
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -76,7 +98,10 @@ function estimateTemplateCapacity(template: ProjectTemplate) {
   const chairLike = preview.items.filter((item) =>
     ["chair", "church_bench", "banquet_table", "desk"].includes(item.type),
   ).length;
-  return Math.max(chairLike * 8, Math.round((preview.room.width * preview.room.depth) / 3));
+  return Math.max(
+    chairLike * 8,
+    Math.round((preview.room.width * preview.room.depth) / 3),
+  );
 }
 
 function TopBar({
@@ -110,9 +135,8 @@ function TopBar({
         </button>
         <button
           onClick={onNewProject}
-          className="flex h-[50px] items-center gap-4 rounded-[13px] bg-[#5d7f73] px-6 text-[17px] font-bold text-white shadow-[0_4px_10px_rgba(32,43,40,0.18)] transition hover:bg-[#4e7165]"
+          className="flex h-[50px] w-35  items-center gap-4 rounded-[13px] bg-[#5d7f73] px-6 text-[9px] font-bold text-white shadow-[0_4px_10px_rgba(32,43,40,0.18)] transition hover:bg-[#4e7165]"
         >
-          <Plus size={22} />
           New project
         </button>
       </div>
@@ -141,7 +165,7 @@ function Sidebar({
     .toUpperCase();
 
   return (
-    <aside className="hidden w-[330px] shrink-0 border-r border-[#edf0ee] bg-white lg:flex lg:flex-col">
+    <aside className="hidden w-[300px] shrink-0 border-r border-[#edf0ee] bg-white lg:flex lg:flex-col">
       <div className="h-[82px] border-b border-[#edf0ee] px-8 py-5">
         <div className="text-[20px] font-bold leading-none tracking-[-0.03em] text-[#202927]">
           Leon Manhimanzi
@@ -152,10 +176,10 @@ function Sidebar({
       </div>
 
       <nav className="space-y-2 px-5 py-8">
-        {([
+        {[
           { view: "home" as const, label: "Home", icon: Home },
           { view: "projects" as const, label: "Projects", icon: FolderKanban },
-        ]).map((item) => {
+        ].map((item) => {
           const Icon = item.icon;
           const selected = activeView === item.view;
           return (
@@ -164,7 +188,9 @@ function Sidebar({
               onClick={() => onViewChange(item.view)}
               className={cx(
                 "flex h-[58px] w-full items-center gap-4 rounded-[16px] px-5 text-left text-[18px] font-bold transition",
-                selected ? "bg-[#eef3f1] text-[#5d7f73]" : "text-[#687a74] hover:bg-[#f5f8f6]",
+                selected
+                  ? "bg-[#eef3f1] text-[#5d7f73]"
+                  : "text-[#687a74] hover:bg-[#f5f8f6]",
               )}
             >
               <Icon size={22} strokeWidth={2.2} />
@@ -180,8 +206,12 @@ function Sidebar({
             {initials || "FO"}
           </div>
           <div className="min-w-0">
-            <div className="text-[18px] font-bold text-[#24302d]">{userName || "Founder"}</div>
-            <div className="truncate text-[14px] text-[#61736e]">{userEmail || "founder@studio.com"}</div>
+            <div className="text-[18px] font-bold text-[#24302d]">
+              {userName || "Founder"}
+            </div>
+            <div className="truncate text-[14px] text-[#61736e]">
+              {userEmail || "founder@studio.com"}
+            </div>
           </div>
         </div>
         <button
@@ -213,7 +243,9 @@ function ActionCard({
       onClick={onClick}
       className={cx(
         "flex min-h-[126px] items-center gap-5 rounded-[18px] border bg-white p-5 text-left transition hover:-translate-y-0.5 hover:border-[#c9d8d3] hover:shadow-[0_12px_30px_rgba(32,43,40,0.08)]",
-        active ? "border-[#c5d8d3] shadow-[inset_0_0_0_1px_#c5d8d3]" : "border-[#e9eeee]",
+        active
+          ? "border-[#c5d8d3] shadow-[inset_0_0_0_1px_#c5d8d3]"
+          : "border-[#e9eeee]",
       )}
     >
       <div
@@ -226,7 +258,9 @@ function ActionCard({
       </div>
       <div>
         <div className="text-[16px] font-bold text-[#24302d]">{title}</div>
-        <div className="mt-2 text-[14px] leading-6 text-[#667873]">{subtitle}</div>
+        <div className="mt-2 text-[14px] leading-6 text-[#667873]">
+          {subtitle}
+        </div>
       </div>
     </button>
   );
@@ -244,8 +278,12 @@ function SectionHeader({
   return (
     <div className="mb-5 flex items-end justify-between gap-4">
       <div>
-        <h2 className="text-[22px] font-bold tracking-[-0.03em] text-[#24302d]">{title}</h2>
-        {subtitle ? <p className="mt-2 text-[16px] text-[#657872]">{subtitle}</p> : null}
+        <h2 className="text-[22px] font-bold tracking-[-0.03em] text-[#24302d]">
+          {title}
+        </h2>
+        {subtitle ? (
+          <p className="mt-2 text-[16px] text-[#657872]">{subtitle}</p>
+        ) : null}
       </div>
       {onViewAll ? (
         <button
@@ -295,7 +333,10 @@ function TemplateCard({
   template: ProjectTemplate;
   onUse: () => void;
 }) {
-  const previewProject = useMemo(() => templateToPreviewProject(template), [template]);
+  const previewProject = useMemo(
+    () => templateToPreviewProject(template),
+    [template],
+  );
   const capacity = estimateTemplateCapacity(template);
   const highlighted = template.category === "Church";
 
@@ -304,7 +345,9 @@ function TemplateCard({
       onClick={onUse}
       className={cx(
         "group overflow-hidden rounded-[18px] border bg-white text-left transition hover:-translate-y-0.5 hover:border-[#c7d7d2] hover:shadow-[0_12px_30px_rgba(32,43,40,0.08)]",
-        highlighted ? "border-[#bcd3cd] shadow-[inset_0_0_0_1px_#bcd3cd]" : "border-[#e9eeee]",
+        highlighted
+          ? "border-[#bcd3cd] shadow-[inset_0_0_0_1px_#bcd3cd]"
+          : "border-[#e9eeee]",
       )}
     >
       <div className="relative h-[216px]">
@@ -348,8 +391,12 @@ function HelpChat() {
         <div className="mb-4 w-[340px] overflow-hidden rounded-[18px] border border-[#dfe8e4] bg-white shadow-[0_18px_60px_rgba(32,43,40,0.18)]">
           <div className="flex items-center justify-between border-b border-[#edf1ef] bg-[#f8fbf9] px-5 py-4">
             <div>
-              <div className="text-[15px] font-bold text-[#24302d]">Venue help</div>
-              <div className="text-[12px] text-[#657872]">Dashboard assistant</div>
+              <div className="text-[15px] font-bold text-[#24302d]">
+                Venue help
+              </div>
+              <div className="text-[12px] text-[#657872]">
+                Dashboard assistant
+              </div>
             </div>
             <button
               onClick={() => setOpen(false)}
@@ -360,7 +407,8 @@ function HelpChat() {
           </div>
           <div className="space-y-3 px-5 py-5">
             <div className="max-w-[260px] rounded-[14px] bg-[#eef5f2] px-4 py-3 text-[14px] leading-6 text-[#4f625c]">
-              Hi, I can help with project creation, imports, templates, and export questions.
+              Hi, I can help with project creation, imports, templates, and
+              export questions.
             </div>
             <div className="ml-auto max-w-[240px] rounded-[14px] bg-[#5d7f73] px-4 py-3 text-[14px] leading-6 text-white">
               Chat is coming soon.
@@ -397,7 +445,8 @@ function DashboardContent() {
   const { user, logout } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [open, setOpen] = useState(false);
-  const [projectModalStep, setProjectModalStep] = useState<ProjectPipeline>("menu");
+  const [projectModalStep, setProjectModalStep] =
+    useState<ProjectPipeline>("menu");
   const [continueTourInEditor, setContinueTourInEditor] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -441,7 +490,9 @@ function DashboardContent() {
 
     const pendingInput = readPendingVenueInput();
     const prompt = pendingInput?.prompt.trim() || readPendingPrompt().trim();
-    const file = pendingInput?.file ? pendingStoredFileToFile(pendingInput.file) : null;
+    const file = pendingInput?.file
+      ? pendingStoredFileToFile(pendingInput.file)
+      : null;
 
     if (!prompt && !file) {
       resumeAttemptedRef.current = true;
@@ -541,16 +592,10 @@ function DashboardContent() {
 
             {activeView === "home" ? (
               <>
-                <div className="mb-12">
-                  <div className="text-[14px] font-bold uppercase tracking-[0.28em] text-[#5d7f73]">
-                    Workbench
-                  </div>
+                <div className="mb-5">
                   <h1 className="mt-4 text-[36px] font-bold tracking-[-0.05em] text-[#24302d]">
                     Welcome back, {userName}.
                   </h1>
-                  <p className="mt-3 text-[17px] text-[#657872]">
-                    Plan, simulate, and ship venue layouts your clients can walk through.
-                  </p>
                 </div>
 
                 <section className="mb-12">
@@ -560,7 +605,7 @@ function DashboardContent() {
                   <p className="mt-2 text-[16px] text-[#657872]">
                     Start a venue simulation in the way that fits you best.
                   </p>
-                  <div className="mt-5 grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
+                  <div className="mt-5 grid gap-4 md:grid-cols-3 2xl:grid-cols-4">
                     <ActionCard
                       icon={WandSparkles}
                       title="Generate from prompt"
@@ -580,12 +625,6 @@ function DashboardContent() {
                       active
                       onClick={() => openProjectCreation("draw3d")}
                     />
-                    <ActionCard
-                      icon={Video}
-                      title="Plan livestream setup"
-                      subtitle="Cameras, AV desk, cables, LED walls."
-                      onClick={() => openProjectCreation("template")}
-                    />
                   </div>
                 </section>
 
@@ -600,16 +639,23 @@ function DashboardContent() {
                       Loading projects...
                     </div>
                   ) : recentProjects.length > 0 ? (
-                    <div className="grid gap-5 md:grid-cols-2 2xl:grid-cols-4">
+                    <div className="grid gap-5 md:grid-cols-4 2xl:grid-cols-4">
                       {recentProjects.map((project) => (
-                        <ProjectPreviewCard key={project.id} project={project} compact />
+                        <ProjectPreviewCard
+                          key={project.id}
+                          project={project}
+                          compact
+                        />
                       ))}
                     </div>
                   ) : (
                     <div className="rounded-[18px] border border-[#e9eeee] bg-white p-10 text-center">
-                      <div className="text-[22px] font-bold tracking-[-0.03em]">No projects yet</div>
+                      <div className="text-[22px] font-bold tracking-[-0.03em]">
+                        No projects yet
+                      </div>
                       <p className="mt-2 text-[#657872]">
-                        Create a venue from a prompt, import a plan, or start blank.
+                        Create a venue from a prompt, import a plan, or start
+                        blank.
                       </p>
                     </div>
                   )}
@@ -626,7 +672,7 @@ function DashboardContent() {
                     active={templateFilter}
                     onChange={setTemplateFilter}
                   />
-                  <div className="mt-5 grid gap-5 md:grid-cols-2 2xl:grid-cols-4">
+                  <div className="mt-5 grid gap-5 md:grid-cols-4 2xl:grid-cols-4">
                     {filteredTemplates.map((template) => (
                       <TemplateCard
                         key={template.id}
@@ -644,9 +690,7 @@ function DashboardContent() {
                     <div className="text-[14px] font-bold uppercase tracking-[0.28em] text-[#5d7f73]">
                       All projects
                     </div>
-                    <h1 className="mt-4 text-[40px] font-bold tracking-[-0.05em] text-[#24302d]">
-                      Projects
-                    </h1>
+
                     <p className="mt-3 text-[18px] text-[#657872]">
                       {projects.length} projects in your workspace.
                     </p>
@@ -655,13 +699,12 @@ function DashboardContent() {
                     onClick={() => openProjectCreation()}
                     className="flex h-[56px] w-fit items-center gap-4 rounded-[13px] bg-[#5d7f73] px-7 text-[20px] font-bold text-white shadow-[0_4px_10px_rgba(32,43,40,0.18)] transition hover:bg-[#4e7165]"
                   >
-                    <Plus size={24} />
                     New project
                   </button>
                 </div>
 
                 <div className="mb-8 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                  <label className="flex h-[60px] w-full max-w-[780px] items-center gap-4 rounded-[16px] border border-[#e9eeee] bg-white px-5 text-[#6f807b] shadow-[0_1px_8px_rgba(32,43,40,0.05)]">
+                  <label className="flex h-[60px] w-full max-w-[400px] items-center gap-4 rounded-[16px] border border-[#e9eeee] bg-white px-5 text-[#6f807b] shadow-[0_1px_8px_rgba(32,43,40,0.05)]">
                     <Search size={24} />
                     <input
                       value={search}
@@ -671,13 +714,19 @@ function DashboardContent() {
                     />
                   </label>
                   <div className="flex flex-wrap items-center gap-4">
-                    <FilterPills filters={FILTERS} active={projectFilter} onChange={setProjectFilter} />
+                    <FilterPills
+                      filters={FILTERS}
+                      active={projectFilter}
+                      onChange={setProjectFilter}
+                    />
                     <div className="flex h-[54px] rounded-[16px] border border-[#e9eeee] bg-white p-1">
                       <button
                         onClick={() => setViewMode("grid")}
                         className={cx(
                           "flex h-11 w-11 items-center justify-center rounded-[12px]",
-                          viewMode === "grid" ? "bg-[#f0f5f3] text-[#24302d] shadow" : "text-[#657872]",
+                          viewMode === "grid"
+                            ? "bg-[#f0f5f3] text-[#24302d] shadow"
+                            : "text-[#657872]",
                         )}
                       >
                         <Grid2X2 size={22} />
@@ -686,7 +735,9 @@ function DashboardContent() {
                         onClick={() => setViewMode("list")}
                         className={cx(
                           "flex h-11 w-11 items-center justify-center rounded-[12px]",
-                          viewMode === "list" ? "bg-[#f0f5f3] text-[#24302d] shadow" : "text-[#657872]",
+                          viewMode === "list"
+                            ? "bg-[#f0f5f3] text-[#24302d] shadow"
+                            : "text-[#657872]",
                         )}
                       >
                         <List size={23} />
@@ -703,7 +754,9 @@ function DashboardContent() {
                   <div
                     className={cx(
                       "grid gap-5",
-                      viewMode === "grid" ? "md:grid-cols-2 2xl:grid-cols-4" : "grid-cols-1",
+                      viewMode === "grid"
+                        ? "md:grid-cols-4 2xl:grid-cols-4"
+                        : "grid-cols-1",
                     )}
                   >
                     {filteredProjects.map((project) => (

@@ -42,74 +42,10 @@ export function AuthExperience({ mode }: { mode: "login" | "register" }) {
 
   return (
     <main className="h-screen overflow-hidden bg-white text-[#17211e]">
-      <div className="grid h-full w-full bg-white md:grid-cols-[1.06fr_0.94fr]">
-        <aside className="relative hidden overflow-hidden bg-[#527970] p-12 text-white md:flex md:flex-col lg:p-16">
-          <Link href="/" className="relative">
-            <div className="text-[18px] font-semibold leading-none">
-              Leon Manhimanzi
-            </div>
-            <div className="mt-2 text-[11px] font-medium uppercase tracking-[0.2em] text-white/68">
-              Venue Simulation Tool
-            </div>
-          </Link>
-
-          <div className="relative mt-auto grid grid-cols-[1fr_0.86fr] items-end gap-8">
-            <div>
-              <h1 className="text-[48px] font-semibold leading-[1.04] tracking-[-0.03em]">
-                Get Started
-                <span className="block">with Us</span>
-              </h1>
-            </div>
-            <p className="mb-2 text-[17px] leading-7 text-white/76">
-              Complete these easy steps to register your account.
-            </p>
-          </div>
-
-          <div className="relative mt-10 grid grid-cols-3 gap-5">
-            {[
-              [
-                "1",
-                isRegister ? "Sign up your account" : "Sign in to your account",
-              ],
-              ["2", "Set up your workspace"],
-              ["3", "Set up your profile"],
-            ].map(([number, label], index) => (
-              <div
-                key={number}
-                className={`h-[138px] rounded-[10px] p-6 ${
-                  index === 0
-                    ? "bg-white text-[#111917]"
-                    : "bg-white/14 text-white/82 backdrop-blur"
-                }`}
-              >
-                <div
-                  className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-semibold ${
-                    index === 0
-                      ? "bg-[#17211e] text-white"
-                      : "bg-white/18 text-white"
-                  }`}
-                >
-                  {number}
-                </div>
-                <div className="mt-8 text-[16px] font-medium leading-6">
-                  {label}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="relative mt-9 flex items-center gap-2 text-[15px] text-white/68">
-            <Shield size={18} />
-            Encrypted in transit. Built for private venue projects.
-          </div>
-        </aside>
-
+      <div className="grid h-full w-full  bg-white">
         <section className="flex min-h-0 items-center justify-center bg-white px-6 py-6 sm:px-10">
           <div className="w-full max-w-[440px]">
             <div className="text-center">
-              <div className="mx-auto mb-6 inline-flex h-12 w-12 items-center justify-center rounded-full border border-[#c8d8d3] bg-[#eaf2ef] text-[#527970]">
-                <Sparkles size={22} />
-              </div>
               <h2 className="text-[36px] font-semibold tracking-[-0.03em] text-[#17211e]">
                 {isRegister ? "Sign Up Account" : "Sign In Account"}
               </h2>

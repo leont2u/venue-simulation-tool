@@ -933,11 +933,13 @@ export function SceneCanvas({
         />
       ) : null}
 
-      <div className="pointer-events-none absolute bottom-5 left-5 rounded-[10px] bg-[#111111]/78 px-3 py-2 text-[12px] text-white shadow-lg">
+      {!readOnly ? (
+      <div className="pointer-events-none absolute bottom-16 left-6 rounded-[10px] bg-white/92 px-3 py-2 text-[11px] font-medium text-[#687773] shadow-[0_2px_10px_rgba(15,23,42,0.08)]">
         {toolMode === "connect"
           ? "Connect mode: click one AV item, then another to create a cable run."
           : "Mouse: rotate · Scroll: zoom · Shift+drag: pan"}
       </div>
+      ) : null}
     </div>
   );
 }
