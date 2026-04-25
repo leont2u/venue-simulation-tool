@@ -1,11 +1,29 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
+import {
+  Bell,
+  Building2,
+  FolderKanban,
+  Grid2X2,
+  Home,
+  List,
+  type LucideIcon,
+  MessageCircle,
+  Plus,
+  Search,
+  Send,
+  UploadCloud,
+  Video,
+  WandSparkles,
+  X,
+} from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { OnboardingWizard } from "@/components/dashboard/OnboardingWizard";
+import ProjectModal, { ProjectPipeline } from "@/components/dashboard/ProjectModal";
+import ProjectPreviewCard, { ProjectThumbnail } from "@/components/dashboard/ProjectPreviewCard";
 import {
   clearPendingPrompt,
   readPendingPrompt,
@@ -17,27 +35,361 @@ import {
   readPendingVenueInput,
   savePendingVenueInput,
 } from "@/lib/pendingVenueInput";
-import {
-  hasCompletedOnboarding,
-  markOnboardingComplete,
-} from "@/lib/onboarding";
-import { PROJECT_TEMPLATES } from "@/lib/projectTemplates";
 import { createProjectFromVenueInput } from "@/lib/landingFlow";
+import { hasCompletedOnboarding, markOnboardingComplete } from "@/lib/onboarding";
+import { PROJECT_TEMPLATES, ProjectTemplate } from "@/lib/projectTemplates";
 import { getProjects } from "@/lib/storage";
 import { Project } from "@/types/types";
-import ProjectModal, { ProjectPipeline } from "@/components/dashboard/ProjectModal";
-import ProjectPreviewCard from "@/components/dashboard/ProjectPreviewCard";
 
-const SIDEBAR_SECTIONS = [
-  {
-    title: "Workspace",
-    items: ["Projects", "AI Studio", "Imports", "Shared Links"],
-  },
-  {
-    title: "Library",
-    items: ["Assets", "Templates", "Favorites"],
-  },
-];
+type DashboardView = "home" | "projects";
+type ViewMode = "grid" | "list";
+
+const FILTERS = ["All", "Wedding", "Conference", "Church", "Concert"];
+const TEMPLATE_FILTERS = ["All", "Wedding", "Conference", "Church", "Concert", "Corporate", "Livestream"];
+
+function cx(...classes: Array<string | false | null | undefined>) {
+  return classes.filter(Boolean).join(" ");
+}
+
+function displayName(email?: string) {
+  if (!email) return "Founder";
+  const name = email.split("@")[0]?.replace(/[._-]+/g, " ");
+  return name
+    ? name
+        .split(" ")
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(" ")
+    : "Founder";
+}
+
+function projectMatchesFilter(project: Project, filter: string) {
+  if (filter === "All") return true;
+  return project.name.toLowerCase().includes(filter.toLowerCase());
+}
+
+function templateToPreviewProject(template: ProjectTemplate): Project {
+  return template.buildProject(template.name);
+}
+
+function estimateTemplateCapacity(template: ProjectTemplate) {
+  const preview = templateToPreviewProject(template);
+  const chairLike = preview.items.filter((item) =>
+    ["chair", "church_bench", "banquet_table", "desk"].includes(item.type),
+  ).length;
+  return Math.max(chairLike * 8, Math.round((preview.room.width * preview.room.depth) / 3));
+}
+
+function TopBar({
+  title,
+  search,
+  onSearchChange,
+  onNewProject,
+}: {
+  title: string;
+  search: string;
+  onSearchChange: (value: string) => void;
+  onNewProject: () => void;
+}) {
+  return (
+    <header className="sticky top-0 z-20 flex h-[82px] items-center gap-6 border-b border-[#edf0ee] bg-white px-8">
+      <div className="w-[104px] shrink-0 text-[20px] font-bold tracking-[-0.03em] text-[#24302d] lg:w-[120px]">
+        {title}
+      </div>
+      <label className="flex h-[50px] w-full max-w-[780px] items-center gap-3 rounded-[13px] border border-[#e6ebe8] bg-white px-4 text-[#6f807b] shadow-[0_1px_8px_rgba(32,43,40,0.07)]">
+        <Search size={21} />
+        <input
+          value={search}
+          onChange={(event) => onSearchChange(event.target.value)}
+          placeholder="Search projects, templates, assets..."
+          className="min-w-0 flex-1 bg-transparent text-[18px] text-[#24302d] placeholder:text-[#75857f]"
+        />
+      </label>
+      <div className="ml-auto flex items-center gap-5">
+        <button className="flex h-10 w-10 items-center justify-center rounded-full text-[#63756f] transition hover:bg-[#f1f5f3]">
+          <Bell size={21} />
+        </button>
+        <button
+          onClick={onNewProject}
+          className="flex h-[50px] items-center gap-4 rounded-[13px] bg-[#5d7f73] px-6 text-[17px] font-bold text-white shadow-[0_4px_10px_rgba(32,43,40,0.18)] transition hover:bg-[#4e7165]"
+        >
+          <Plus size={22} />
+          New project
+        </button>
+      </div>
+    </header>
+  );
+}
+
+function Sidebar({
+  activeView,
+  onViewChange,
+  userName,
+  userEmail,
+  onLogout,
+}: {
+  activeView: DashboardView;
+  onViewChange: (view: DashboardView) => void;
+  userName: string;
+  userEmail?: string;
+  onLogout: () => void;
+}) {
+  const initials = userName
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  return (
+    <aside className="hidden w-[330px] shrink-0 border-r border-[#edf0ee] bg-white lg:flex lg:flex-col">
+      <div className="h-[82px] border-b border-[#edf0ee] px-8 py-5">
+        <div className="text-[20px] font-bold leading-none tracking-[-0.03em] text-[#202927]">
+          Leon Manhimanzi
+        </div>
+        <div className="mt-2 text-[13px] font-bold uppercase tracking-[0.33em] text-[#75857f]">
+          Venue Simulation
+        </div>
+      </div>
+
+      <nav className="space-y-2 px-5 py-8">
+        {([
+          { view: "home" as const, label: "Home", icon: Home },
+          { view: "projects" as const, label: "Projects", icon: FolderKanban },
+        ]).map((item) => {
+          const Icon = item.icon;
+          const selected = activeView === item.view;
+          return (
+            <button
+              key={item.view}
+              onClick={() => onViewChange(item.view)}
+              className={cx(
+                "flex h-[58px] w-full items-center gap-4 rounded-[16px] px-5 text-left text-[18px] font-bold transition",
+                selected ? "bg-[#eef3f1] text-[#5d7f73]" : "text-[#687a74] hover:bg-[#f5f8f6]",
+              )}
+            >
+              <Icon size={22} strokeWidth={2.2} />
+              {item.label}
+            </button>
+          );
+        })}
+      </nav>
+
+      <div className="mt-auto border-t border-[#edf0ee] p-8">
+        <div className="flex items-center gap-4">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#e7efec] text-[16px] font-bold text-[#6a827a]">
+            {initials || "FO"}
+          </div>
+          <div className="min-w-0">
+            <div className="text-[18px] font-bold text-[#24302d]">{userName || "Founder"}</div>
+            <div className="truncate text-[14px] text-[#61736e]">{userEmail || "founder@studio.com"}</div>
+          </div>
+        </div>
+        <button
+          onClick={onLogout}
+          className="mt-5 h-11 w-full rounded-[13px] border border-[#dde6e2] bg-white text-[15px] font-bold text-[#5d7f73] transition hover:border-[#c5d8d3] hover:bg-[#f3f8f6]"
+        >
+          Logout
+        </button>
+      </div>
+    </aside>
+  );
+}
+
+function ActionCard({
+  icon: Icon,
+  title,
+  subtitle,
+  active,
+  onClick,
+}: {
+  icon: LucideIcon;
+  title: string;
+  subtitle: string;
+  active?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cx(
+        "flex min-h-[126px] items-center gap-5 rounded-[18px] border bg-white p-5 text-left transition hover:-translate-y-0.5 hover:border-[#c9d8d3] hover:shadow-[0_12px_30px_rgba(32,43,40,0.08)]",
+        active ? "border-[#c5d8d3] shadow-[inset_0_0_0_1px_#c5d8d3]" : "border-[#e9eeee]",
+      )}
+    >
+      <div
+        className={cx(
+          "flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-[13px] shadow-[0_4px_12px_rgba(32,43,40,0.12)]",
+          active ? "bg-[#f1f6f4] text-[#22302c]" : "bg-[#5d7f73] text-white",
+        )}
+      >
+        <Icon size={25} />
+      </div>
+      <div>
+        <div className="text-[16px] font-bold text-[#24302d]">{title}</div>
+        <div className="mt-2 text-[14px] leading-6 text-[#667873]">{subtitle}</div>
+      </div>
+    </button>
+  );
+}
+
+function SectionHeader({
+  title,
+  subtitle,
+  onViewAll,
+}: {
+  title: string;
+  subtitle?: string;
+  onViewAll?: () => void;
+}) {
+  return (
+    <div className="mb-5 flex items-end justify-between gap-4">
+      <div>
+        <h2 className="text-[22px] font-bold tracking-[-0.03em] text-[#24302d]">{title}</h2>
+        {subtitle ? <p className="mt-2 text-[16px] text-[#657872]">{subtitle}</p> : null}
+      </div>
+      {onViewAll ? (
+        <button
+          onClick={onViewAll}
+          className="text-[16px] font-bold text-[#5d7f73] transition hover:text-[#3f6257]"
+        >
+          View all →
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function FilterPills({
+  filters,
+  active,
+  onChange,
+}: {
+  filters: string[];
+  active: string;
+  onChange: (filter: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {filters.map((filter) => (
+        <button
+          key={filter}
+          onClick={() => onChange(filter)}
+          className={cx(
+            "h-9 rounded-full border px-4 text-[14px] font-bold transition",
+            active === filter
+              ? "border-[#202927] bg-[#202927] text-white"
+              : "border-[#e2e9e6] bg-white text-[#657872] hover:border-[#cbd8d3]",
+          )}
+        >
+          {filter}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function TemplateCard({
+  template,
+  onUse,
+}: {
+  template: ProjectTemplate;
+  onUse: () => void;
+}) {
+  const previewProject = useMemo(() => templateToPreviewProject(template), [template]);
+  const capacity = estimateTemplateCapacity(template);
+  const highlighted = template.category === "Church";
+
+  return (
+    <button
+      onClick={onUse}
+      className={cx(
+        "group overflow-hidden rounded-[18px] border bg-white text-left transition hover:-translate-y-0.5 hover:border-[#c7d7d2] hover:shadow-[0_12px_30px_rgba(32,43,40,0.08)]",
+        highlighted ? "border-[#bcd3cd] shadow-[inset_0_0_0_1px_#bcd3cd]" : "border-[#e9eeee]",
+      )}
+    >
+      <div className="relative h-[216px]">
+        <ProjectThumbnail project={previewProject} />
+        {template.avReady ? (
+          <div className="absolute bottom-3 left-3 flex gap-2">
+            <span className="rounded-full bg-white px-3 py-1 text-[12px] font-bold text-[#24302d] shadow">
+              Livestream
+            </span>
+            <span className="rounded-full bg-white px-3 py-1 text-[12px] font-bold text-[#657872] shadow">
+              PTZ
+            </span>
+          </div>
+        ) : null}
+        <span className="absolute bottom-3 right-3 hidden items-center gap-2 rounded-[10px] bg-[#5d7f73] px-4 py-2 text-[14px] font-bold text-white shadow group-hover:flex">
+          <Plus size={18} />
+          Use
+        </span>
+      </div>
+      <div className="border-t border-[#edf1ef] p-4">
+        <div className="flex items-center justify-between gap-4 text-[12px] font-bold uppercase tracking-[0.12em] text-[#6e837d]">
+          <span>{template.category}</span>
+          <span className="font-semibold normal-case tracking-normal text-[#6e7e79]">
+            {capacity.toLocaleString()} pax
+          </span>
+        </div>
+        <div className="mt-3 truncate text-[16px] font-bold tracking-[-0.02em] text-[#24302d]">
+          {template.name}
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function HelpChat() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="fixed bottom-7 right-7 z-40">
+      {open ? (
+        <div className="mb-4 w-[340px] overflow-hidden rounded-[18px] border border-[#dfe8e4] bg-white shadow-[0_18px_60px_rgba(32,43,40,0.18)]">
+          <div className="flex items-center justify-between border-b border-[#edf1ef] bg-[#f8fbf9] px-5 py-4">
+            <div>
+              <div className="text-[15px] font-bold text-[#24302d]">Venue help</div>
+              <div className="text-[12px] text-[#657872]">Dashboard assistant</div>
+            </div>
+            <button
+              onClick={() => setOpen(false)}
+              className="flex h-8 w-8 items-center justify-center rounded-full text-[#657872] hover:bg-[#eaf1ee]"
+            >
+              <X size={18} />
+            </button>
+          </div>
+          <div className="space-y-3 px-5 py-5">
+            <div className="max-w-[260px] rounded-[14px] bg-[#eef5f2] px-4 py-3 text-[14px] leading-6 text-[#4f625c]">
+              Hi, I can help with project creation, imports, templates, and export questions.
+            </div>
+            <div className="ml-auto max-w-[240px] rounded-[14px] bg-[#5d7f73] px-4 py-3 text-[14px] leading-6 text-white">
+              Chat is coming soon.
+            </div>
+          </div>
+          <div className="flex items-center gap-2 border-t border-[#edf1ef] p-4">
+            <input
+              disabled
+              placeholder="Ask for help..."
+              className="h-10 min-w-0 flex-1 rounded-[12px] border border-[#e1e8e5] bg-[#f8fbf9] px-3 text-[14px] placeholder:text-[#8b9a95]"
+            />
+            <button
+              disabled
+              className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-[#d8e4e0] text-[#6a7d76]"
+            >
+              <Send size={17} />
+            </button>
+          </div>
+        </div>
+      ) : null}
+      <button
+        onClick={() => setOpen((value) => !value)}
+        className="flex h-16 w-16 items-center justify-center rounded-full bg-[#5d7f73] text-white shadow-[0_10px_30px_rgba(32,43,40,0.22)] transition hover:-translate-y-0.5 hover:bg-[#4e7165]"
+      >
+        <MessageCircle size={28} />
+      </button>
+    </div>
+  );
+}
 
 function DashboardContent() {
   const router = useRouter();
@@ -52,7 +404,13 @@ function DashboardContent() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
   const [isResumingPrompt, setIsResumingPrompt] = useState(false);
+  const [activeView, setActiveView] = useState<DashboardView>("home");
+  const [projectFilter, setProjectFilter] = useState("All");
+  const [templateFilter, setTemplateFilter] = useState("All");
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const resumeAttemptedRef = useRef(false);
+
+  const userName = displayName(user?.email);
 
   const loadProjects = useCallback(async () => {
     try {
@@ -60,9 +418,7 @@ function DashboardContent() {
       setError("");
       setProjects(await getProjects());
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to load projects.",
-      );
+      setError(err instanceof Error ? err.message : "Failed to load projects.");
     } finally {
       setLoading(false);
     }
@@ -76,21 +432,16 @@ function DashboardContent() {
     if (!user?.email || loading || isResumingPrompt) return;
     if (projects.length > 0) return;
     if (hasCompletedOnboarding(user.email)) return;
-
     setShowOnboarding(true);
   }, [isResumingPrompt, loading, projects.length, user?.email]);
 
   useEffect(() => {
     const shouldResumePrompt = searchParams.get("resumePrompt") === "1";
-    if (!shouldResumePrompt || resumeAttemptedRef.current) {
-      return;
-    }
+    if (!shouldResumePrompt || resumeAttemptedRef.current) return;
 
     const pendingInput = readPendingVenueInput();
     const prompt = pendingInput?.prompt.trim() || readPendingPrompt().trim();
-    const file = pendingInput?.file
-      ? pendingStoredFileToFile(pendingInput.file)
-      : null;
+    const file = pendingInput?.file ? pendingStoredFileToFile(pendingInput.file) : null;
 
     if (!prompt && !file) {
       resumeAttemptedRef.current = true;
@@ -128,307 +479,254 @@ function DashboardContent() {
     void resume();
   }, [router, searchParams]);
 
-  const filteredProjects = useMemo(() => {
-    const query = search.trim().toLowerCase();
-    if (!query) return projects;
-    return projects.filter((project) => {
-      return (
-        project.name.toLowerCase().includes(query) ||
-        `${project.room.width}x${project.room.depth}`.includes(query)
-      );
-    });
-  }, [projects, search]);
-
-  const projectCount = projects.length;
-  const assetCount = projects.reduce((sum, project) => sum + project.items.length, 0);
-  const importCount = projects.filter((project) =>
-    /drawio|import|xml|html/i.test(project.name),
-  ).length;
-
-  const openProjectCreation = useCallback((
-    initialStep: ProjectPipeline = "menu",
-    continueIntoEditor = false,
-  ) => {
-    setProjectModalStep(initialStep);
-    setContinueTourInEditor(continueIntoEditor);
-    setOpen(true);
-  }, []);
+  const openProjectCreation = useCallback(
+    (initialStep: ProjectPipeline = "menu", continueIntoEditor = false) => {
+      setProjectModalStep(initialStep);
+      setContinueTourInEditor(continueIntoEditor);
+      setOpen(true);
+    },
+    [],
+  );
 
   const completeOnboarding = useCallback(() => {
-    if (user?.email) {
-      markOnboardingComplete(user.email);
-    }
+    if (user?.email) markOnboardingComplete(user.email);
     setShowOnboarding(false);
   }, [user?.email]);
 
+  const filteredProjects = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return projects.filter((project) => {
+      const matchesSearch =
+        !query ||
+        project.name.toLowerCase().includes(query) ||
+        `${project.room.width}x${project.room.depth}`.includes(query);
+      return matchesSearch && projectMatchesFilter(project, projectFilter);
+    });
+  }, [projectFilter, projects, search]);
+
+  const recentProjects = filteredProjects.slice(0, 4);
+  const filteredTemplates = PROJECT_TEMPLATES.filter((template) =>
+    templateFilter === "All" ? true : template.category === templateFilter,
+  );
+
   return (
     <ProtectedRoute>
-      <main className="flex min-h-screen flex-col bg-[var(--sf-bg)]">
-        <div className="flex h-[52px] items-center gap-4 border-b border-[var(--sf-border)] bg-white px-6">
-          <Link href="/" className="flex items-center gap-2.5">
-            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-[var(--sf-text)] text-[10px] font-semibold text-white">
-              SF
-            </div>
-            <div className="text-[15px] font-semibold tracking-[-0.03em] text-[var(--sf-text)]">
-              SpaceForge
-            </div>
-          </Link>
+      <main className="flex min-h-screen bg-white text-[#24302d]">
+        <Sidebar
+          activeView={activeView}
+          onViewChange={setActiveView}
+          userName={userName}
+          userEmail={user?.email}
+          onLogout={logout}
+        />
 
-          <div className="hidden items-center gap-1 md:flex">
-            {["Dashboard", "Projects", "Editor"].map((tab, index) => (
-              <div
-                key={tab}
-                className={`rounded-md px-3 py-1.5 text-[13px] ${
-                  index === 0
-                    ? "bg-[var(--sf-surface-muted)] font-medium text-[var(--sf-text)]"
-                    : "text-[var(--sf-text-muted)]"
-                }`}
-              >
-                {tab}
-              </div>
-            ))}
-          </div>
+        <div className="min-w-0 flex-1 bg-white">
+          <TopBar
+            title={activeView === "home" ? "Home" : "Projects"}
+            search={search}
+            onSearchChange={setSearch}
+            onNewProject={() => openProjectCreation()}
+          />
 
-          <div className="flex-1" />
-
-          <div className="text-[12px] text-[var(--sf-text-muted)]">{user?.email}</div>
-          <button
-            onClick={() => setShowOnboarding(true)}
-            className="rounded-[6px] border border-[var(--sf-border-strong)] px-3 py-1.5 text-[13px] font-medium text-[var(--sf-text)] transition hover:bg-[var(--sf-surface-soft)]"
-          >
-            Onboarding
-          </button>
-          <button
-            onClick={logout}
-            className="rounded-[6px] border border-[var(--sf-border-strong)] px-3 py-1.5 text-[13px] font-medium text-[var(--sf-text)] transition hover:bg-[var(--sf-surface-soft)]"
-          >
-            Logout
-          </button>
-        </div>
-
-        <div className="flex min-h-0 flex-1">
-          <aside className="sf-scroll hidden w-[220px] shrink-0 overflow-y-auto border-r border-[var(--sf-border)] bg-white px-3 py-4 lg:block">
-            {SIDEBAR_SECTIONS.map((section) => (
-              <div key={section.title} className="mb-5">
-                <div className="px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--sf-text-faint)]">
-                  {section.title}
-                </div>
-                <div className="mt-1 space-y-1">
-                  {section.items.map((item, index) => (
-                    <div
-                      key={item}
-                      className={`rounded-[6px] px-3 py-2 text-[13px] ${
-                        section.title === "Workspace" && index === 0
-                          ? "bg-[var(--sf-surface-muted)] font-medium text-[var(--sf-text)]"
-                          : "text-[var(--sf-text-muted)]"
-                      }`}
-                    >
-                      {item}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </aside>
-
-          <section className="sf-scroll min-w-0 flex-1 overflow-y-auto p-7">
-            <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <h1 className="text-[18px] font-semibold tracking-[-0.03em] text-[var(--sf-text)]">
-                  Projects
-                </h1>
-                <p className="mt-1 text-[14px] text-[var(--sf-text-muted)]">
-                  Manage venue scenes, imports, prompt generation, and sharing from one workspace.
-                </p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="flex items-center gap-2 rounded-[6px] border border-[var(--sf-border)] bg-[var(--sf-surface-soft)] px-3 py-2">
-                  <span className="text-[13px] text-[var(--sf-text-faint)]">⌕</span>
-                  <input
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                    placeholder="Search projects"
-                    className="bg-transparent text-[13px] text-[var(--sf-text)] placeholder:text-[var(--sf-text-faint)]"
-                  />
-                </div>
-                <button
-                  onClick={() => openProjectCreation()}
-                  data-tour="new-project"
-                  className="rounded-[6px] bg-[var(--sf-text)] px-4 py-2 text-[13px] font-medium text-white transition hover:bg-[#333333]"
-                >
-                  New Project
-                </button>
-              </div>
-            </div>
-
-            <div className="mb-6 grid gap-3 md:grid-cols-3">
-              <div className="sf-panel p-4">
-                <div className="text-[12px] text-[var(--sf-text-faint)]">PROJECTS</div>
-                <div className="mt-2 text-[28px] font-semibold tracking-[-0.05em] text-[var(--sf-text)]">
-                  {projectCount}
-                </div>
-              </div>
-              <div className="sf-panel p-4">
-                <div className="text-[12px] text-[var(--sf-text-faint)]">SCENE OBJECTS</div>
-                <div className="mt-2 text-[28px] font-semibold tracking-[-0.05em] text-[var(--sf-text)]">
-                  {assetCount}
-                </div>
-              </div>
-              <div className="sf-panel p-4">
-                <div className="text-[12px] text-[var(--sf-text-faint)]">IMPORT-BASED</div>
-                <div className="mt-2 text-[28px] font-semibold tracking-[-0.05em] text-[var(--sf-text)]">
-                  {importCount}
-                </div>
-              </div>
-            </div>
-
-            <div className="mb-6 grid gap-4 xl:grid-cols-[1.2fr,0.8fr]">
-              <div className="sf-panel p-5">
-                <div className="text-[15px] font-semibold text-[var(--sf-text)]">
-                  SpaceForge Flow
-                </div>
-                <p className="mt-2 text-[13px] leading-6 text-[var(--sf-text-muted)]">
-                  Use the same backend flows you already built: create manual
-                  layouts, import draw.io/XML/HTML, generate from prompts,
-                  edit in 2D/3D, then share or export.
-                </p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {["Prompt to 3D", "draw.io Import", "2D/3D Editor", "Share Links", "PNG / PDF Export"].map((item) => (
-                    <span key={item} className="sf-chip px-3 py-1.5 text-[12px]">
-                      {item}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <div className="sf-panel p-5">
-                <div className="text-[15px] font-semibold text-[var(--sf-text)]">
-                  Quick Launch
-                </div>
-                <div className="mt-4 flex flex-col gap-2">
-                  <button
-                    onClick={() => openProjectCreation()}
-                    className="rounded-[6px] bg-[var(--sf-accent-blue)] px-4 py-2 text-left text-[13px] font-medium text-white transition hover:bg-[#1d4ed8]"
-                  >
-                    Create, import, or generate a project
-                  </button>
-                  <button
-                    onClick={() => openProjectCreation("prompt")}
-                    data-tour="ai-generate"
-                    className="rounded-[6px] bg-[#7c3aed] px-4 py-2 text-left text-[13px] font-medium text-white transition hover:bg-[#6d28d9]"
-                  >
-                    Generate from AI prompt
-                  </button>
-                  <button
-                    onClick={() => openProjectCreation("upload")}
-                    data-tour="import-launch"
-                    className="rounded-[6px] border border-[var(--sf-border-strong)] px-4 py-2 text-left text-[13px] font-medium text-[var(--sf-text)] transition hover:bg-[var(--sf-surface-soft)]"
-                  >
-                    Import draw.io / XML / HTML
-                  </button>
-                  <Link
-                    href="/"
-                    className="rounded-[6px] border border-[var(--sf-border-strong)] px-4 py-2 text-[13px] font-medium text-[var(--sf-text)] transition hover:bg-[var(--sf-surface-soft)]"
-                  >
-                    Open landing pipelines
-                  </Link>
-                </div>
-              </div>
-            </div>
-
-            <div className="mb-6" data-tour="templates-section">
-              <div className="mb-3 flex items-center justify-between">
-                <div>
-                  <div className="text-[15px] font-semibold text-[var(--sf-text)]">
-                    Templates
-                  </div>
-                  <div className="mt-1 text-[13px] text-[var(--sf-text-muted)]">
-                    Start from a prebuilt layout instead of beginning from scratch.
-                  </div>
-                </div>
-                <button
-                  onClick={() => openProjectCreation("template")}
-                  className="rounded-[6px] border border-[var(--sf-border-strong)] px-4 py-2 text-[13px] font-medium text-[var(--sf-text)] transition hover:bg-[var(--sf-surface-soft)]"
-                >
-                  Open Template Picker
-                </button>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-3">
-                {PROJECT_TEMPLATES.map((template) => (
-                  <div key={template.id} className="sf-panel overflow-hidden">
-                    <div
-                      className="h-28 border-b border-[var(--sf-border)]"
-                      style={{ background: template.previewTone }}
-                    />
-                    <div className="p-4">
-                      <div className="flex items-center gap-2">
-                        <div className="text-[14px] font-semibold text-[var(--sf-text)]">
-                          {template.name}
-                        </div>
-                        {template.avReady ? (
-                          <span className="rounded-full bg-emerald-100 px-2 py-1 text-[10px] font-medium text-emerald-700">
-                            AV ready
-                          </span>
-                        ) : null}
-                      </div>
-                      <div className="mt-2 text-[12px] leading-6 text-[var(--sf-text-muted)]">
-                        {template.description}
-                      </div>
-                      <div className="mt-3">
-                        <span className="sf-chip px-2 py-1 text-[11px]">
-                          {template.category}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
+          <section className="sf-scroll h-[calc(100vh-82px)] overflow-y-auto px-8 py-8 xl:px-11">
             {isResumingPrompt ? (
-              <div className="sf-panel mb-6 p-8 text-center">
-                <div className="text-[22px] font-semibold tracking-[-0.03em] text-[var(--sf-text)]">
-                  Generating your layout...
-                </div>
-                <p className="mt-3 text-[14px] text-[var(--sf-text-muted)]">
-                  Your saved landing prompt was restored after login and is being converted now.
-                </p>
-              </div>
-            ) : loading ? (
-              <div className="sf-panel mb-6 p-8 text-center text-[14px] text-[var(--sf-text-muted)]">
-                Loading projects...
+              <div className="rounded-[18px] border border-[#e9eeee] bg-white p-10 text-center text-[16px] text-[#657872]">
+                Generating your layout...
               </div>
             ) : error ? (
-              <div className="mb-6 rounded-[8px] border border-red-200 bg-red-50 p-5 text-[14px] text-red-600">
+              <div className="mb-8 rounded-[14px] border border-red-200 bg-red-50 p-5 text-[14px] text-red-700">
                 {error}
               </div>
-            ) : filteredProjects.length === 0 ? (
-              <div className="sf-panel p-10 text-center">
-                <div className="text-[24px] font-semibold tracking-[-0.04em] text-[var(--sf-text)]">
-                  No projects yet
+            ) : null}
+
+            {activeView === "home" ? (
+              <>
+                <div className="mb-12">
+                  <div className="text-[14px] font-bold uppercase tracking-[0.28em] text-[#5d7f73]">
+                    Workbench
+                  </div>
+                  <h1 className="mt-4 text-[36px] font-bold tracking-[-0.05em] text-[#24302d]">
+                    Welcome back, {userName}.
+                  </h1>
+                  <p className="mt-3 text-[17px] text-[#657872]">
+                    Plan, simulate, and ship venue layouts your clients can walk through.
+                  </p>
                 </div>
-                <p className="mx-auto mt-3 max-w-[640px] text-[14px] leading-7 text-[var(--sf-text-muted)]">
-                  Create your first venue layout from a prompt, import an
-                  existing floor plan, or start manually in 2D or 3D.
-                </p>
-                <button
-                  onClick={() => openProjectCreation()}
-                  className="mt-6 rounded-[6px] bg-[var(--sf-text)] px-4 py-2 text-[13px] font-medium text-white transition hover:bg-[#333333]"
-                >
-                  Create First Project
-                </button>
-              </div>
+
+                <section className="mb-12">
+                  <h2 className="text-[22px] font-bold tracking-[-0.03em] text-[#24302d]">
+                    Create new project
+                  </h2>
+                  <p className="mt-2 text-[16px] text-[#657872]">
+                    Start a venue simulation in the way that fits you best.
+                  </p>
+                  <div className="mt-5 grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
+                    <ActionCard
+                      icon={WandSparkles}
+                      title="Generate from prompt"
+                      subtitle="Describe your event and let AI lay it out."
+                      onClick={() => openProjectCreation("prompt")}
+                    />
+                    <ActionCard
+                      icon={UploadCloud}
+                      title="Upload floor plan"
+                      subtitle="XML, draw.io, HTML, PNG, or PDF."
+                      onClick={() => openProjectCreation("upload")}
+                    />
+                    <ActionCard
+                      icon={Grid2X2}
+                      title="Start blank venue"
+                      subtitle="Begin with an empty canvas and grid."
+                      active
+                      onClick={() => openProjectCreation("draw3d")}
+                    />
+                    <ActionCard
+                      icon={Video}
+                      title="Plan livestream setup"
+                      subtitle="Cameras, AV desk, cables, LED walls."
+                      onClick={() => openProjectCreation("template")}
+                    />
+                  </div>
+                </section>
+
+                <section className="mb-12">
+                  <SectionHeader
+                    title="Recent projects"
+                    subtitle="Pick up where you left off."
+                    onViewAll={() => setActiveView("projects")}
+                  />
+                  {loading ? (
+                    <div className="rounded-[18px] border border-[#e9eeee] bg-white p-10 text-center text-[#657872]">
+                      Loading projects...
+                    </div>
+                  ) : recentProjects.length > 0 ? (
+                    <div className="grid gap-5 md:grid-cols-2 2xl:grid-cols-4">
+                      {recentProjects.map((project) => (
+                        <ProjectPreviewCard key={project.id} project={project} compact />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-[18px] border border-[#e9eeee] bg-white p-10 text-center">
+                      <div className="text-[22px] font-bold tracking-[-0.03em]">No projects yet</div>
+                      <p className="mt-2 text-[#657872]">
+                        Create a venue from a prompt, import a plan, or start blank.
+                      </p>
+                    </div>
+                  )}
+                </section>
+
+                <section>
+                  <SectionHeader
+                    title="Pick a venue to start"
+                    subtitle="Production-ready templates you can edit in seconds."
+                    onViewAll={() => openProjectCreation("template")}
+                  />
+                  <FilterPills
+                    filters={TEMPLATE_FILTERS}
+                    active={templateFilter}
+                    onChange={setTemplateFilter}
+                  />
+                  <div className="mt-5 grid gap-5 md:grid-cols-2 2xl:grid-cols-4">
+                    {filteredTemplates.map((template) => (
+                      <TemplateCard
+                        key={template.id}
+                        template={template}
+                        onUse={() => openProjectCreation("template")}
+                      />
+                    ))}
+                  </div>
+                </section>
+              </>
             ) : (
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                {filteredProjects.map((project) => (
-                  <ProjectPreviewCard key={project.id} project={project} />
-                ))}
-              </div>
+              <>
+                <div className="mb-8 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+                  <div>
+                    <div className="text-[14px] font-bold uppercase tracking-[0.28em] text-[#5d7f73]">
+                      All projects
+                    </div>
+                    <h1 className="mt-4 text-[40px] font-bold tracking-[-0.05em] text-[#24302d]">
+                      Projects
+                    </h1>
+                    <p className="mt-3 text-[18px] text-[#657872]">
+                      {projects.length} projects in your workspace.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => openProjectCreation()}
+                    className="flex h-[56px] w-fit items-center gap-4 rounded-[13px] bg-[#5d7f73] px-7 text-[20px] font-bold text-white shadow-[0_4px_10px_rgba(32,43,40,0.18)] transition hover:bg-[#4e7165]"
+                  >
+                    <Plus size={24} />
+                    New project
+                  </button>
+                </div>
+
+                <div className="mb-8 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                  <label className="flex h-[60px] w-full max-w-[780px] items-center gap-4 rounded-[16px] border border-[#e9eeee] bg-white px-5 text-[#6f807b] shadow-[0_1px_8px_rgba(32,43,40,0.05)]">
+                    <Search size={24} />
+                    <input
+                      value={search}
+                      onChange={(event) => setSearch(event.target.value)}
+                      placeholder="Search projects..."
+                      className="min-w-0 flex-1 bg-transparent text-[20px] text-[#24302d] placeholder:text-[#75857f]"
+                    />
+                  </label>
+                  <div className="flex flex-wrap items-center gap-4">
+                    <FilterPills filters={FILTERS} active={projectFilter} onChange={setProjectFilter} />
+                    <div className="flex h-[54px] rounded-[16px] border border-[#e9eeee] bg-white p-1">
+                      <button
+                        onClick={() => setViewMode("grid")}
+                        className={cx(
+                          "flex h-11 w-11 items-center justify-center rounded-[12px]",
+                          viewMode === "grid" ? "bg-[#f0f5f3] text-[#24302d] shadow" : "text-[#657872]",
+                        )}
+                      >
+                        <Grid2X2 size={22} />
+                      </button>
+                      <button
+                        onClick={() => setViewMode("list")}
+                        className={cx(
+                          "flex h-11 w-11 items-center justify-center rounded-[12px]",
+                          viewMode === "list" ? "bg-[#f0f5f3] text-[#24302d] shadow" : "text-[#657872]",
+                        )}
+                      >
+                        <List size={23} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {loading ? (
+                  <div className="rounded-[18px] border border-[#e9eeee] bg-white p-10 text-center text-[#657872]">
+                    Loading projects...
+                  </div>
+                ) : filteredProjects.length > 0 ? (
+                  <div
+                    className={cx(
+                      "grid gap-5",
+                      viewMode === "grid" ? "md:grid-cols-2 2xl:grid-cols-4" : "grid-cols-1",
+                    )}
+                  >
+                    {filteredProjects.map((project) => (
+                      <ProjectPreviewCard key={project.id} project={project} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-[18px] border border-[#e9eeee] bg-white p-12 text-center">
+                    <Building2 className="mx-auto text-[#8ea09a]" size={42} />
+                    <div className="mt-4 text-[24px] font-bold tracking-[-0.04em]">
+                      No matching projects
+                    </div>
+                    <p className="mt-2 text-[#657872]">
+                      Try another search or create a new venue simulation.
+                    </p>
+                  </div>
+                )}
+              </>
             )}
           </section>
         </div>
+
+        <HelpChat />
 
         <ProjectModal
           open={open}
@@ -462,7 +760,7 @@ export default function DashboardPage() {
   return (
     <Suspense
       fallback={
-        <main className="flex min-h-screen items-center justify-center bg-[var(--sf-bg)] text-[14px] text-[var(--sf-text-muted)]">
+        <main className="flex min-h-screen items-center justify-center bg-white text-[14px] text-[#657872]">
           Loading dashboard...
         </main>
       }
