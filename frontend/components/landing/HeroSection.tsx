@@ -11,6 +11,11 @@ import {
 import { useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { createProjectFromVenueInput } from "@/lib/landingFlow";
+import {
+  hasCompletedOnboarding,
+  markOnboardingComplete,
+} from "@/lib/onboarding";
+import { queueEditorTour } from "@/lib/onboardingTour";
 import { savePendingVenueInput } from "@/lib/pendingVenueInput";
 import { useRouter } from "next/navigation";
 
@@ -25,7 +30,7 @@ function formatFileKind(file: File | null) {
 export function Hero() {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement | null>(null);
-  const { isAuthenticated, isHydrating } = useAuth();
+  const { isAuthenticated, isHydrating, user } = useAuth();
   const [prompt, setPrompt] = useState(
     "Wedding for 200 guests with stage and livestream setup",
   );
@@ -39,6 +44,10 @@ export function Hero() {
     setLoading(true);
     setError("");
     const project = await createProjectFromVenueInput({ prompt, file });
+    if (user?.email && !hasCompletedOnboarding(user.email)) {
+      markOnboardingComplete(user.email);
+      queueEditorTour();
+    }
     router.push(`/editor/${project.id}`);
   };
 

@@ -1,6 +1,11 @@
+"use client";
+
 import Link from "next/link";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 export function Navbar() {
+  const { isAuthenticated, isHydrating } = useAuth();
+
   return (
     <header className="relative z-50 bg-[#fbfcfb]">
       <div className="mx-auto flex h-[82px] w-full max-w-[1280px] items-center gap-5 px-6 md:px-10">
@@ -28,14 +33,38 @@ export function Navbar() {
           >
             How It Works
           </a>
+          <a
+            className="text-[15px] font-medium text-[#314a43]"
+            href="#templates"
+          >
+            Templates
+          </a>
         </nav>
 
-        <Link
-          href="/register"
-          className="rounded-[8px] bg-[#4f796f] px-5 py-3 text-[15px] font-semibold text-white shadow-[0_2px_5px_rgba(0,0,0,0.18)] transition hover:bg-[#416b61]"
-        >
-          Start Free
-        </Link>
+        {isAuthenticated ? (
+          <Link
+            href="/dashboard"
+            className="rounded-[8px] bg-[#4f796f] px-5 py-3 text-[15px] font-semibold text-white shadow-[0_2px_5px_rgba(0,0,0,0.18)] transition hover:bg-[#416b61]"
+          >
+            Dashboard
+          </Link>
+        ) : (
+          <div className="flex items-center gap-3">
+            <Link
+              href="/login"
+              className="hidden rounded-[8px]  px-4 py-3 text-[15px] font-semibold text-[#314a43] transition hover:text-[#416b61] sm:inline-flex"
+            >
+              Sign in
+            </Link>
+            <Link
+              href="/register"
+              aria-disabled={isHydrating}
+              className="rounded-[8px] bg-[#4f796f] px-5 py-3 text-[15px] font-semibold text-white shadow-[0_2px_5px_rgba(0,0,0,0.18)] transition hover:bg-[#416b61]"
+            >
+              Start Free
+            </Link>
+          </div>
+        )}
       </div>
     </header>
   );

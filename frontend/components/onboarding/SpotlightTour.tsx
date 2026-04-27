@@ -139,19 +139,19 @@ export function SpotlightTour({
 
   return (
     <div className="fixed inset-0 z-[80]">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-[1px]" />
+      <div className="absolute inset-0 bg-[#17211e]/45 backdrop-blur-[1px]" />
 
       {targetRect ? (
         <div
-          className="absolute rounded-[22px] border-2 shadow-[0_0_0_9999px_rgba(0,0,0,0.52)] transition-all duration-300"
+          className="absolute rounded-[16px] border-2 shadow-[0_0_0_9999px_rgba(23,33,30,0.48)] transition-all duration-300"
           style={{
             top: targetRect.top - 10,
             left: targetRect.left - 10,
             width: targetRect.width + 20,
             height: targetRect.height + 20,
-            borderColor: step.accent || "#2563eb",
-            boxShadow: `0 0 0 9999px rgba(0,0,0,0.52), 0 0 0 8px ${
-              step.accent || "#2563eb"
+            borderColor: step.accent || "#5d7f73",
+            boxShadow: `0 0 0 9999px rgba(23,33,30,0.48), 0 0 0 8px ${
+              step.accent || "#5d7f73"
             }22`,
           }}
         />
@@ -164,7 +164,7 @@ export function SpotlightTour({
             style={{
               top: targetRect.top - 24,
               left: targetRect.left + targetRect.width / 2 - 8,
-              backgroundColor: step.accent || "#2563eb",
+              backgroundColor: step.accent || "#5d7f73",
             }}
           />
           <div
@@ -172,7 +172,7 @@ export function SpotlightTour({
             style={{
               top: targetRect.top - 24,
               left: targetRect.left + targetRect.width / 2 - 8,
-              backgroundColor: step.accent || "#2563eb",
+              backgroundColor: step.accent || "#5d7f73",
             }}
           >
             <div className="h-2 w-2 rounded-full bg-white" />
@@ -190,7 +190,7 @@ export function SpotlightTour({
       ) : null}
 
       <div
-        className="absolute rounded-[24px] border border-white/70 bg-white p-6 shadow-[0_20px_80px_rgba(0,0,0,0.22)]"
+        className="absolute rounded-[16px] border border-[#dfe8e4] bg-white p-6 shadow-[0_24px_80px_rgba(23,33,30,0.24)]"
         style={{
           top: cardPosition.top,
           left: cardPosition.left,
@@ -199,11 +199,11 @@ export function SpotlightTour({
       >
         <div className="flex items-start justify-between gap-4">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-[var(--sf-surface-soft)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--sf-text-faint)]">
+            <div className="inline-flex items-center gap-2 rounded-full bg-[#eef5f2] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#5d7f73]">
               <Sparkles className="h-3.5 w-3.5" />
               {title}
             </div>
-            <div className="mt-3 text-[24px] font-semibold tracking-[-0.04em] text-[var(--sf-text)]">
+            <div className="mt-3 text-[24px] font-semibold tracking-[-0.04em] text-[#202927]">
               {step.title}
             </div>
           </div>
@@ -214,20 +214,20 @@ export function SpotlightTour({
               setTargetRect(null);
               onClose();
             }}
-            className="rounded-[12px] border border-[var(--sf-border)] p-2 text-[var(--sf-text-muted)] transition hover:bg-[var(--sf-surface-soft)]"
+            className="rounded-[10px] border border-[#dfe8e4] p-2 text-[#657872] transition hover:bg-[#eef5f2] hover:text-[#24302d]"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        <p className="mt-4 text-[14px] leading-7 text-[var(--sf-text-muted)]">
+        <p className="mt-4 text-[14px] leading-7 text-[#657872]">
           {step.description}
         </p>
 
         {step.actionLabel && step.onAction ? (
           <button
             onClick={step.onAction}
-            className="mt-5 inline-flex items-center gap-2 rounded-[14px] bg-[var(--sf-text)] px-4 py-3 text-[14px] font-medium text-white transition hover:bg-[#333333]"
+            className="mt-5 inline-flex items-center gap-2 rounded-[10px] bg-[#5d7f73] px-4 py-3 text-[14px] font-semibold text-white transition hover:bg-[#4e7165]"
           >
             {step.actionLabel}
             <ArrowRight className="h-4 w-4" />
@@ -235,7 +235,7 @@ export function SpotlightTour({
         ) : null}
 
         <div className="mt-6 flex items-center justify-between">
-          <div className="text-[12px] text-[var(--sf-text-faint)]">
+          <div className="text-[12px] font-medium text-[#7f918b]">
             Step {stepIndex + 1} of {steps.length}
           </div>
 
@@ -243,7 +243,7 @@ export function SpotlightTour({
             <button
               onClick={() => setStepIndex((current) => Math.max(0, current - 1))}
               disabled={stepIndex === 0}
-              className="inline-flex items-center gap-2 rounded-[12px] border border-[var(--sf-border)] px-4 py-2 text-[13px] font-medium text-[var(--sf-text-muted)] transition hover:bg-[var(--sf-surface-soft)] disabled:opacity-45"
+              className="inline-flex items-center gap-2 rounded-[10px] border border-[#dfe8e4] px-4 py-2 text-[13px] font-semibold text-[#657872] transition hover:bg-[#eef5f2] disabled:opacity-45"
             >
               <ArrowLeft className="h-4 w-4" />
               Back
@@ -258,7 +258,7 @@ export function SpotlightTour({
               }
                 setStepIndex((current) => Math.min(steps.length - 1, current + 1));
               }}
-              className="inline-flex items-center gap-2 rounded-[12px] bg-[var(--sf-accent-blue)] px-4 py-2 text-[13px] font-medium text-white transition hover:bg-[#1d4ed8]"
+              className="inline-flex items-center gap-2 rounded-[10px] bg-[#202927] px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-[#31403b]"
             >
               {isLastStep ? "Finish" : "Next"}
               <ArrowRight className="h-4 w-4" />

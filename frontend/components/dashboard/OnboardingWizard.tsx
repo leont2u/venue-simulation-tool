@@ -13,7 +13,7 @@ const TOUR_STEPS: SpotlightTourStep[] = [
     title: "Start here: create a new project",
     description:
       "This is the main launch point. From here, users can create a project manually, from a template, from a prompt, or from an imported floor plan.",
-    accent: "#2563eb",
+    accent: "#5d7f73",
   },
   {
     id: "templates",
@@ -21,7 +21,7 @@ const TOUR_STEPS: SpotlightTourStep[] = [
     title: "Templates help users avoid starting from scratch",
     description:
       "This section gives first-time users polished venue starters. They can open a template, rename it, edit it, and save their own copy.",
-    accent: "#16a34a",
+    accent: "#4f796f",
     actionLabel: "Open template flow",
   },
   {
@@ -30,7 +30,7 @@ const TOUR_STEPS: SpotlightTourStep[] = [
     title: "AI generation is the fastest route from idea to layout",
     description:
       "Users can describe the event in natural language and the system generates a structured room layout that opens in the editor.",
-    accent: "#7c3aed",
+    accent: "#202927",
     actionLabel: "Open AI flow",
   },
   {
@@ -39,7 +39,7 @@ const TOUR_STEPS: SpotlightTourStep[] = [
     title: "Import existing 2D plans instead of redrawing everything",
     description:
       "This lets users bring in draw.io, XML, or HTML floor plans and convert them into editable 3D-aware projects.",
-    accent: "#ea580c",
+    accent: "#6e837d",
     actionLabel: "Open import flow",
   },
 ];

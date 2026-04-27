@@ -15,10 +15,51 @@ import {
 import { useEditorStore } from "@/store/UseEditorStore";
 import { ShareExportModal } from "./ShareExportModal";
 
+function ProjectNameInput({
+  name,
+  onRename,
+}: {
+  name: string;
+  onRename: (name: string) => void;
+}) {
+  const [projectName, setProjectName] = useState(name);
+
+  const commitProjectName = () => {
+    const cleanName = projectName.trim();
+    if (!cleanName) {
+      setProjectName(name);
+      return;
+    }
+    if (cleanName !== name) {
+      onRename(cleanName);
+    }
+  };
+
+  return (
+    <input
+      value={projectName}
+      onChange={(event) => setProjectName(event.target.value)}
+      onBlur={commitProjectName}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") {
+          event.currentTarget.blur();
+        }
+        if (event.key === "Escape") {
+          setProjectName(name);
+          event.currentTarget.blur();
+        }
+      }}
+      aria-label="Project name"
+      className="min-w-0 max-w-[280px] rounded-[7px] border border-transparent bg-transparent px-2 py-1 text-[15px] font-semibold text-[#242a28] outline-none transition hover:border-[#e1e7e4] focus:border-[#b9cbc5] focus:bg-[#f8faf9]"
+    />
+  );
+}
+
 export function TopToolbar() {
   const router = useRouter();
   const project = useEditorStore((s) => s.project);
   const saveProject = useEditorStore((s) => s.saveProject);
+  const renameProject = useEditorStore((s) => s.renameProject);
   const isProjectSaving = useEditorStore((s) => s.isProjectSaving);
   const projectError = useEditorStore((s) => s.projectError);
   const undo = useEditorStore((s) => s.undo);
@@ -58,9 +99,13 @@ export function TopToolbar() {
 
           <div className="hidden h-8 w-px bg-[#ececec] lg:block" />
 
-          <div className="min-w-0 text-[15px] font-semibold text-[#242a28]">
-            <div className="truncate">{project?.name}</div>
-          </div>
+          {project ? (
+            <ProjectNameInput
+              key={project.id}
+              name={project.name}
+              onRename={renameProject}
+            />
+          ) : null}
 
           <div className="hidden h-7 items-center gap-1 rounded-full bg-[#f8faf8] px-3 text-[11px] font-medium text-[#6d7b77] xl:flex">
             <Lock className="h-3.5 w-3.5" />

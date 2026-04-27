@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Github, Lock, Mail } from "lucide-react";
+import { Lock, Mail } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -54,31 +54,6 @@ export function AuthExperience({ mode }: { mode: "login" | "register" }) {
                   ? "Enter your personal data to create your account."
                   : "Enter your details to continue to your dashboard."}
               </p>
-            </div>
-
-            <div className="mt-9 grid grid-cols-2 gap-4">
-              <button
-                type="button"
-                className="flex h-13 items-center justify-center gap-3 rounded-[8px] border border-[#dfe8e5] bg-white text-[16px] font-medium text-[#25312d] shadow-sm transition hover:bg-[#f5faf8]"
-                title="Google sign-in is not configured yet"
-              >
-                <span className="font-bold text-[#527970]">G</span>
-                Google
-              </button>
-              <button
-                type="button"
-                className="flex h-13 items-center justify-center gap-3 rounded-[8px] border border-[#dfe8e5] bg-white text-[16px] font-medium text-[#25312d] shadow-sm transition hover:bg-[#f5faf8]"
-                title="GitHub sign-in is not configured yet"
-              >
-                <Github size={18} />
-                GitHub
-              </button>
-            </div>
-
-            <div className="my-7 flex items-center gap-4">
-              <div className="h-px flex-1 bg-[#dfe8e5]" />
-              <div className="text-[14px] text-[#7e8b86]">Or</div>
-              <div className="h-px flex-1 bg-[#dfe8e5]" />
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">

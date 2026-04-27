@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { Box } from "lucide-react";
+import { ASSET_CATALOG } from "@/lib/DemoAssets";
 import { clampToRoom } from "@/lib/editorPhysics";
 import { getCableColor } from "@/lib/sceneConnections";
 import { useEditorStore } from "@/store/UseEditorStore";
@@ -45,6 +46,15 @@ function NumberField({
 }
 
 const WALL_SWATCHES = ["#F6F2EC", "#EAE4D8", "#E6ECF4", "#E4EEDA", "#D7D7D7"];
+const SCALE_PRESETS = [25, 50, 100, 150];
+
+function clampAssetScale(value: number) {
+  return Math.min(10, Math.max(0.02, Number.isFinite(value) ? value : 1));
+}
+
+function roundScale(value: number) {
+  return Number(value.toFixed(3));
+}
 
 export function PropertiesPanel() {
   const project = useEditorStore((s) => s.project);
@@ -61,6 +71,18 @@ export function PropertiesPanel() {
     return project.items.find((entry) => entry.id === selectedIds[0]) ?? null;
   }, [project, selectedIds]);
 
+  const selectedAsset = useMemo(() => {
+    if (!item) return null;
+    return (
+      ASSET_CATALOG.find(
+        (asset) =>
+          asset.type === item.type ||
+          asset.modelUrl === item.assetUrl ||
+          asset.id === item.sourceId,
+      ) ?? null
+    );
+  }, [item]);
+
   if (!project) return null;
 
   const oppositeView = activeView === "3d" ? "2d" : "3d";
@@ -69,6 +91,30 @@ export function PropertiesPanel() {
     (project.sceneSettings?.wallColor ? 1 : 1) * 100,
   );
   const floorOpacity = 100;
+  const defaultScale = selectedAsset?.defaultScale ?? ([1, 1, 1] as [
+    number,
+    number,
+    number,
+  ]);
+  const uniformScalePercent = item
+    ? Math.round(
+        (item.scale.reduce((total, value, index) => {
+          const base = defaultScale[index] || 1;
+          return total + value / base;
+        }, 0) /
+          3) *
+          100,
+      )
+    : 100;
+  const setUniformScale = (percent: number) => {
+    if (!item) return;
+    const factor = Math.max(5, Math.min(300, percent)) / 100;
+    updateItem(item.id, {
+      scale: defaultScale.map((value) =>
+        roundScale(clampAssetScale(value * factor)),
+      ) as [number, number, number],
+    });
+  };
 
   return (
     <aside
@@ -345,6 +391,51 @@ export function PropertiesPanel() {
 
             <section className="space-y-3">
               <SectionTitle>Scale</SectionTitle>
+              <div className="rounded-[12px] border border-[#e8ece9] bg-[#fbfcfb] p-3">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[12px] font-semibold text-[#303733]">
+                      Asset size
+                    </div>
+                    <div className="mt-0.5 text-[11px] text-[#73817c]">
+                      Relative to the default {selectedAsset?.name ?? item.type} size
+                    </div>
+                  </div>
+                  <div className="rounded-[8px] border border-[#dfe8e4] bg-white px-2 py-1 text-[12px] font-bold text-[#4f625c]">
+                    {uniformScalePercent}%
+                  </div>
+                </div>
+                <input
+                  type="range"
+                  min="5"
+                  max="300"
+                  step="5"
+                  value={Math.max(5, Math.min(300, uniformScalePercent))}
+                  onChange={(event) =>
+                    setUniformScale(Number(event.target.value))
+                  }
+                  className="w-full accent-[#5d7f73]"
+                />
+                <div className="mt-3 grid grid-cols-5 gap-2">
+                  {SCALE_PRESETS.map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setUniformScale(preset)}
+                      className="h-8 rounded-[8px] border border-[#dfe8e4] bg-white text-[11px] font-bold text-[#657872] transition hover:border-[#b9cbc5] hover:bg-[#eef5f2]"
+                    >
+                      {preset}%
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setUniformScale(100)}
+                    className="h-8 rounded-[8px] bg-[#5d7f73] text-[11px] font-bold text-white transition hover:bg-[#4e7165]"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
               {(["X", "Y", "Z"] as const).map((axis, index) => (
                 <NumberField
                   key={axis}
@@ -356,7 +447,7 @@ export function PropertiesPanel() {
                       number,
                       number,
                     ];
-                    nextScale[index] = value;
+                    nextScale[index] = roundScale(clampAssetScale(value));
                     updateItem(item.id, { scale: nextScale });
                   }}
                 />

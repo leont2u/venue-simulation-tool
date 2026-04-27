@@ -70,6 +70,7 @@ interface EditorState {
   updateItemsTransient: (ids: string[], updater: (item: SceneItem) => SceneItem) => void;
   applyProjectMutation: (updater: (project: Project) => Project) => void;
   commitProjectSnapshot: (beforeProject: Project) => void;
+  renameProject: (name: string) => void;
   addConnection: (fromItemId: string, toItemId: string, cableType?: CableType) => void;
   removeConnectionsForItem: (itemId: string) => void;
 
@@ -259,6 +260,15 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       historyPast: [...state.historyPast.slice(-49), snapshot(beforeProject)],
       historyFuture: [],
     }));
+  },
+
+  renameProject: (name) => {
+    const cleanName = name.trim();
+    if (!cleanName) return;
+
+    get().applyProjectMutation((project) =>
+      project.name === cleanName ? project : { ...project, name: cleanName },
+    );
   },
 
   addItem: (item) => {

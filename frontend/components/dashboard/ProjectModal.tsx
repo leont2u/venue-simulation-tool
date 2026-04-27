@@ -7,6 +7,7 @@ import { PROJECT_TEMPLATES } from "@/lib/projectTemplates";
 import { generateProjectFromPrompt } from "@/lib/promptLayout";
 import { upsertProject } from "@/lib/storage";
 import { Project } from "@/types/types";
+import { X } from "lucide-react";
 
 export type ProjectPipeline =
   | "menu"
@@ -103,7 +104,9 @@ export default function ProjectModal({
   };
 
   const handleCreateFromTemplate = async () => {
-    const template = PROJECT_TEMPLATES.find((entry) => entry.id === selectedTemplateId);
+    const template = PROJECT_TEMPLATES.find(
+      (entry) => entry.id === selectedTemplateId,
+    );
     if (!template) {
       setError("Please choose a template.");
       return;
@@ -123,7 +126,9 @@ export default function ProjectModal({
       onOpenProject(savedProject.id);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Failed to create template project.",
+        err instanceof Error
+          ? err.message
+          : "Failed to create template project.",
       );
     } finally {
       setLoading(false);
@@ -228,8 +233,12 @@ export default function ProjectModal({
       </div>
 
       <div>
-        <div className="text-[14px] font-semibold text-[var(--sf-text)]">{title}</div>
-        <div className="text-[12px] text-[var(--sf-text-muted)]">{subtitle}</div>
+        <div className="text-[14px] font-semibold text-[var(--sf-text)]">
+          {title}
+        </div>
+        <div className="text-[12px] text-[var(--sf-text-muted)]">
+          {subtitle}
+        </div>
       </div>
     </button>
   );
@@ -250,23 +259,11 @@ export default function ProjectModal({
           </div>
 
           <div className="flex items-center gap-2">
-            {step !== "menu" && (
-              <button
-                onClick={() => {
-                  setStep("menu");
-                  setError("");
-                  setLoading(false);
-                }}
-                className="rounded-[6px] border border-[var(--sf-border-strong)] px-3 py-1.5 text-[13px] font-medium text-[var(--sf-text)] transition hover:bg-[var(--sf-surface-soft)]"
-              >
-                Back
-              </button>
-            )}
             <button
               onClick={handleClose}
               className="flex h-8 w-8 items-center justify-center rounded-full text-2xl leading-none text-[var(--sf-text-muted)] transition hover:bg-[var(--sf-surface-soft)] hover:text-[var(--sf-text)]"
             >
-              ×
+              <X />
             </button>
           </div>
         </div>
@@ -274,21 +271,9 @@ export default function ProjectModal({
         {step === "menu" && (
           <div className="grid gap-3">
             <PipelineCard
-              title="Start from Template"
-              subtitle="Use a prebuilt layout and make it your own"
-              onClick={() => setStep("template")}
-            />
-
-            <PipelineCard
               title="Upload File"
               subtitle="XML, draw.io, or HTML"
               onClick={() => setStep("upload")}
-            />
-
-            <PipelineCard
-              title="Draw 2D Layout"
-              subtitle="Start with a blank canvas"
-              onClick={() => setStep("draw2d")}
             />
 
             <PipelineCard
@@ -311,7 +296,8 @@ export default function ProjectModal({
               Choose a template
             </div>
             <p className="mt-1 text-[13px] text-[var(--sf-text-muted)]">
-              Start from a proven room layout, rename it, edit it, and save your own copy.
+              Start from a proven room layout, rename it, edit it, and save your
+              own copy.
             </p>
 
             <input
@@ -349,7 +335,9 @@ export default function ProjectModal({
                       />
                     </div>
                     <div className="mt-3 flex items-center gap-2">
-                      <span className="sf-chip px-2 py-1 text-[11px]">{template.category}</span>
+                      <span className="sf-chip px-2 py-1 text-[11px]">
+                        {template.category}
+                      </span>
                       {template.avReady ? (
                         <span className="rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-medium text-emerald-700">
                           AV ready
@@ -412,7 +400,7 @@ export default function ProjectModal({
               <button
                 onClick={handleGenerateFromFile}
                 disabled={loading}
-                className="rounded-[6px] bg-[var(--sf-accent-blue)] px-5 py-2.5 text-[13px] font-medium text-white transition hover:bg-[#1d4ed8] disabled:opacity-60"
+                className="rounded-[6px] bg-[#5d7f73] px-5 py-2.5 text-[13px] font-medium text-white transition hover:bg-[#90bbac] disabled:opacity-60"
               >
                 {loading ? "Generating..." : "Generate project"}
               </button>
@@ -447,7 +435,7 @@ export default function ProjectModal({
               <button
                 onClick={handleGenerateFromPrompt}
                 disabled={loading}
-                className="rounded-[6px] bg-[var(--sf-accent-blue)] px-5 py-2.5 text-[13px] font-medium text-white transition hover:bg-[#1d4ed8] disabled:opacity-60"
+                className="rounded-[6px] bg-[#5d7f73] px-5 py-2.5 text-[13px] font-medium text-white transition hover:bg-[#7ca798] disabled:opacity-60"
               >
                 {loading ? "Generating..." : "Generate project"}
               </button>
@@ -475,7 +463,7 @@ export default function ProjectModal({
               <button
                 onClick={handleCreate3D}
                 disabled={loading}
-                className="rounded-[6px] bg-[var(--sf-text)] px-5 py-2.5 text-[13px] font-medium text-white transition hover:bg-[#333333] disabled:opacity-60"
+                className="rounded-[6px] bg-[#5d7f73] px-5 py-2.5 text-[13px] font-medium text-white transition hover:bg-[#333333] disabled:opacity-60"
               >
                 {loading ? "Creating..." : "Open 3D editor"}
               </button>
