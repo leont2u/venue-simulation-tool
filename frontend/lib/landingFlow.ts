@@ -1,4 +1,4 @@
-import { ASSET_CATALOG } from "@/lib/DemoAssets";
+import { ASSET_FOOTPRINTS, polyPizzaRequiredUrl } from "@/lib/assetMetadata";
 import { createProjectFromDrawioFile } from "@/lib/drawioImport";
 import { generateProjectFromPrompt } from "@/lib/promptLayout";
 import { upsertProject } from "@/lib/storage";
@@ -16,7 +16,7 @@ function titleFromPrompt(prompt: string) {
 }
 
 function getAsset(type: string) {
-  return ASSET_CATALOG.find((asset) => asset.type === type);
+  return ASSET_FOOTPRINTS[type];
 }
 
 function hasItem(project: Project, type: string) {
@@ -41,8 +41,8 @@ function makeItem(
     y: 0,
     z,
     rotationY,
-    scale: asset.defaultScale,
-    assetUrl: asset.modelUrl,
+    scale: asset.scale,
+    assetUrl: polyPizzaRequiredUrl(type),
     label,
     layer,
   };

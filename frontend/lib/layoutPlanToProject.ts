@@ -6,14 +6,10 @@ import {
   Project,
   SceneItem,
 } from "@/types/types";
-import { ASSET_CATALOG } from "./DemoAssets";
+import { ASSET_FOOTPRINTS, polyPizzaRequiredUrl } from "@/lib/assetMetadata";
 
 function getAsset(type: AssetType) {
-  const asset = ASSET_CATALOG.find((a) => a.type === type);
-  if (!asset) {
-    throw new Error(`Missing asset mapping for "${type}"`);
-  }
-  return asset;
+  return ASSET_FOOTPRINTS[type] ?? { scale: [1, 1, 1] as [number, number, number] };
 }
 
 function expandChairBlocks(chairBlocks: LayoutPlanChairBlock[]): SceneItem[] {
@@ -42,8 +38,8 @@ function expandChairBlocks(chairBlocks: LayoutPlanChairBlock[]): SceneItem[] {
           y: 0,
           z,
           rotationY: block.rotationY ?? 0,
-          scale: chairAsset.defaultScale,
-          assetUrl: chairAsset.modelUrl,
+      scale: chairAsset.scale,
+      assetUrl: polyPizzaRequiredUrl("chair"),
           label: block.label
             ? `${block.label} ${row + 1}-${col + 1}`
             : `Chair ${blockIndex + 1}-${row + 1}-${col + 1}`,
@@ -66,8 +62,8 @@ function planItemsToSceneItems(items: LayoutPlanItem[]): SceneItem[] {
       y: 0,
       z: item.z,
       rotationY: item.rotationY ?? 0,
-      scale: asset.defaultScale,
-      assetUrl: asset.modelUrl,
+      scale: asset.scale,
+      assetUrl: polyPizzaRequiredUrl(item.type),
       label: item.label,
     };
   });

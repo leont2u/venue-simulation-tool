@@ -1,7 +1,7 @@
 "use client";
 
-import { Environment, Grid, OrbitControls, TransformControls } from "@react-three/drei";
-import { Canvas, useThree } from "@react-three/fiber";
+import { Environment, Grid, OrbitControls, PointerLockControls, TransformControls } from "@react-three/drei";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import {
@@ -126,6 +126,45 @@ function ViewportBridge({
   }, [camera, cameraRef, elementRef, gl]);
 
   return null;
+}
+
+function SceneReadySignal({ onReady }: { onReady: () => void }) {
+  const frameCountRef = useRef(0);
+
+  useFrame(() => {
+    frameCountRef.current += 1;
+    if (frameCountRef.current === 2) onReady();
+  });
+
+  return null;
+}
+
+function SceneLoadingOverlay() {
+  return (
+    <div className="pointer-events-none absolute inset-0 z-30 flex items-center justify-center bg-[#ebe7dd]">
+      <div className="relative h-[240px] w-[380px] max-w-[84vw] overflow-hidden rounded-[8px] border border-[#d9d2c5] bg-[#f7f3ea] shadow-[0_18px_64px_rgba(62,52,39,0.18)]">
+        <div className="absolute inset-0 opacity-80 [background-image:linear-gradient(#ded6ca_1px,transparent_1px),linear-gradient(90deg,#ded6ca_1px,transparent_1px)] [background-size:26px_26px]" />
+        <div className="absolute left-10 top-10 h-32 w-56 border-[5px] border-[#3b332b] bg-[#f5efe4]/70" />
+        <div className="absolute left-[62px] top-[72px] grid grid-cols-6 gap-2.5">
+          {Array.from({ length: 24 }).map((_, index) => (
+            <div
+              key={index}
+              className="h-3 w-3 rounded-[3px] border border-[#65786f] bg-[#95b39f]"
+              style={{ animation: `venue-loader-pop 1.35s ${index * 0.025}s infinite ease-in-out` }}
+            />
+          ))}
+        </div>
+        <div className="absolute bottom-0 inset-x-0 border-t border-[#ded6ca] bg-white/74 px-4 py-3 backdrop-blur">
+          <div className="h-1.5 overflow-hidden rounded-full bg-[#ddd5c8]">
+            <div className="h-full w-1/2 rounded-full bg-[#5d7f73] [animation:venue-loader-scan_1.35s_infinite_ease-in-out]" />
+          </div>
+          <div className="mt-2 text-[11px] font-bold uppercase text-[#61736c]">
+            Preparing 3D walkthrough
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function CameraCoverage({
@@ -384,8 +423,10 @@ function TransformGizmo({
 
 function SceneControls({
   orbitRef,
+  enabled = true,
 }: {
   orbitRef: React.MutableRefObject<{ enabled: boolean } | null>;
+  enabled?: boolean;
 }) {
   const controlsRef = useRef<{ enabled: boolean } | null>(null);
   const { camera } = useThree();
@@ -399,6 +440,7 @@ function SceneControls({
       <OrbitControls
         ref={controlsRef as never}
         makeDefault
+        enabled={enabled}
         enablePan
         minDistance={6}
         maxDistance={80}
@@ -407,6 +449,213 @@ function SceneControls({
         target={[0, 0, 0]}
         camera={camera}
       />
+    </>
+  );
+}
+
+function WalkthroughControls({
+  enabled,
+  room,
+}: {
+  enabled: boolean;
+  room: Project["room"];
+}) {
+  const controlsRef = useRef<{ isLocked: boolean; lock: () => void } | null>(null);
+  const keysRef = useRef(new Set<string>());
+  const trackpadVelocityRef = useRef(new THREE.Vector3());
+  const lookVelocityRef = useRef(0);
+  const { camera } = useThree();
+
+  useEffect(() => {
+    if (!enabled) return;
+    camera.position.set(0, 1.65, Math.min(room.depth / 2 - 3, 8));
+    camera.lookAt(0, 1.45, -room.depth / 2 + 3);
+
+    const down = (event: KeyboardEvent) => {
+      if (
+        ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "KeyQ", "KeyE", "KeyR"].includes(
+          event.code,
+        )
+      ) {
+        event.preventDefault();
+      }
+
+      if (event.code === "KeyR" && !event.repeat) {
+        camera.rotation.y += Math.PI;
+        return;
+      }
+
+      keysRef.current.add(event.code);
+    };
+    const up = (event: KeyboardEvent) => keysRef.current.delete(event.code);
+    const wheel = (event: WheelEvent) => {
+      event.preventDefault();
+      const direction = new THREE.Vector3();
+      camera.getWorldDirection(direction);
+      direction.y = 0;
+      direction.normalize();
+
+      if (event.shiftKey) {
+        const deltaModeScale = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 120 : 1;
+        const rawDelta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+        lookVelocityRef.current += THREE.MathUtils.clamp(
+          -rawDelta * deltaModeScale * 0.0038,
+          -0.9,
+          0.9,
+        );
+        lookVelocityRef.current = THREE.MathUtils.clamp(lookVelocityRef.current, -2.4, 2.4);
+        return;
+      }
+
+      const strafe = new THREE.Vector3()
+        .crossVectors(direction, new THREE.Vector3(0, 1, 0))
+        .normalize();
+      const deltaModeScale = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 120 : 1;
+      const forwardAmount = THREE.MathUtils.clamp(
+        -event.deltaY * deltaModeScale * 0.018,
+        -2.2,
+        2.2,
+      );
+      const strafeAmount = THREE.MathUtils.clamp(
+        event.deltaX * deltaModeScale * 0.014,
+        -1.8,
+        1.8,
+      );
+
+      trackpadVelocityRef.current
+        .add(direction.multiplyScalar(forwardAmount))
+        .add(strafe.multiplyScalar(strafeAmount));
+      trackpadVelocityRef.current.clampLength(0, 4);
+    };
+
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    window.addEventListener("wheel", wheel, { passive: false });
+    return () => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+      window.removeEventListener("wheel", wheel);
+      keysRef.current.clear();
+      trackpadVelocityRef.current.set(0, 0, 0);
+      lookVelocityRef.current = 0;
+    };
+  }, [camera, enabled, room.depth]);
+
+  useFrame((_, delta) => {
+    if (!enabled) return;
+    const speed = keysRef.current.has("ShiftLeft") || keysRef.current.has("ShiftRight") ? 6 : 3.2;
+    const direction = new THREE.Vector3();
+    camera.getWorldDirection(direction);
+    direction.y = 0;
+    direction.normalize();
+    const strafe = new THREE.Vector3().crossVectors(direction, new THREE.Vector3(0, 1, 0)).normalize();
+    const movement = new THREE.Vector3();
+
+    if (keysRef.current.has("KeyW") || keysRef.current.has("ArrowUp")) movement.add(direction);
+    if (keysRef.current.has("KeyS") || keysRef.current.has("ArrowDown")) movement.sub(direction);
+    if (keysRef.current.has("KeyA") || keysRef.current.has("ArrowLeft")) movement.sub(strafe);
+    if (keysRef.current.has("KeyD") || keysRef.current.has("ArrowRight")) movement.add(strafe);
+    if (keysRef.current.has("KeyQ")) lookVelocityRef.current += 2.2 * delta;
+    if (keysRef.current.has("KeyE")) lookVelocityRef.current -= 2.2 * delta;
+
+    if (movement.lengthSq() > 0) {
+      movement.normalize().multiplyScalar(speed * delta);
+      camera.position.add(movement);
+    }
+
+    if (trackpadVelocityRef.current.lengthSq() > 0.0001) {
+      camera.position.add(trackpadVelocityRef.current.clone().multiplyScalar(delta * 5.5));
+      trackpadVelocityRef.current.multiplyScalar(Math.max(0, 1 - delta * 5.8));
+    }
+
+    if (Math.abs(lookVelocityRef.current) > 0.0001) {
+      camera.rotation.y += lookVelocityRef.current;
+      lookVelocityRef.current *= Math.max(0, 1 - delta * 8.5);
+    }
+
+    camera.position.x = THREE.MathUtils.clamp(camera.position.x, -room.width / 2 + 0.7, room.width / 2 - 0.7);
+    camera.position.z = THREE.MathUtils.clamp(camera.position.z, -room.depth / 2 + 0.7, room.depth / 2 - 0.7);
+    camera.position.y = 1.65;
+  });
+
+  return enabled ? <PointerLockControls ref={controlsRef as never} makeDefault /> : null;
+}
+
+function VenueLighting({
+  room,
+  settings,
+}: {
+  room: Project["room"];
+  settings?: Project["sceneSettings"];
+}) {
+  const mood = settings?.lightingMood ?? "presentation";
+  const wedding = mood === "wedding";
+  const concert = mood === "concert";
+  const chapel = mood === "chapel";
+  const daylight = mood === "daylight";
+
+  const ceilingRows = useMemo(() => {
+    const columns = Math.max(3, Math.min(6, Math.floor(room.width / 6)));
+    return Array.from({ length: columns }).map((_, index) => {
+      const x = columns === 1 ? 0 : -room.width * 0.34 + index * ((room.width * 0.68) / (columns - 1));
+      return x;
+    });
+  }, [room.width]);
+
+  return (
+    <>
+      <hemisphereLight
+        args={[daylight ? "#dfefff" : "#f7efe4", "#6b6259", settings?.ambientLightIntensity ?? 0.75]}
+      />
+      <ambientLight intensity={(settings?.ambientLightIntensity ?? 1) * 0.22} />
+      <directionalLight
+        position={[room.width * 0.32, room.height + 10, room.depth * 0.28]}
+        intensity={daylight ? 2.7 : settings?.directionalLightIntensity ?? 1.25}
+        color={daylight ? "#fff8ea" : "#ffe5bf"}
+        castShadow
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
+        shadow-camera-left={-room.width / 1.5}
+        shadow-camera-right={room.width / 1.5}
+        shadow-camera-top={room.depth / 1.5}
+        shadow-camera-bottom={-room.depth / 1.5}
+      />
+      {ceilingRows.map((x, index) => (
+        <pointLight
+          key={x}
+          position={[x, room.height - 0.45, index % 2 === 0 ? -room.depth * 0.18 : room.depth * 0.18]}
+          intensity={chapel ? 0.7 : 0.95}
+          distance={Math.max(room.width, room.depth) * 0.42}
+          color={wedding ? "#ffd8bf" : "#fff0d2"}
+          castShadow={index % 2 === 0}
+          shadow-mapSize-width={512}
+          shadow-mapSize-height={512}
+        />
+      ))}
+      {[-1, 1].map((side) => (
+        <spotLight
+          key={side}
+          position={[side * room.width * 0.26, room.height - 0.2, -room.depth * 0.22]}
+          angle={0.42}
+          penumbra={0.62}
+          intensity={concert ? 3.3 : 2.1}
+          color={concert ? "#a8c9ff" : "#ffd3a3"}
+          castShadow
+          shadow-mapSize-width={1024}
+          shadow-mapSize-height={1024}
+        />
+      ))}
+      {wedding
+        ? [-0.42, -0.14, 0.14, 0.42].map((factor) => (
+            <pointLight
+              key={factor}
+              position={[factor * room.width, 0.45, -room.depth / 2 + 0.8]}
+              intensity={0.8}
+              distance={6}
+              color="#ffb8d2"
+            />
+          ))
+        : null}
     </>
   );
 }
@@ -481,7 +730,12 @@ export function SceneCanvas({
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [guides, setGuides] = useState<AlignmentGuide[]>([]);
   const [selectionRect, setSelectionRect] = useState<SelectionRect | null>(null);
+  const [sceneReady, setSceneReady] = useState(false);
   const project = projectOverride ?? storedProject;
+
+  useEffect(() => {
+    setSceneReady(false);
+  }, [project?.id, activeLayer, readOnly]);
 
   useEffect(() => {
     if (readOnly) return;
@@ -734,10 +988,11 @@ export function SceneCanvas({
       }}
     >
       <Canvas
-        shadows={{ type: THREE.PCFShadowMap }}
+        shadows={{ type: THREE.PCFSoftShadowMap }}
         camera={{ position: [18 / viewportZoom, 14 / viewportZoom, 18 / viewportZoom], fov: 50 }}
         onPointerDown={(event: CanvasPointerEvent) => {
           if (readOnly) return;
+          if (settings?.cameraMode === "walkthrough") return;
           const sourceEvent = event.sourceEvent ?? event.nativeEvent ?? event;
           beginMarquee({
             clientX: sourceEvent.clientX,
@@ -748,6 +1003,7 @@ export function SceneCanvas({
         }}
         onPointerMove={(event: CanvasPointerEvent) => {
           if (readOnly) return;
+          if (settings?.cameraMode === "walkthrough") return;
           const sourceEvent = event.sourceEvent ?? event.nativeEvent ?? event;
           if (dragStateRef.current && event.ray) {
             updateDrag(event.ray);
@@ -760,6 +1016,7 @@ export function SceneCanvas({
         }}
         onPointerUp={() => {
           if (readOnly) return;
+          if (settings?.cameraMode === "walkthrough") return;
           if (dragStateRef.current) {
             endDrag();
             return;
@@ -767,19 +1024,16 @@ export function SceneCanvas({
           if (marqueeStateRef.current) endMarquee();
         }}
       >
-        <ViewportBridge cameraRef={cameraRef} elementRef={canvasElementRef} />
-        <ambientLight intensity={settings?.ambientLightIntensity ?? 1.1} />
-        <directionalLight
-          position={[14, 20, 10]}
-          intensity={settings?.directionalLightIntensity ?? 2.1}
-          castShadow
-          shadow-mapSize-width={2048}
-          shadow-mapSize-height={2048}
+        <SceneReadySignal
+          key={`${project.id}-${activeLayer}-${readOnly ? "preview" : "main"}`}
+          onReady={() => setSceneReady(true)}
         />
+        <ViewportBridge cameraRef={cameraRef} elementRef={canvasElementRef} />
+        <VenueLighting room={project.room} settings={settings} />
 
         <Suspense fallback={null}>
           {settings?.enableHdri !== false ? <Environment preset="city" /> : null}
-          {settings?.showGrid !== false ? (
+          {settings?.showGrid !== false && settings?.presentationMode !== true && settings?.cameraMode !== "walkthrough" ? (
             <Grid
               args={[80, 80]}
               cellSize={1}
@@ -797,6 +1051,8 @@ export function SceneCanvas({
             }
             wallColor={project.sceneSettings?.wallColor}
             floorColor={project.sceneSettings?.floorColor}
+            settings={project.sceneSettings}
+            architecture={project.architecture}
           />
 
           {visibleConnections.map((connection) => {
@@ -906,6 +1162,11 @@ export function SceneCanvas({
 
           <SceneControls
             orbitRef={orbitRef}
+            enabled={settings?.cameraMode !== "walkthrough"}
+          />
+          <WalkthroughControls
+            enabled={!readOnly && settings?.cameraMode === "walkthrough"}
+            room={project.room}
           />
           {!readOnly ? (
             <TransformGizmo
@@ -916,6 +1177,8 @@ export function SceneCanvas({
           ) : null}
         </Suspense>
       </Canvas>
+
+      {!sceneReady ? <SceneLoadingOverlay /> : null}
 
       {selectionRect ? (
         <div
@@ -935,7 +1198,9 @@ export function SceneCanvas({
 
       {!readOnly ? (
       <div className="pointer-events-none absolute bottom-16 left-6 rounded-[10px] bg-white/92 px-3 py-2 text-[11px] font-medium text-[#687773] shadow-[0_2px_10px_rgba(15,23,42,0.08)]">
-        {toolMode === "connect"
+        {settings?.cameraMode === "walkthrough"
+          ? "Walkthrough: WASD/arrows move · Q/E turn · R looks back · Shift+trackpad turns."
+          : toolMode === "connect"
           ? "Connect mode: click one AV item, then another to create a cable run."
           : "Mouse: rotate · Scroll: zoom · Shift+drag: pan"}
       </div>

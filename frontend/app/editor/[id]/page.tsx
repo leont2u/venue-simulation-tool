@@ -21,6 +21,37 @@ import { SceneCanvas } from "@/components/scene/SceneCanvas";
 import { FloorplanCanvas } from "@/components/editor/FloorplanCanvas";
 import { clearQueuedEditorTour, hasQueuedEditorTour } from "@/lib/onboardingTour";
 
+function EditorLoadingScreen() {
+  return (
+    <div className="flex h-screen items-center justify-center bg-[#ede9df] text-[#28312d]">
+      <div className="relative h-[320px] w-[520px] max-w-[90vw] overflow-hidden rounded-[8px] border border-[#d9d2c5] bg-[#f7f3ea] shadow-[0_24px_80px_rgba(62,52,39,0.18)]">
+        <div className="absolute inset-0 opacity-70 [background-image:linear-gradient(#ded6ca_1px,transparent_1px),linear-gradient(90deg,#ded6ca_1px,transparent_1px)] [background-size:32px_32px]" />
+        <div className="absolute left-12 top-12 h-44 w-72 border-[6px] border-[#3b332b] bg-[#f5efe4]/70" />
+        <div className="absolute left-[76px] top-[88px] grid grid-cols-7 gap-3">
+          {Array.from({ length: 35 }).map((_, index) => (
+            <div
+              key={index}
+              className="h-3.5 w-3.5 rounded-[4px] border border-[#65786f] bg-[#95b39f] shadow-sm"
+              style={{ animation: `venue-loader-pop 1.45s ${index * 0.025}s infinite ease-in-out` }}
+            />
+          ))}
+        </div>
+        <div className="absolute right-16 top-20 h-16 w-24 rounded-[6px] border border-[#39424a] bg-[#aab4bd]" />
+        <div className="absolute bottom-14 left-16 h-8 w-36 rounded-[4px] bg-[#916c4b]" />
+        <div className="absolute bottom-16 right-20 h-5 w-5 rounded-full bg-[#2f6d88] shadow-[0_0_0_8px_rgba(47,109,136,0.14)]" />
+        <div className="absolute inset-x-0 bottom-0 border-t border-[#ded6ca] bg-white/72 px-5 py-4 backdrop-blur">
+          <div className="h-1.5 overflow-hidden rounded-full bg-[#ddd5c8]">
+            <div className="h-full w-1/2 rounded-full bg-[#5d7f73] shadow-[0_0_18px_rgba(93,127,115,0.4)] [animation:venue-loader-scan_1.4s_infinite_ease-in-out]" />
+          </div>
+          <div className="mt-3 text-[12px] font-bold uppercase text-[#61736c]">
+            Building venue scene
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function EditorPage() {
   const params = useParams();
   const id = params?.id as string;
@@ -33,6 +64,7 @@ export default function EditorPage() {
   const setActiveLayer = useEditorStore((s) => s.setActiveLayer);
   const viewportZoom = useEditorStore((s) => s.viewportZoom);
   const setViewportZoom = useEditorStore((s) => s.setViewportZoom);
+  const updateSceneSettings = useEditorStore((s) => s.updateSceneSettings);
   const isProjectLoading = useEditorStore((s) => s.isProjectLoading);
   const projectError = useEditorStore((s) => s.projectError);
   const [showEditorTour, setShowEditorTour] = useState(false);
@@ -65,11 +97,7 @@ export default function EditorPage() {
   }
 
   if (isProjectLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-[#F7F8F5] text-[#52796F]">
-        Loading project...
-      </div>
-    );
+    return <EditorLoadingScreen />;
   }
 
   if (projectError) {
@@ -88,13 +116,16 @@ export default function EditorPage() {
     );
   }
 
+  const presentationMode = project.sceneSettings?.presentationMode === true;
+  const cameraMode = project.sceneSettings?.cameraMode ?? "orbit";
+
   return (
     <ProtectedRoute>
       <div className="flex h-screen flex-col bg-[var(--sf-bg)]">
-        <TopToolbar />
+        {presentationMode ? null : <TopToolbar />}
 
         <div className="flex min-h-0 flex-1">
-          <AssetCatalog />
+          {presentationMode ? null : <AssetCatalog />}
           <div
             data-tour="editor-canvas"
             className="relative min-w-0 flex-1 overflow-hidden bg-[#f4f5f4]"
@@ -107,7 +138,7 @@ export default function EditorPage() {
 
             <div
               data-tour="editor-view-toggle"
-              className="absolute bottom-4 left-6 z-20 flex items-center gap-2"
+              className={`absolute bottom-4 left-6 z-20 flex items-center gap-2 ${presentationMode ? "hidden" : ""}`}
             >
               <button className="flex h-10 items-center gap-2 rounded-[10px] border border-[#e5e9e6] bg-white px-3 text-[13px] font-bold text-[#33403c] shadow-[0_2px_8px_rgba(15,23,42,0.08)]">
                 <Layers3 className="h-4 w-4 text-[#6f8f84]" />
@@ -139,7 +170,44 @@ export default function EditorPage() {
               </button>
             </div>
 
-            <div className="absolute bottom-4 right-5 z-20 flex items-center gap-2">
+            <div className="absolute right-5 top-16 z-20 flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setActiveView("3d");
+                  updateSceneSettings({
+                    cameraMode: cameraMode === "walkthrough" ? "orbit" : "walkthrough",
+                  });
+                }}
+                className={`flex h-10 items-center gap-2 rounded-[10px] border px-3 text-[12px] font-bold shadow-[0_2px_8px_rgba(15,23,42,0.08)] ${
+                  cameraMode === "walkthrough"
+                    ? "border-[#5d7f73] bg-[#5d7f73] text-white"
+                    : "border-[#e5e9e6] bg-white text-[#64736f]"
+                }`}
+              >
+                <Eye className="h-4 w-4" />
+                Walk
+              </button>
+              <button
+                onClick={() => {
+                  setActiveView("3d");
+                  updateSceneSettings({
+                    presentationMode: !presentationMode,
+                    cameraMode: !presentationMode ? "walkthrough" : "orbit",
+                    showGrid: presentationMode,
+                  });
+                }}
+                className={`flex h-10 items-center gap-2 rounded-[10px] border px-3 text-[12px] font-bold shadow-[0_2px_8px_rgba(15,23,42,0.08)] ${
+                  presentationMode
+                    ? "border-[#242a28] bg-[#242a28] text-white"
+                    : "border-[#e5e9e6] bg-white text-[#64736f]"
+                }`}
+              >
+                <Expand className="h-4 w-4" />
+                {presentationMode ? "Exit" : "Present"}
+              </button>
+            </div>
+
+            <div className={`absolute bottom-4 right-5 z-20 flex items-center gap-2 ${presentationMode ? "hidden" : ""}`}>
               <button className="flex h-10 w-10 items-center justify-center rounded-[10px] border border-[#e5e9e6] bg-white text-[#64736f] shadow-[0_2px_8px_rgba(15,23,42,0.08)]">
                 <Lock className="h-4 w-4" />
               </button>
@@ -173,10 +241,10 @@ export default function EditorPage() {
               </div>
             </div>
           </div>
-          <PropertiesPanel />
+          {presentationMode ? null : <PropertiesPanel />}
         </div>
 
-        <EditorShortcuts />
+        {presentationMode ? null : <EditorShortcuts />}
         <EditorOnboardingTour
           key={showEditorTour ? "open" : "closed"}
           open={showEditorTour}

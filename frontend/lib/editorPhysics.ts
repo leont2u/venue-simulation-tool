@@ -1,4 +1,4 @@
-import { ASSET_CATALOG } from "@/lib/DemoAssets";
+import { ASSET_FOOTPRINTS } from "@/lib/assetMetadata";
 import { Project, SceneItem } from "@/types/types";
 
 const SNAP_THRESHOLD = 0.35;
@@ -10,9 +10,9 @@ export type AlignmentGuide = {
 };
 
 export function getItemFootprint(item: SceneItem) {
-  const asset = ASSET_CATALOG.find((entry) => entry.type === item.type);
-  const width = asset?.boundingBox.width ?? Math.max(0.6, item.scale[0]);
-  const depth = asset?.boundingBox.depth ?? Math.max(0.6, item.scale[2]);
+  const asset = ASSET_FOOTPRINTS[item.type];
+  const width = asset?.width ?? Math.max(0.6, item.scale[0]);
+  const depth = asset?.depth ?? Math.max(0.6, item.scale[2]);
 
   return {
     halfWidth: Math.max(width, item.scale[0]) / 2,

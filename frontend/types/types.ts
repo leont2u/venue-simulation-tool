@@ -95,10 +95,57 @@ export type SceneSettings = {
   directionalLightIntensity: number;
   snapToGrid: boolean;
   livestreamMode: boolean;
+  cameraMode?: "orbit" | "walkthrough";
+  presentationMode?: boolean;
   wallThickness: number;
   wallColor: string;
   floorColor: string;
-  floorMaterial: "Wood" | "Concrete" | "Stone";
+  floorMaterial: "Carpet" | "Wood" | "Marble" | "Concrete" | "Tiles" | "Banquet";
+  wallMaterial?: "Painted" | "Decorative" | "Draping" | "LED Backdrop" | "Stage Background";
+  venueEnvironment?: "indoor" | "outdoor" | "tent";
+  lightingMood?: "presentation" | "wedding" | "conference" | "chapel" | "concert" | "daylight";
+};
+
+export type VenueOpening = {
+  id: string;
+  wall: "north" | "south" | "east" | "west";
+  offset: number;
+  width: number;
+  height: number;
+  sillHeight?: number;
+  label?: string;
+};
+
+export type VenueColumn = {
+  id: string;
+  x: number;
+  z: number;
+  radius: number;
+  height?: number;
+  label?: string;
+};
+
+export type VenueRoute = {
+  id: string;
+  label: string;
+  points: { x: number; z: number }[];
+  width: number;
+};
+
+export type VenueArchitecture = {
+  shape: "rectangular" | "irregular";
+  boundary?: { x: number; z: number }[];
+  doors: VenueOpening[];
+  windows: VenueOpening[];
+  columns: VenueColumn[];
+  entrances: VenueOpening[];
+  exits: VenueOpening[];
+  stageAccessRoutes: VenueRoute[];
+  hasCeiling: boolean;
+  ceilingHeight?: number;
+  ceilingDraping?: boolean;
+  decorativeLighting?: boolean;
+  stageBackdrop?: "draping" | "led" | "painted" | "none";
 };
 
 export type EditorViewMode = "2d" | "3d";
@@ -115,6 +162,7 @@ export type Project = {
     height: number;
     wallThickness?: number;
   };
+  architecture?: VenueArchitecture;
   items: SceneItem[];
   connections?: SceneConnection[];
   measurements?: MeasurementLine[];

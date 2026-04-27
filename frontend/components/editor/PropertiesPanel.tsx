@@ -2,7 +2,6 @@
 
 import { useMemo } from "react";
 import { Box } from "lucide-react";
-import { ASSET_CATALOG } from "@/lib/DemoAssets";
 import { clampToRoom } from "@/lib/editorPhysics";
 import { getCableColor } from "@/lib/sceneConnections";
 import { useEditorStore } from "@/store/UseEditorStore";
@@ -65,6 +64,7 @@ export function PropertiesPanel() {
   const applyProjectMutation = useEditorStore((s) => s.applyProjectMutation);
   const activeView = useEditorStore((s) => s.activeView);
   const setActiveView = useEditorStore((s) => s.setActiveView);
+  const assetCatalog = useEditorStore((s) => s.assetCatalog);
 
   const item = useMemo(() => {
     if (!project || selectedIds.length !== 1) return null;
@@ -74,14 +74,14 @@ export function PropertiesPanel() {
   const selectedAsset = useMemo(() => {
     if (!item) return null;
     return (
-      ASSET_CATALOG.find(
+      assetCatalog.find(
         (asset) =>
           asset.type === item.type ||
           asset.modelUrl === item.assetUrl ||
           asset.id === item.sourceId,
       ) ?? null
     );
-  }, [item]);
+  }, [assetCatalog, item]);
 
   if (!project) return null;
 
@@ -273,22 +273,81 @@ export function PropertiesPanel() {
                   onChange={(event) =>
                     updateSceneSettings({
                       floorMaterial: event.target.value as
+                        | "Carpet"
                         | "Wood"
+                        | "Marble"
                         | "Concrete"
-                        | "Stone",
+                        | "Tiles"
+                        | "Banquet",
                       floorColor:
                         event.target.value === "Concrete"
-                          ? "#E8E5E0"
-                          : event.target.value === "Stone"
+                          ? "#D7D4CC"
+                          : event.target.value === "Marble"
                             ? "#EDEAE4"
-                            : "#F4F1EA",
+                            : event.target.value === "Carpet"
+                              ? "#817268"
+                              : event.target.value === "Tiles"
+                                ? "#E2DED5"
+                                : event.target.value === "Banquet"
+                                  ? "#A88978"
+                                  : "#D7B98E",
                     })
                   }
                   className="h-11 w-full rounded-[10px] border border-[#d8d8d8] bg-white px-3 text-[14px] text-[#1a1a1a] outline-none"
                 >
+                  <option>Carpet</option>
                   <option>Wood</option>
+                  <option>Marble</option>
                   <option>Concrete</option>
-                  <option>Stone</option>
+                  <option>Tiles</option>
+                  <option>Banquet</option>
+                </select>
+              </label>
+
+              <label className="block">
+                <div className="mb-2 text-[12px] font-medium text-[#73817c]">
+                  Venue type
+                </div>
+                <select
+                  value={project.sceneSettings?.venueEnvironment ?? "indoor"}
+                  onChange={(event) =>
+                    updateSceneSettings({
+                      venueEnvironment: event.target.value as "indoor" | "outdoor" | "tent",
+                    })
+                  }
+                  className="h-11 w-full rounded-[10px] border border-[#d8d8d8] bg-white px-3 text-[14px] text-[#1a1a1a] outline-none"
+                >
+                  <option value="indoor">Indoor</option>
+                  <option value="tent">Wedding tent / marquee</option>
+                  <option value="outdoor">Outdoor</option>
+                </select>
+              </label>
+
+              <label className="block">
+                <div className="mb-2 text-[12px] font-medium text-[#73817c]">
+                  Lighting mood
+                </div>
+                <select
+                  value={project.sceneSettings?.lightingMood ?? "presentation"}
+                  onChange={(event) =>
+                    updateSceneSettings({
+                      lightingMood: event.target.value as
+                        | "presentation"
+                        | "wedding"
+                        | "conference"
+                        | "chapel"
+                        | "concert"
+                        | "daylight",
+                    })
+                  }
+                  className="h-11 w-full rounded-[10px] border border-[#d8d8d8] bg-white px-3 text-[14px] text-[#1a1a1a] outline-none"
+                >
+                  <option value="presentation">Presentation</option>
+                  <option value="wedding">Wedding uplighting</option>
+                  <option value="conference">Conference</option>
+                  <option value="chapel">Chapel</option>
+                  <option value="concert">Concert</option>
+                  <option value="daylight">Daylight</option>
                 </select>
               </label>
             </section>
