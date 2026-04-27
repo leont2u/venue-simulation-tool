@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Github, Lock, Mail, Shield, Sparkles } from "lucide-react";
+import { Github, Lock, Mail } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -93,7 +93,7 @@ export function AuthExperience({ mode }: { mode: "login" | "register" }) {
                     required
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
-                    placeholder="eg. johnframe@gmail.com"
+                    placeholder="eg. leonmanhimanzi@gmail.com"
                     className="min-w-0 flex-1 bg-transparent text-[18px] text-[#17211e] placeholder:text-[#9aa7a2]"
                   />
                 </div>

@@ -5,16 +5,12 @@ import {
   Camera,
   ChevronLeft,
   ChevronRight,
-  Clock3,
-  Flame,
   Grid3X3,
-  Heart,
   ListFilter,
   PanelLeftClose,
   PanelLeftOpen,
   Search,
   Settings2,
-  UploadCloud,
   Cable,
   Star,
 } from "lucide-react";
@@ -402,13 +398,5 @@ function NavButton({
         <span className="ml-auto h-2 w-2 rounded-full bg-[#ff2e1f]" />
       ) : null}
     </button>
-  );
-}
-
-function BadgeIcon() {
-  return (
-    <span className="flex h-4 w-4 items-center justify-center rounded-full border border-[#686c72] text-[9px] font-semibold text-[#686c72]">
-      R
-    </span>
   );
 }

@@ -15,8 +15,9 @@ const dmMono = DM_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SpaceForge Venue Planner",
-  description: "3D venue planning, draw.io import, AI generation, and client sharing.",
+  title: "Leon Manhimanzi | Venue Simulation Tool",
+  description:
+    "3D venue planning, draw.io import, AI generation, and client sharing.",
 };
 
 export default function RootLayout({

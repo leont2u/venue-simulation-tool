@@ -21,7 +21,6 @@ import {
   Search,
   Send,
   UploadCloud,
-  Video,
   WandSparkles,
   X,
 } from "lucide-react";

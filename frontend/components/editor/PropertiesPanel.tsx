@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Box, ChevronDown, Expand, Layers3, Plus } from "lucide-react";
+import { Box } from "lucide-react";
 import { clampToRoom } from "@/lib/editorPhysics";
 import { getCableColor } from "@/lib/sceneConnections";
 import { useEditorStore } from "@/store/UseEditorStore";

@@ -6,27 +6,19 @@ import { Project } from "@/types/types";
 
 function inferCategory(project: Project) {
   const normalized = project.name.toLowerCase();
-  if (normalized.includes("wedding") || normalized.includes("banquet")) return "WEDDING";
-  if (normalized.includes("church") || normalized.includes("service")) return "CHURCH";
-  if (normalized.includes("concert") || normalized.includes("festival")) return "CONCERT";
-  if (normalized.includes("funeral") || normalized.includes("memorial")) return "FUNERAL";
-  if (normalized.includes("live") || normalized.includes("stream")) return "LIVESTREAM";
-  if (normalized.includes("conference") || normalized.includes("keynote")) return "CONFERENCE";
+  if (normalized.includes("wedding") || normalized.includes("banquet"))
+    return "WEDDING";
+  if (normalized.includes("church") || normalized.includes("service"))
+    return "CHURCH";
+  if (normalized.includes("concert") || normalized.includes("festival"))
+    return "CONCERT";
+  if (normalized.includes("funeral") || normalized.includes("memorial"))
+    return "FUNERAL";
+  if (normalized.includes("live") || normalized.includes("stream"))
+    return "LIVESTREAM";
+  if (normalized.includes("conference") || normalized.includes("keynote"))
+    return "CONFERENCE";
   return "PROJECT";
-}
-
-function inferStatus(project: Project) {
-  const normalized = project.name.toLowerCase();
-  if (normalized.includes("live") || normalized.includes("stream")) {
-    return { label: "Live", className: "border-emerald-200 bg-emerald-50 text-emerald-700" };
-  }
-  if (normalized.includes("drawio") || normalized.includes("import")) {
-    return { label: "Approved", className: "border-[#d6e3df] bg-[#eef5f2] text-[#6d837c]" };
-  }
-  if (project.items.length < 2) {
-    return { label: "Draft", className: "border-[#dce4e1] bg-[#f4f7f6] text-[#71827c]" };
-  }
-  return { label: "In Review", className: "border-orange-200 bg-orange-50 text-orange-700" };
 }
 
 function estimateCapacity(project: Project) {
@@ -50,8 +42,19 @@ export function ProjectThumbnail({ project }: { project: Project }) {
         {visibleItems.map((item) => {
           const left = 50 + (item.x / roomWidth) * 86;
           const top = 50 + (item.z / roomDepth) * 86;
-          const isRound = ["camera", "speaker", "banquet_table", "chair"].includes(item.type);
-          const isAv = ["camera", "speaker", "mixing_desk", "screen", "tv"].includes(item.type);
+          const isRound = [
+            "camera",
+            "speaker",
+            "banquet_table",
+            "chair",
+          ].includes(item.type);
+          const isAv = [
+            "camera",
+            "speaker",
+            "mixing_desk",
+            "screen",
+            "tv",
+          ].includes(item.type);
           return (
             <span
               key={item.id}
@@ -61,8 +64,10 @@ export function ProjectThumbnail({ project }: { project: Project }) {
               style={{
                 left: `${Math.min(92, Math.max(8, left))}%`,
                 top: `${Math.min(90, Math.max(10, top))}%`,
-                width: item.type === "screen" ? 26 : item.type === "stage" ? 34 : 12,
-                height: item.type === "screen" ? 5 : item.type === "stage" ? 18 : 12,
+                width:
+                  item.type === "screen" ? 26 : item.type === "stage" ? 34 : 12,
+                height:
+                  item.type === "screen" ? 5 : item.type === "stage" ? 18 : 12,
                 transform: `translate(-50%, -50%) rotate(${item.rotationY}rad)`,
               }}
             />
@@ -80,7 +85,6 @@ export default function ProjectPreviewCard({
   project: Project;
   compact?: boolean;
 }) {
-  const status = inferStatus(project);
   const category = inferCategory(project);
   const capacity = estimateCapacity(project);
 
@@ -91,9 +95,6 @@ export default function ProjectPreviewCard({
     >
       <div className={`${compact ? "h-[180px]" : "h-[176px]"} relative`}>
         <ProjectThumbnail project={project} />
-        <span className={`absolute left-4 top-4 rounded-full border px-3 py-1 text-[12px] font-semibold ${status.className}`}>
-          {status.label}
-        </span>
       </div>
 
       <div className="border-t border-[#edf1ef] p-4">

@@ -6,7 +6,6 @@ import {
   ArrowLeft,
   CircleHelp,
   Lock,
-  Search,
   Trash2,
   Redo2,
   Save,
@@ -166,20 +165,5 @@ export function TopToolbar() {
         </div>
       ) : null}
     </>
-  );
-}
-
-function ToolbarAction({
-  icon,
-  label,
-}: {
-  icon: React.ReactNode;
-  label: string;
-}) {
-  return (
-    <button className="flex h-10 w-12 flex-col items-center justify-center gap-0.5 text-[10px] font-medium text-[#677773] transition hover:text-[#26302d]">
-      {icon}
-      {label}
-    </button>
   );
 }
