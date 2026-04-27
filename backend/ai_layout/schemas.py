@@ -3,12 +3,20 @@ import math
 import re
 from typing import Any
 
+from .knowledge import get_event_rule
+
 
 SUPPORTED_EVENT_TYPES = {
     "conference",
     "wedding",
     "funeral",
     "church",
+    "corporate_event",
+    "concert",
+    "outdoor_event",
+    "exhibition",
+    "graduation_ceremony",
+    "product_launch",
 }
 SUPPORTED_SEATING_LAYOUTS = {
     "rows",
@@ -35,6 +43,12 @@ ROOM_DEFAULTS = {
     "wedding": {"width": 24, "depth": 28, "height": 4},
     "funeral": {"width": 18, "depth": 26, "height": 4},
     "church": {"width": 22, "depth": 32, "height": 5},
+    "corporate_event": {"width": 26, "depth": 34, "height": 4},
+    "concert": {"width": 34, "depth": 46, "height": 6},
+    "outdoor_event": {"width": 34, "depth": 40, "height": 5},
+    "exhibition": {"width": 34, "depth": 42, "height": 5},
+    "graduation_ceremony": {"width": 32, "depth": 44, "height": 5},
+    "product_launch": {"width": 28, "depth": 36, "height": 5},
 }
 
 STYLE_SEATING_TYPE = {
@@ -63,7 +77,7 @@ STYLE_DEFAULT_EVENT = {
     "cabaret": "conference",
     "pods": "conference",
     "auditorium": "conference",
-    "exhibition_booth": "conference",
+    "exhibition_booth": "exhibition",
     "lounge": "wedding",
 }
 
@@ -105,17 +119,39 @@ STYLE_KEYWORDS = {
 }
 
 EVENT_KEYWORDS = {
-    "wedding": {"wedding", "reception", "bride", "groom"},
-    "funeral": {"funeral", "memorial"},
-    "church": {"church", "worship", "chapel"},
-    "conference": {"conference", "seminar", "meeting", "presentation"},
+    "wedding": {"wedding", "wedding reception", "bride", "groom", "bridal"},
+    "funeral": {"funeral", "memorial", "celebration of life", "wake"},
+    "church": {"church", "worship", "chapel", "service", "sunday service", "sermon"},
+    "conference": {"conference", "seminar", "meeting", "presentation", "workshop", "training", "summit"},
+    "corporate_event": {"corporate", "company event", "town hall", "staff event", "business event"},
+    "concert": {"concert", "music show", "performance", "festival stage", "live show"},
+    "outdoor_event": {"outdoor", "tent", "marquee", "garden event", "field event"},
+    "exhibition": {"exhibition", "expo", "trade show", "booth", "booths", "stands"},
+    "graduation_ceremony": {"graduation", "commencement", "graduates", "certificate ceremony"},
+    "product_launch": {"product launch", "launch event", "product reveal", "demo launch", "media launch"},
 }
 
-STAGE_KEYWORDS = {"stage", "platform", "performance", "speaker"}
+EVENT_TYPE_ALIASES = {
+    "corporate": "corporate_event",
+    "corporate event": "corporate_event",
+    "graduation": "graduation_ceremony",
+    "graduation ceremony": "graduation_ceremony",
+    "product": "product_launch",
+    "launch": "product_launch",
+    "product launch": "product_launch",
+    "outdoor": "outdoor_event",
+    "outdoor event": "outdoor_event",
+    "expo": "exhibition",
+}
+
+STAGE_KEYWORDS = {"stage", "platform", "performance", "speaker", "altar", "main table", "bridal table"}
 PODIUM_KEYWORDS = {"podium", "lectern"}
 SCREEN_KEYWORDS = {"screen", "projector", "led"}
 AISLE_KEYWORDS = {"aisle", "central aisle"}
 PLANT_KEYWORDS = {"plant", "plants", "flowers", "floral", "decor"}
+LIVESTREAM_KEYWORDS = {"livestream", "live stream", "streaming", "broadcast", "camera", "cameras", "recording", "hybrid"}
+OUTDOOR_KEYWORDS = {"outdoor", "outside", "tent", "marquee", "garden", "field"}
+PREMIUM_KEYWORDS = {"premium", "vip", "high end", "luxury", "executive", "media launch"}
 
 
 def clamp(value: float, min_value: float, max_value: float):
@@ -171,6 +207,16 @@ def infer_event_type_from_prompt(prompt: str):
     return None
 
 
+def normalize_event_type(value: Any):
+    if not isinstance(value, str):
+        return None
+    normalized = value.strip().lower().replace("-", "_").replace(" ", "_")
+    if normalized in SUPPORTED_EVENT_TYPES:
+        return normalized
+    alias_key = value.strip().lower().replace("_", " ")
+    return EVENT_TYPE_ALIASES.get(alias_key)
+
+
 def infer_prompt_hints(prompt: str):
     normalized = prompt.lower()
     layout_style = infer_layout_style_from_prompt(normalized)
@@ -185,6 +231,9 @@ def infer_prompt_hints(prompt: str):
         "mentionsScreen": any(keyword in normalized for keyword in SCREEN_KEYWORDS),
         "mentionsAisle": any(keyword in normalized for keyword in AISLE_KEYWORDS),
         "mentionsPlants": any(keyword in normalized for keyword in PLANT_KEYWORDS),
+        "mentionsLivestream": any(keyword in normalized for keyword in LIVESTREAM_KEYWORDS),
+        "mentionsOutdoor": any(keyword in normalized for keyword in OUTDOOR_KEYWORDS),
+        "mentionsPremium": any(keyword in normalized for keyword in PREMIUM_KEYWORDS),
     }
 
 
@@ -195,8 +244,10 @@ def infer_layout_style(raw_style: Any, prompt_hints: dict[str, Any], raw_event_t
     if isinstance(raw_style, str) and raw_style in SUPPORTED_LAYOUT_STYLES:
         return raw_style
 
-    if isinstance(raw_event_type, str) and raw_event_type == "wedding":
-        return "banquet_round_table"
+    event_type = prompt_hints["eventType"] or normalize_event_type(raw_event_type)
+    rule = get_event_rule(event_type) if event_type else None
+    if rule and rule["typical_layout_style"] in SUPPORTED_LAYOUT_STYLES:
+        return rule["typical_layout_style"]
 
     return "theatre"
 
@@ -205,8 +256,9 @@ def infer_event_type(raw_type: Any, layout_style: str, prompt_hints: dict[str, A
     if prompt_hints["eventType"] in SUPPORTED_EVENT_TYPES:
         return prompt_hints["eventType"]
 
-    if isinstance(raw_type, str) and raw_type in SUPPORTED_EVENT_TYPES:
-        return raw_type
+    normalized_type = normalize_event_type(raw_type)
+    if normalized_type in SUPPORTED_EVENT_TYPES:
+        return normalized_type
 
     return STYLE_DEFAULT_EVENT[layout_style]
 
@@ -262,6 +314,146 @@ def normalize_room(room: dict[str, Any] | None, event_type: str):
     }
 
 
+def get_rule_inferences(event_type: str):
+    rule = get_event_rule(event_type) or {}
+    return rule.get("inferences", {})
+
+
+def normalize_priority(value: Any, fallback: str = "recommended"):
+    if isinstance(value, str) and value in {"required", "recommended", "optional"}:
+        return value
+    return fallback
+
+
+def normalize_text_list(value: Any, fallback: list[str], limit: int = 8):
+    if not isinstance(value, list):
+        return fallback[:limit]
+
+    cleaned = [str(item).strip() for item in value if str(item).strip()]
+    return (cleaned or fallback)[:limit]
+
+
+def normalize_spacing_rules(value: Any, event_type: str):
+    rule = get_event_rule(event_type) or {}
+    spacing = rule.get("recommended_spacing", {})
+    value = value if isinstance(value, dict) else {}
+
+    return {
+        "mainAisleWidthM": clamp(
+            to_finite_number(value.get("mainAisleWidthM")) or spacing.get("main_aisle_width_m") or spacing.get("central_aisle_width_m") or 1.5,
+            1.0,
+            4.0,
+        ),
+        "tableSpacingM": clamp(to_finite_number(value.get("tableSpacingM")) or spacing.get("table_spacing_m") or 2.4, 1.8, 5.0),
+        "rowSpacingM": clamp(to_finite_number(value.get("rowSpacingM")) or spacing.get("row_spacing_m") or 1.1, 0.9, 2.0),
+        "frontClearanceM": clamp(
+            to_finite_number(value.get("frontClearanceM")) or spacing.get("front_clearance_m") or spacing.get("stage_clearance_m") or 2.0,
+            1.2,
+            5.0,
+        ),
+        "emergencyExitClearanceM": clamp(
+            to_finite_number(value.get("emergencyExitClearanceM")) or spacing.get("emergency_exit_clearance_m") or 1.5,
+            1.2,
+            4.0,
+        ),
+    }
+
+
+def default_camera_plan(event_type: str, livestream_required: bool):
+    if not livestream_required:
+        return []
+
+    if event_type == "funeral":
+        return [
+            {
+                "role": "discreet_wide_camera",
+                "placement": "rear center outside family sightlines",
+                "purpose": "ceremony livestream with minimal intrusion",
+                "priority": "recommended",
+            }
+        ]
+
+    if event_type in {"wedding", "church", "graduation_ceremony"}:
+        return [
+            {
+                "role": "wide_camera",
+                "placement": "rear center with clear aisle sightline",
+                "purpose": "full room and front focus coverage",
+                "priority": "required",
+            },
+            {
+                "role": "side_camera",
+                "placement": "front side outside guest circulation",
+                "purpose": "speaker, vows, altar, or certificate close-ups",
+                "priority": "recommended",
+            },
+        ]
+
+    return [
+        {
+            "role": "wide_camera",
+            "placement": "rear center with stage and screen sightline",
+            "purpose": "full room and presenter coverage",
+            "priority": "recommended",
+        },
+        {
+            "role": "closeup_camera",
+            "placement": "front side outside main aisle",
+            "purpose": "speaker or product close-up",
+            "priority": "optional",
+        },
+    ]
+
+
+def normalize_camera_plan(value: Any, event_type: str, livestream_required: bool):
+    fallback = default_camera_plan(event_type, livestream_required)
+    if not isinstance(value, list):
+        return fallback
+
+    cameras = []
+    for item in value[:4]:
+        if not isinstance(item, dict):
+            continue
+        cameras.append(
+            {
+                "role": str(item.get("role") or "camera"),
+                "placement": str(item.get("placement") or "rear or side position with line of sight"),
+                "purpose": str(item.get("purpose") or "event coverage"),
+                "priority": normalize_priority(item.get("priority")),
+            }
+        )
+    return cameras or fallback
+
+
+def normalize_av_layering(value: Any, livestream_required: bool, screen_enabled: bool):
+    fallback = []
+    if screen_enabled:
+        fallback.append({"type": "screen", "purpose": "visual reinforcement", "priority": "recommended"})
+    if livestream_required:
+        fallback.extend(
+            [
+                {"type": "av_desk", "purpose": "stream switching, audio monitoring, and cue control", "priority": "recommended"},
+                {"type": "cable_paths", "purpose": "protected runs away from aisles and exits", "priority": "required"},
+            ]
+        )
+
+    if not isinstance(value, list):
+        return fallback
+
+    layers = []
+    for item in value[:5]:
+        if not isinstance(item, dict):
+            continue
+        layers.append(
+            {
+                "type": str(item.get("type") or "av_element"),
+                "purpose": str(item.get("purpose") or "event operations support"),
+                "priority": normalize_priority(item.get("priority")),
+            }
+        )
+    return layers or fallback
+
+
 def ensure_room_capacity(room: dict[str, float], layout_style: str, capacity: int):
     adjusted = dict(room)
     minimums = STYLE_ROOM_MINIMUMS[layout_style]
@@ -272,9 +464,11 @@ def ensure_room_capacity(room: dict[str, float], layout_style: str, capacity: in
         seats_per_table = 8
         table_count = max(1, math.ceil(capacity / seats_per_table))
         columns = max(2, math.ceil(table_count**0.5))
+        if columns % 2 and table_count > 4:
+            columns += 1
         rows = max(1, math.ceil(table_count / columns))
-        adjusted["width"] = clamp(max(adjusted["width"], 8 + (columns - 1) * 4.2), 10, 60)
-        adjusted["depth"] = clamp(max(adjusted["depth"], 12 + (rows - 1) * 4.2), 10, 80)
+        adjusted["width"] = clamp(max(adjusted["width"], 10 + (columns - 1) * 4.2), 10, 60)
+        adjusted["depth"] = clamp(max(adjusted["depth"], 18 + (rows - 1) * 4.2), 10, 80)
     elif layout_style in {"theatre", "auditorium"}:
         needed_rows = max(4, math.ceil(capacity / (10 if layout_style == "auditorium" else 8)))
         adjusted["depth"] = clamp(max(adjusted["depth"], 8 + needed_rows * 1.15), 10, 80)
@@ -383,18 +577,60 @@ def validate_prompt_layout_intent(input_data: Any, user_prompt: str = ""):
         capacity,
     )
     defaults = infer_seating_defaults(layout_style, capacity, event_type)
+    rule_inferences = get_rule_inferences(event_type)
 
     stage = layout.get("stage") if isinstance(layout, dict) and isinstance(layout.get("stage"), dict) else {}
     podium = layout.get("podium") if isinstance(layout, dict) and isinstance(layout.get("podium"), dict) else {}
     screen = layout.get("screen") if isinstance(layout, dict) and isinstance(layout.get("screen"), dict) else {}
     decor = layout.get("decor") if isinstance(layout, dict) and isinstance(layout.get("decor"), dict) else {}
+    prompt_understanding = (
+        input_data.get("promptUnderstanding") if isinstance(input_data.get("promptUnderstanding"), dict) else {}
+    )
 
     style_defaults = {
-        "stageEnabled": layout_style in {"theatre", "classroom", "cabaret", "auditorium"},
-        "podiumEnabled": layout_style in {"theatre", "classroom", "u_shape"},
-        "screenEnabled": layout_style in {"theatre", "classroom", "cabaret", "auditorium", "church"},
-        "plantsEnabled": event_type in {"wedding", "funeral"} or layout_style == "lounge",
+        "stageEnabled": rule_inferences.get("stage", layout_style in {"theatre", "classroom", "cabaret", "auditorium"}),
+        "podiumEnabled": rule_inferences.get("podium", layout_style in {"theatre", "classroom", "u_shape"}),
+        "screenEnabled": rule_inferences.get(
+            "screen",
+            layout_style in {"theatre", "classroom", "cabaret", "auditorium", "church"},
+        ),
+        "plantsEnabled": rule_inferences.get("plants", event_type in {"wedding", "funeral"} or layout_style == "lounge"),
     }
+    livestream_required = to_boolean(
+        prompt_understanding.get("livestreamRequired"),
+        prompt_hints["mentionsLivestream"] or bool(rule_inferences.get("livestream_likely")),
+    )
+    stage_enabled = to_boolean(
+        stage.get("enabled"),
+        prompt_hints["mentionsStage"] or style_defaults["stageEnabled"],
+    )
+    podium_enabled = to_boolean(
+        podium.get("enabled"),
+        prompt_hints["mentionsPodium"] or style_defaults["podiumEnabled"],
+    )
+    screen_enabled = to_boolean(
+        screen.get("enabled"),
+        prompt_hints["mentionsScreen"] or livestream_required or style_defaults["screenEnabled"],
+    )
+    plants_enabled = to_boolean(
+        decor.get("plants"),
+        prompt_hints["mentionsPlants"] or style_defaults["plantsEnabled"],
+    )
+    indoor_outdoor = prompt_understanding.get("indoorOutdoor")
+    if indoor_outdoor not in {"indoor", "outdoor", "inferred_indoor", "inferred_outdoor"}:
+        indoor_outdoor = "inferred_outdoor" if (event_type == "outdoor_event" or prompt_hints["mentionsOutdoor"]) else "inferred_indoor"
+    premium_level = prompt_understanding.get("premiumLevel")
+    if premium_level not in {"basic", "standard", "premium"}:
+        premium_level = "premium" if prompt_hints["mentionsPremium"] or rule_inferences.get("premium_level") == "premium" else "standard"
+    spacing_rules = normalize_spacing_rules(input_data.get("spacingRules"), event_type)
+    camera_plan = normalize_camera_plan(input_data.get("cameraPlan"), event_type, livestream_required)
+    av_layering = normalize_av_layering(input_data.get("avLayering"), livestream_required, screen_enabled)
+    rule = get_event_rule(event_type) or {}
+    default_notes = [
+        *(rule.get("audience_flow_rules", [])[:2]),
+        *(rule.get("visibility_rules", [])[:2]),
+        *(rule.get("safety_accessibility", [])[:2]),
+    ]
 
     return {
         "eventType": event_type,
@@ -427,30 +663,29 @@ def validate_prompt_layout_intent(input_data: Any, user_prompt: str = ""):
                 ),
             },
             "stage": {
-                "enabled": to_boolean(
-                    stage.get("enabled"),
-                    prompt_hints["mentionsStage"] or style_defaults["stageEnabled"],
-                ),
+                "enabled": stage_enabled,
                 "position": "center" if stage.get("position") == "center" else "front",
             },
             "podium": {
-                "enabled": to_boolean(
-                    podium.get("enabled"),
-                    prompt_hints["mentionsPodium"] or style_defaults["podiumEnabled"],
-                ),
+                "enabled": podium_enabled,
             },
             "screen": {
-                "enabled": to_boolean(
-                    screen.get("enabled"),
-                    prompt_hints["mentionsScreen"] or style_defaults["screenEnabled"],
-                ),
+                "enabled": screen_enabled,
             },
             "decor": {
-                "plants": to_boolean(
-                    decor.get("plants"),
-                    prompt_hints["mentionsPlants"] or style_defaults["plantsEnabled"],
-                ),
+                "plants": plants_enabled,
                 "lighting": to_boolean(decor.get("lighting"), True),
             },
         },
+        "promptUnderstanding": {
+            "guestCount": capacity,
+            "layoutPreference": layout_style,
+            "livestreamRequired": livestream_required,
+            "indoorOutdoor": indoor_outdoor,
+            "premiumLevel": premium_level,
+        },
+        "spacingRules": spacing_rules,
+        "cameraPlan": camera_plan,
+        "avLayering": av_layering,
+        "professionalNotes": normalize_text_list(input_data.get("professionalNotes"), default_notes),
     }
