@@ -1,0 +1,406 @@
+{
+  "version": 1,
+  "event_types": {
+    "wedding": {
+      "typical_layout_style": "banquet_round_table",
+      "required_objects": ["round_tables", "chairs", "bridal_table", "stage_or_podium", "entrance", "dance_floor_clear_zone"],
+      "optional_objects": ["dj_booth", "cake_table", "gift_table", "photo_booth", "livestream_cameras", "floral_decor", "screen"],
+      "recommended_spacing": {
+        "table_spacing_m": 3.0,
+        "main_aisle_width_m": 1.8,
+        "service_aisle_width_m": 1.2,
+        "stage_clearance_m": 2.0,
+        "emergency_exit_clearance_m": 1.5
+      },
+      "audience_flow_rules": [
+        "Keep a clear entrance path to the seating area.",
+        "Keep service paths around banquet tables for catering staff.",
+        "Leave a visible processional aisle when ceremony language or bridal party cues are present.",
+        "Place the bridal table or stage at the visual focus of the room."
+      ],
+      "visibility_rules": [
+        "Guests should be able to see the bridal table, stage, or podium without looking through service zones.",
+        "Avoid placing tall decor between guest tables and the stage.",
+        "Screens should be near the stage or side walls for speeches and livestream relay."
+      ],
+      "camera_placement_best_practices": [
+        "Use a rear center camera for wide coverage.",
+        "Use side cameras near front corners for vows, speeches, and reactions.",
+        "Keep camera paths outside guest circulation paths.",
+        "Place an AV desk with line of sight to stage and screens when livestream is requested."
+      ],
+      "safety_accessibility": [
+        "Do not block emergency exits.",
+        "Maintain accessible routes from entrance to seating, toilets, and exits.",
+        "Avoid cable runs across main aisles unless protected.",
+        "Keep dance floor and stage edges clear."
+      ],
+      "inferences": {
+        "layout_preference": "banquet_round_table",
+        "stage": true,
+        "podium": true,
+        "screen": false,
+        "central_aisle": true,
+        "plants": true,
+        "livestream_likely": true,
+        "premium_level": "standard"
+      }
+    },
+    "conference": {
+      "typical_layout_style": "classroom",
+      "required_objects": ["chairs", "podium", "screen", "registration_desk", "speaker_area"],
+      "optional_objects": ["stage", "av_desk", "livestream_cameras", "breakout_tables", "sponsor_booths"],
+      "recommended_spacing": {
+        "row_spacing_m": 1.1,
+        "main_aisle_width_m": 1.5,
+        "side_aisle_width_m": 1.2,
+        "front_clearance_m": 2.0,
+        "emergency_exit_clearance_m": 1.5
+      },
+      "audience_flow_rules": [
+        "Place registration near the entrance without blocking the door.",
+        "Create clear aisles from entrance to seating and stage.",
+        "Separate attendee circulation from presenter and AV work areas."
+      ],
+      "visibility_rules": [
+        "Chairs face the podium and screen.",
+        "Use theatre seating for short talks and classroom seating for note-taking.",
+        "Keep screens high and centered or duplicated on sides for large rooms."
+      ],
+      "camera_placement_best_practices": [
+        "Use rear center camera for speaker and slide context.",
+        "Use front side camera for speaker close-up.",
+        "Place AV desk at rear or side rear with screen and stage sightline."
+      ],
+      "safety_accessibility": [
+        "Keep aisles continuous.",
+        "Do not place registration queues across emergency exits.",
+        "Provide wheelchair positions on aisle edges."
+      ],
+      "inferences": {
+        "layout_preference": "classroom",
+        "stage": true,
+        "podium": true,
+        "screen": true,
+        "central_aisle": true,
+        "plants": false,
+        "livestream_likely": true,
+        "premium_level": "standard"
+      }
+    },
+    "church": {
+      "typical_layout_style": "theatre",
+      "required_objects": ["chairs_or_benches", "altar_or_stage", "podium", "central_aisle"],
+      "optional_objects": ["choir_area", "screen", "camera_positions", "av_desk", "instrument_area"],
+      "recommended_spacing": {
+        "row_spacing_m": 1.1,
+        "central_aisle_width_m": 1.8,
+        "front_clearance_m": 2.0,
+        "side_aisle_width_m": 1.2,
+        "emergency_exit_clearance_m": 1.5
+      },
+      "audience_flow_rules": [
+        "Keep a center aisle for procession and movement.",
+        "Keep altar or stage as the primary focus.",
+        "Place AV control at rear or side rear."
+      ],
+      "visibility_rules": [
+        "All rows face the altar or stage.",
+        "Screens should not compete with the altar focus.",
+        "Camera tripods should not block congregants."
+      ],
+      "camera_placement_best_practices": [
+        "Use rear center camera for wide congregation and altar view.",
+        "Use side camera for pulpit close-up.",
+        "Keep cameras outside worship movement paths."
+      ],
+      "safety_accessibility": [
+        "Keep communion, processional, and emergency paths clear.",
+        "Protect cables from cameras and AV desk."
+      ],
+      "inferences": {
+        "layout_preference": "theatre",
+        "stage": true,
+        "podium": true,
+        "screen": true,
+        "central_aisle": true,
+        "plants": false,
+        "livestream_likely": true,
+        "premium_level": "standard"
+      }
+    },
+    "funeral": {
+      "typical_layout_style": "theatre",
+      "required_objects": ["formal_seating", "podium", "memorial_area", "central_aisle"],
+      "optional_objects": ["screen", "flowers", "livestream_cameras", "guest_book_table", "photo_display"],
+      "recommended_spacing": {
+        "row_spacing_m": 1.1,
+        "central_aisle_width_m": 1.8,
+        "front_clearance_m": 2.0,
+        "memorial_clearance_m": 1.5,
+        "emergency_exit_clearance_m": 1.5
+      },
+      "audience_flow_rules": [
+        "Create a quiet, direct entry path.",
+        "Keep a dignified central aisle toward the memorial area.",
+        "Avoid congesting the front memorial area."
+      ],
+      "visibility_rules": [
+        "All seating should face the podium and memorial area.",
+        "Screens should support tribute media without dominating the memorial."
+      ],
+      "camera_placement_best_practices": [
+        "Use discreet rear camera placement.",
+        "Use side camera only if it does not intrude on family seating.",
+        "Place AV desk away from family and ceremonial movement paths."
+      ],
+      "safety_accessibility": [
+        "Reserve accessible seating near aisles.",
+        "Keep flower displays clear of exits and walkways."
+      ],
+      "inferences": {
+        "layout_preference": "theatre",
+        "stage": true,
+        "podium": true,
+        "screen": true,
+        "central_aisle": true,
+        "plants": true,
+        "livestream_likely": true,
+        "premium_level": "standard"
+      }
+    },
+    "corporate_event": {
+      "typical_layout_style": "cabaret",
+      "required_objects": ["stage", "podium", "screen", "attendee_seating", "registration_desk"],
+      "optional_objects": ["demo_counter", "branding_area", "av_desk", "livestream_cameras", "sponsor_booths"],
+      "recommended_spacing": {
+        "table_spacing_m": 2.7,
+        "main_aisle_width_m": 1.5,
+        "front_clearance_m": 2.0,
+        "brand_demo_clearance_m": 1.5,
+        "emergency_exit_clearance_m": 1.5
+      },
+      "audience_flow_rules": [
+        "Place registration at entry with queue space.",
+        "Keep demo or product areas reachable without crossing stage operations.",
+        "Separate VIP or speaker movement from general circulation."
+      ],
+      "visibility_rules": [
+        "Prioritize screen and speaker visibility.",
+        "Use cabaret when guests need tables while watching a stage."
+      ],
+      "camera_placement_best_practices": [
+        "Rear center camera for wide stage and audience.",
+        "Front side camera for presenter close-up.",
+        "Side camera for product reveal or demo counter."
+      ],
+      "safety_accessibility": [
+        "Keep branded displays outside exit paths.",
+        "Protect AV and demo cables."
+      ],
+      "inferences": {
+        "layout_preference": "cabaret",
+        "stage": true,
+        "podium": true,
+        "screen": true,
+        "central_aisle": true,
+        "plants": false,
+        "livestream_likely": true,
+        "premium_level": "premium"
+      }
+    },
+    "concert": {
+      "typical_layout_style": "auditorium",
+      "required_objects": ["stage", "audience_area", "front_of_house_av", "speaker_positions"],
+      "optional_objects": ["vip_area", "screens", "camera_positions", "barriers", "backstage_area"],
+      "recommended_spacing": {
+        "front_clearance_m": 2.5,
+        "main_aisle_width_m": 1.8,
+        "camera_lane_m": 1.2,
+        "emergency_exit_clearance_m": 2.0
+      },
+      "audience_flow_rules": [
+        "Keep entry, exit, and front-of-house routes separated where possible.",
+        "Preserve a clear route to the stage for crew."
+      ],
+      "visibility_rules": [
+        "Stage is the dominant focus.",
+        "Avoid blocking audience sightlines with cameras or AV towers."
+      ],
+      "camera_placement_best_practices": [
+        "Rear long-lens camera for full stage.",
+        "Side cameras for performers.",
+        "Keep camera lane clear of audience flow."
+      ],
+      "safety_accessibility": [
+        "Keep exit routes wide and direct.",
+        "Protect high-traffic cable runs."
+      ],
+      "inferences": {
+        "layout_preference": "auditorium",
+        "stage": true,
+        "podium": false,
+        "screen": true,
+        "central_aisle": true,
+        "plants": false,
+        "livestream_likely": true,
+        "premium_level": "premium"
+      }
+    },
+    "outdoor_event": {
+      "typical_layout_style": "banquet_round_table",
+      "required_objects": ["seating_or_guest_area", "stage_or_focus_area", "entrance", "service_paths"],
+      "optional_objects": ["tent", "dance_floor", "bar", "portable_av", "camera_positions", "registration_desk"],
+      "recommended_spacing": {
+        "table_spacing_m": 3.0,
+        "main_aisle_width_m": 1.8,
+        "service_aisle_width_m": 1.5,
+        "weather_buffer_m": 1.0,
+        "emergency_exit_clearance_m": 2.0
+      },
+      "audience_flow_rules": [
+        "Keep paths clear between tent entrances, seating, catering, and restrooms.",
+        "Place stage and AV away from weather exposure when possible."
+      ],
+      "visibility_rules": [
+        "Account for tent poles and outdoor obstructions.",
+        "Keep cameras out of direct guest pathways."
+      ],
+      "camera_placement_best_practices": [
+        "Use stable rear wide camera.",
+        "Use side cameras under weather cover.",
+        "Keep AV desk protected and close to power."
+      ],
+      "safety_accessibility": [
+        "Do not block tent exits.",
+        "Avoid uncovered cables across grass or high-traffic routes.",
+        "Maintain accessible paths over uneven surfaces."
+      ],
+      "inferences": {
+        "layout_preference": "banquet_round_table",
+        "stage": true,
+        "podium": false,
+        "screen": false,
+        "central_aisle": true,
+        "plants": true,
+        "livestream_likely": false,
+        "premium_level": "standard"
+      }
+    },
+    "exhibition": {
+      "typical_layout_style": "exhibition_booth",
+      "required_objects": ["booths", "entrance", "main_aisles", "registration_desk"],
+      "optional_objects": ["demo_stage", "screens", "sponsor_lounge", "av_desk", "camera_positions"],
+      "recommended_spacing": {
+        "booth_aisle_width_m": 2.4,
+        "main_aisle_width_m": 3.0,
+        "queue_clearance_m": 2.0,
+        "emergency_exit_clearance_m": 2.0
+      },
+      "audience_flow_rules": [
+        "Design loops so visitors can circulate past all booths.",
+        "Keep registration queue outside the main booth aisle."
+      ],
+      "visibility_rules": [
+        "Entrance should reveal the main aisle and high-value booths.",
+        "Demo stages need clear standing room and sightlines."
+      ],
+      "camera_placement_best_practices": [
+        "Use side/rear camera for demo stage.",
+        "Keep roaming camera paths out of queues."
+      ],
+      "safety_accessibility": [
+        "Keep booth counters out of exit routes.",
+        "Avoid cable crossings in public aisles."
+      ],
+      "inferences": {
+        "layout_preference": "exhibition_booth",
+        "stage": false,
+        "podium": false,
+        "screen": true,
+        "central_aisle": true,
+        "plants": false,
+        "livestream_likely": false,
+        "premium_level": "standard"
+      }
+    },
+    "graduation_ceremony": {
+      "typical_layout_style": "theatre",
+      "required_objects": ["stage", "podium", "graduate_seating", "guest_seating", "central_aisle"],
+      "optional_objects": ["screens", "camera_positions", "choir_area", "photo_area", "registration_desk"],
+      "recommended_spacing": {
+        "row_spacing_m": 1.1,
+        "processional_aisle_width_m": 2.0,
+        "stage_clearance_m": 2.5,
+        "photo_lane_m": 1.2,
+        "emergency_exit_clearance_m": 1.5
+      },
+      "audience_flow_rules": [
+        "Keep a processional route from entrance to stage.",
+        "Separate graduate movement from guest seating where possible."
+      ],
+      "visibility_rules": [
+        "All guests should face stage and podium.",
+        "Screens help large rooms see certificate handover."
+      ],
+      "camera_placement_best_practices": [
+        "Rear center camera for wide stage.",
+        "Side camera for certificate handover close-up.",
+        "Keep photo lane clear."
+      ],
+      "safety_accessibility": [
+        "Keep processional aisle and exits clear.",
+        "Reserve accessible seating near aisles."
+      ],
+      "inferences": {
+        "layout_preference": "theatre",
+        "stage": true,
+        "podium": true,
+        "screen": true,
+        "central_aisle": true,
+        "plants": false,
+        "livestream_likely": true,
+        "premium_level": "standard"
+      }
+    },
+    "product_launch": {
+      "typical_layout_style": "cabaret",
+      "required_objects": ["stage", "podium", "screen", "product_demo_area", "attendee_seating"],
+      "optional_objects": ["livestream_cameras", "av_desk", "registration_desk", "media_area", "branding_displays"],
+      "recommended_spacing": {
+        "front_clearance_m": 2.5,
+        "demo_area_clearance_m": 2.0,
+        "main_aisle_width_m": 1.8,
+        "camera_lane_m": 1.2,
+        "emergency_exit_clearance_m": 1.5
+      },
+      "audience_flow_rules": [
+        "Make the reveal area easy to see from entry and seating.",
+        "Keep press, VIP, and demo movement controlled."
+      ],
+      "visibility_rules": [
+        "Product and screen are primary visual targets.",
+        "Avoid seating behind demo counters or camera rigs."
+      ],
+      "camera_placement_best_practices": [
+        "Rear center camera for reveal and audience.",
+        "Side camera for product close-ups.",
+        "Optional roaming camera for audience reactions."
+      ],
+      "safety_accessibility": [
+        "Protect demo power and AV cables.",
+        "Keep branding structures outside exits."
+      ],
+      "inferences": {
+        "layout_preference": "cabaret",
+        "stage": true,
+        "podium": true,
+        "screen": true,
+        "central_aisle": true,
+        "plants": false,
+        "livestream_likely": true,
+        "premium_level": "premium"
+      }
+    }
+  }
+}

@@ -109,17 +109,24 @@ def add_round_tables(items, intent, cabaret=False, standing=False):
         math.ceil(intent["capacity"] / max(1, seats_per_table or 10)),
     )
     columns = max(2, math.ceil(table_count**0.5))
+    has_aisle = intent["layout"]["seating"]["hasCentralAisle"]
+    if has_aisle and columns % 2 and table_count > 4:
+        columns += 1
     spacing_x = 4.2
     spacing_z = 4.2
-    total_width = (columns - 1) * spacing_x
+    aisle_width = 1.8 if has_aisle else 0
+    total_width = (columns - 1) * spacing_x + aisle_width
     start_x = -total_width / 2
     start_z = -1 if intent["layout"]["stage"]["enabled"] else -intent["room"]["depth"] / 2 + 4.5
     front_focus_z = -intent["room"]["depth"] / 2
+    half_columns = columns // 2
 
     for index in range(table_count):
         row = index // columns
         col = index % columns
         table_x = start_x + col * spacing_x
+        if has_aisle and col >= half_columns:
+            table_x += aisle_width
         table_z = start_z + row * spacing_z
         table_scale = [1.2, 1.1, 1.2] if standing else None
         table_type = "bar" if standing else "round_table"
@@ -148,6 +155,10 @@ def add_round_tables(items, intent, cabaret=False, standing=False):
                     rotation_y=rotation_y,
                 )
             )
+
+    if has_aisle:
+        rows = max(1, math.ceil(table_count / columns))
+        add_central_aisle(items, start_z + ((rows - 1) * spacing_z) / 2, rows * spacing_z + 2)
 
 
 def add_classroom(items, intent):
