@@ -25,10 +25,15 @@ const DEFAULT_SCENE_SETTINGS: SceneSettings = {
   directionalLightIntensity: 2.1,
   snapToGrid: true,
   livestreamMode: false,
+  cameraMode: "orbit",
+  presentationMode: false,
   wallThickness: 0.15,
   wallColor: "#F6F2EC",
   floorColor: "#F4F1EA",
   floorMaterial: "Wood",
+  wallMaterial: "Painted",
+  venueEnvironment: "indoor",
+  lightingMood: "presentation",
 };
 
 interface EditorState {
@@ -88,10 +93,80 @@ function withSceneSettings(project: Project): Project {
   return {
     ...project,
     connections: project.connections ?? [],
+    items: project.items.map((item) =>
+      item.assetUrl.startsWith("/models/")
+        ? {
+            ...item,
+            assetUrl: `poly-pizza://required/${item.type}`,
+            source: "Poly Pizza",
+            sourceId: undefined,
+            sourceUrl: undefined,
+            attribution: "Choose a matching Poly Pizza model from the asset catalog.",
+          }
+        : item,
+    ),
     room: {
       ...project.room,
       wallThickness:
         project.room.wallThickness ?? project.sceneSettings?.wallThickness ?? 0.15,
+    },
+    architecture: project.architecture ?? {
+      shape: "rectangular",
+      doors: [
+        {
+          id: "door-main",
+          wall: "south",
+          offset: 0,
+          width: Math.min(3.2, Math.max(1.6, project.room.width * 0.14)),
+          height: 2.35,
+          label: "Main entrance",
+        },
+      ],
+      windows: [
+        {
+          id: "window-west-1",
+          wall: "west",
+          offset: -project.room.depth * 0.22,
+          width: 2.6,
+          height: 1.4,
+          sillHeight: 1.15,
+        },
+        {
+          id: "window-east-1",
+          wall: "east",
+          offset: project.room.depth * 0.22,
+          width: 2.6,
+          height: 1.4,
+          sillHeight: 1.15,
+        },
+      ],
+      columns: [],
+      entrances: [],
+      exits: [
+        {
+          id: "exit-north-east",
+          wall: "north",
+          offset: project.room.width * 0.34,
+          width: 1.4,
+          height: 2.2,
+          label: "Exit",
+        },
+      ],
+      stageAccessRoutes: [
+        {
+          id: "route-center-aisle",
+          label: "Stage access",
+          width: 1.4,
+          points: [
+            { x: 0, z: project.room.depth / 2 - 1.5 },
+            { x: 0, z: -project.room.depth / 2 + 3.5 },
+          ],
+        },
+      ],
+      hasCeiling: project.sceneSettings?.venueEnvironment !== "outdoor",
+      ceilingHeight: project.room.height,
+      decorativeLighting: true,
+      stageBackdrop: "draping",
     },
     sceneSettings: {
       ...DEFAULT_SCENE_SETTINGS,
@@ -109,6 +184,21 @@ function snapshot(project: Project): HistoryState {
       sceneSettings: project.sceneSettings
         ? { ...project.sceneSettings }
         : { ...DEFAULT_SCENE_SETTINGS },
+      architecture: project.architecture
+        ? {
+            ...project.architecture,
+            boundary: project.architecture.boundary?.map((point) => ({ ...point })),
+            doors: project.architecture.doors.map((entry) => ({ ...entry })),
+            windows: project.architecture.windows.map((entry) => ({ ...entry })),
+            columns: project.architecture.columns.map((entry) => ({ ...entry })),
+            entrances: project.architecture.entrances.map((entry) => ({ ...entry })),
+            exits: project.architecture.exits.map((entry) => ({ ...entry })),
+            stageAccessRoutes: project.architecture.stageAccessRoutes.map((route) => ({
+              ...route,
+              points: route.points.map((point) => ({ ...point })),
+            })),
+          }
+        : undefined,
       items: project.items.map((item) => ({
         ...item,
         scale: [...item.scale] as [number, number, number],

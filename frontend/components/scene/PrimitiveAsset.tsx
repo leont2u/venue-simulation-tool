@@ -46,6 +46,29 @@ function PrimitiveAssetComponent({
   onPointerEnter,
   onPointerLeave,
 }: Props) {
+  if (url.startsWith("poly-pizza://required/") || url.startsWith("/models/")) {
+    const type = url.startsWith("poly-pizza://required/")
+      ? url.replace("poly-pizza://required/", "")
+      : url.split("/").pop()?.replace(".glb", "") ?? "asset";
+
+    return (
+      <GeneratedVenueAsset
+        type={type}
+        position={position}
+        rotation={rotation}
+        scale={scale}
+        selected={selected}
+        hovered={hovered}
+        color={color}
+        material={material}
+        onClick={onClick}
+        onPointerDown={onPointerDown}
+        onPointerEnter={onPointerEnter}
+        onPointerLeave={onPointerLeave}
+      />
+    );
+  }
+
   if (url.startsWith("primitive://")) {
     return (
       <PrimitiveShape
@@ -318,6 +341,268 @@ function PrimitiveShape({
         receiveShadow
       />
 
+      {selected ? (
+        <LocalSelectionRing color="#4D96FF" />
+      ) : hovered ? (
+        <LocalSelectionRing color="#9CC9FF" />
+      ) : null}
+    </group>
+  );
+}
+
+function GeneratedVenueAsset({
+  type,
+  position,
+  rotation,
+  scale,
+  selected,
+  hovered,
+  color,
+  material,
+  onClick,
+  onPointerDown,
+  onPointerEnter,
+  onPointerLeave,
+}: PrimitiveShapeProps) {
+  const palette = useMemo(() => {
+    const colorMap: Record<string, string> = {
+      chair: "#8fb19d",
+      church_bench: "#8a6a4e",
+      altar: "#d8d0c2",
+      podium: "#8a5e3f",
+      piano: "#1e2329",
+      camera: "#2f5f7c",
+      screen: "#243247",
+      tv: "#243247",
+      desk: "#b28a61",
+      banquet_table: "#d8c3a5",
+      speaker: "#30343b",
+      mixing_desk: "#343a55",
+    };
+
+    return {
+      body: color || colorMap[type] || "#9aa6a0",
+      dark: "#2f3532",
+      cloth: "#efe7dc",
+      brass: "#c1a158",
+    };
+  }, [color, type]);
+
+  const bodyMaterial = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: palette.body,
+        roughness: material?.roughness ?? 0.68,
+        metalness: material?.metalness ?? 0.05,
+      }),
+    [material?.metalness, material?.roughness, palette.body],
+  );
+  const darkMaterial = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: palette.dark,
+        roughness: 0.48,
+        metalness: 0.18,
+      }),
+    [palette.dark],
+  );
+  const clothMaterial = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        color: palette.cloth,
+        roughness: 0.92,
+        metalness: 0.01,
+      }),
+    [palette.cloth],
+  );
+  const visualScale = useMemo<[number, number, number]>(() => {
+    const legacyTinyModelScale = ["podium", "banquet_table", "tv"].includes(type);
+    if (legacyTinyModelScale && Math.max(...scale) <= 0.2) return [1, 1, 1];
+    return scale;
+  }, [scale, type]);
+
+  const child = useMemo(() => {
+    if (type === "chair") {
+      return (
+        <>
+          <mesh position={[0, 0.32, 0]} castShadow receiveShadow material={bodyMaterial}>
+            <boxGeometry args={[0.55, 0.12, 0.52]} />
+          </mesh>
+          <mesh position={[0, 0.68, 0.22]} castShadow receiveShadow material={bodyMaterial}>
+            <boxGeometry args={[0.58, 0.72, 0.1]} />
+          </mesh>
+          {[-0.2, 0.2].map((x) =>
+            [-0.18, 0.18].map((z) => (
+              <mesh key={`${x}-${z}`} position={[x, 0.15, z]} castShadow receiveShadow material={darkMaterial}>
+                <cylinderGeometry args={[0.035, 0.035, 0.3, 10]} />
+              </mesh>
+            )),
+          )}
+        </>
+      );
+    }
+
+    if (type === "church_bench") {
+      return (
+        <>
+          <mesh position={[0, 0.36, 0]} castShadow receiveShadow material={bodyMaterial}>
+            <boxGeometry args={[2.2, 0.14, 0.62]} />
+          </mesh>
+          <mesh position={[0, 0.82, 0.27]} castShadow receiveShadow material={bodyMaterial}>
+            <boxGeometry args={[2.3, 0.82, 0.12]} />
+          </mesh>
+          {[-0.85, 0, 0.85].map((x) => (
+            <mesh key={x} position={[x, 0.18, -0.12]} castShadow receiveShadow material={darkMaterial}>
+              <boxGeometry args={[0.08, 0.36, 0.18]} />
+            </mesh>
+          ))}
+        </>
+      );
+    }
+
+    if (type === "altar") {
+      return (
+        <>
+          <mesh position={[0, 0.45, 0]} castShadow receiveShadow material={clothMaterial}>
+            <boxGeometry args={[2.5, 0.9, 1.1]} />
+          </mesh>
+          <mesh position={[0, 0.98, -0.08]} castShadow receiveShadow material={bodyMaterial}>
+            <boxGeometry args={[2.1, 0.18, 0.82]} />
+          </mesh>
+          <mesh position={[0, 1.35, 0]} castShadow receiveShadow material={bodyMaterial}>
+            <boxGeometry args={[0.08, 0.6, 0.08]} />
+          </mesh>
+          <mesh position={[0, 1.62, 0]} castShadow receiveShadow material={bodyMaterial}>
+            <boxGeometry args={[0.52, 0.08, 0.08]} />
+          </mesh>
+        </>
+      );
+    }
+
+    if (type === "podium") {
+      return (
+        <>
+          <mesh position={[0, 0.55, 0]} castShadow receiveShadow material={bodyMaterial}>
+            <boxGeometry args={[0.8, 1.1, 0.58]} />
+          </mesh>
+          <mesh position={[0, 1.15, -0.08]} castShadow receiveShadow material={bodyMaterial}>
+            <boxGeometry args={[0.9, 0.12, 0.68]} />
+          </mesh>
+          <mesh position={[0.28, 1.32, -0.18]} castShadow receiveShadow material={darkMaterial}>
+            <cylinderGeometry args={[0.018, 0.018, 0.38, 8]} />
+          </mesh>
+        </>
+      );
+    }
+
+    if (type === "piano") {
+      return (
+        <>
+          <mesh position={[0, 0.55, 0]} castShadow receiveShadow material={darkMaterial}>
+            <boxGeometry args={[1.8, 0.55, 1.22]} />
+          </mesh>
+          <mesh position={[0.26, 0.93, -0.08]} rotation={[0, 0, -0.16]} castShadow receiveShadow material={darkMaterial}>
+            <boxGeometry args={[1.45, 0.08, 1.1]} />
+          </mesh>
+          <mesh position={[0, 0.86, -0.68]} castShadow receiveShadow material={clothMaterial}>
+            <boxGeometry args={[1.25, 0.06, 0.18]} />
+          </mesh>
+        </>
+      );
+    }
+
+    if (type === "camera") {
+      return (
+        <>
+          <mesh position={[0, 1.12, 0]} castShadow receiveShadow material={darkMaterial}>
+            <boxGeometry args={[0.46, 0.32, 0.36]} />
+          </mesh>
+          <mesh position={[0, 1.12, -0.28]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow material={darkMaterial}>
+            <cylinderGeometry args={[0.13, 0.16, 0.28, 18]} />
+          </mesh>
+          <mesh position={[0, 0.58, 0]} castShadow receiveShadow material={bodyMaterial}>
+            <cylinderGeometry args={[0.035, 0.035, 1.05, 10]} />
+          </mesh>
+          <mesh position={[0, 0.06, 0]} castShadow receiveShadow material={darkMaterial}>
+            <cylinderGeometry args={[0.34, 0.34, 0.06, 3]} />
+          </mesh>
+        </>
+      );
+    }
+
+    if (type === "screen" || type === "tv") {
+      return (
+        <>
+          <mesh position={[0, 1.18, 0]} castShadow receiveShadow material={darkMaterial}>
+            <boxGeometry args={[3.1, 1.78, 0.12]} />
+          </mesh>
+          <mesh position={[0, 1.18, -0.07]} receiveShadow>
+            <boxGeometry args={[2.82, 1.48, 0.035]} />
+            <meshStandardMaterial color="#263f6a" emissive="#31548f" emissiveIntensity={0.55} roughness={0.22} metalness={0.12} />
+          </mesh>
+          <mesh position={[0, 0.3, 0.08]} castShadow receiveShadow material={darkMaterial}>
+            <boxGeometry args={[0.16, 0.6, 0.16]} />
+          </mesh>
+        </>
+      );
+    }
+
+    if (type === "banquet_table") {
+      return (
+        <>
+          <mesh position={[0, 0.48, 0]} castShadow receiveShadow material={clothMaterial}>
+            <cylinderGeometry args={[0.9, 0.95, 0.22, 36]} />
+          </mesh>
+          <mesh position={[0, 0.66, 0]} castShadow receiveShadow material={bodyMaterial}>
+            <cylinderGeometry args={[0.22, 0.16, 0.18, 24]} />
+          </mesh>
+          <mesh position={[0, 0.8, 0]} castShadow receiveShadow material={bodyMaterial}>
+            <sphereGeometry args={[0.18, 16, 16]} />
+          </mesh>
+        </>
+      );
+    }
+
+    return (
+      <mesh position={[0, 0.5, 0]} castShadow receiveShadow material={bodyMaterial}>
+        <boxGeometry args={[1, 1, 1]} />
+      </mesh>
+    );
+  }, [bodyMaterial, clothMaterial, darkMaterial, type]);
+
+  return (
+    <group
+      position={position}
+      rotation={rotation}
+      scale={visualScale}
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick?.({ shiftKey: event.shiftKey });
+      }}
+      onPointerDown={(event) => {
+        event.stopPropagation();
+        onPointerDown?.({
+          shiftKey: event.shiftKey,
+          ctrlKey: event.ctrlKey,
+          metaKey: event.metaKey,
+          altKey: event.altKey,
+          ray: event.ray.clone(),
+          point: event.point.clone(),
+          stopPropagation: event.stopPropagation,
+          target: (event.target ?? event.currentTarget) as EventTarget,
+          pointerId: event.pointerId,
+        });
+      }}
+      onPointerEnter={(event) => {
+        event.stopPropagation();
+        onPointerEnter?.();
+      }}
+      onPointerLeave={(event) => {
+        event.stopPropagation();
+        onPointerLeave?.();
+      }}
+    >
+      {child}
       {selected ? (
         <LocalSelectionRing color="#4D96FF" />
       ) : hovered ? (
