@@ -45,13 +45,18 @@ import {
   readPendingVenueInput,
   savePendingVenueInput,
 } from "@/lib/pendingVenueInput";
+import {
+  clearPendingTemplate,
+  readPendingTemplate,
+} from "@/lib/pendingTemplate";
 import { createProjectFromVenueInput } from "@/lib/landingFlow";
 import {
   hasCompletedOnboarding,
   markOnboardingComplete,
 } from "@/lib/onboarding";
+import { queueEditorTour } from "@/lib/onboardingTour";
 import { PROJECT_TEMPLATES, ProjectTemplate } from "@/lib/projectTemplates";
-import { getProjects } from "@/lib/storage";
+import { getProjects, upsertProject } from "@/lib/storage";
 import { Project } from "@/types/types";
 
 type DashboardView = "home" | "projects";
@@ -133,6 +138,7 @@ function TopBar({
           <Bell size={21} />
         </button>
         <button
+          data-tour="new-project"
           onClick={onNewProject}
           className="flex h-[50px] w-35  items-center gap-4 rounded-[13px] bg-[#5d7f73] px-6 text-[9px] font-bold text-white shadow-[0_4px_10px_rgba(32,43,40,0.18)] transition hover:bg-[#4e7165]"
         >
@@ -229,16 +235,19 @@ function ActionCard({
   title,
   subtitle,
   active,
+  tourId,
   onClick,
 }: {
   icon: LucideIcon;
   title: string;
   subtitle: string;
   active?: boolean;
+  tourId?: string;
   onClick: () => void;
 }) {
   return (
     <button
+      data-tour={tourId}
       onClick={onClick}
       className={cx(
         "flex min-h-[126px] items-center gap-5 rounded-[18px] border bg-white p-5 text-left transition hover:-translate-y-0.5 hover:border-[#c9d8d3] hover:shadow-[0_12px_30px_rgba(32,43,40,0.08)]",
@@ -328,9 +337,13 @@ function FilterPills({
 function TemplateCard({
   template,
   onUse,
+  isCreating = false,
+  disabled = false,
 }: {
   template: ProjectTemplate;
   onUse: () => void;
+  isCreating?: boolean;
+  disabled?: boolean;
 }) {
   const previewProject = useMemo(
     () => templateToPreviewProject(template),
@@ -342,8 +355,9 @@ function TemplateCard({
   return (
     <button
       onClick={onUse}
+      disabled={disabled}
       className={cx(
-        "group overflow-hidden rounded-[18px] border bg-white text-left transition hover:-translate-y-0.5 hover:border-[#c7d7d2] hover:shadow-[0_12px_30px_rgba(32,43,40,0.08)]",
+        "group overflow-hidden rounded-[18px] border bg-white text-left transition hover:-translate-y-0.5 hover:border-[#c7d7d2] hover:shadow-[0_12px_30px_rgba(32,43,40,0.08)] disabled:cursor-wait disabled:opacity-70",
         highlighted
           ? "border-[#bcd3cd] shadow-[inset_0_0_0_1px_#bcd3cd]"
           : "border-[#e9eeee]",
@@ -363,7 +377,7 @@ function TemplateCard({
         ) : null}
         <span className="absolute bottom-3 right-3 hidden items-center gap-2 rounded-[10px] bg-[#5d7f73] px-4 py-2 text-[14px] font-bold text-white shadow group-hover:flex">
           <Plus size={18} />
-          Use
+          {isCreating ? "Opening" : "Use"}
         </span>
       </div>
       <div className="border-t border-[#edf1ef] p-4">
@@ -456,9 +470,12 @@ function DashboardContent() {
   const [projectFilter, setProjectFilter] = useState("All");
   const [templateFilter, setTemplateFilter] = useState("All");
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [creatingTemplateId, setCreatingTemplateId] = useState("");
   const resumeAttemptedRef = useRef(false);
 
   const userName = displayName(user?.email);
+  const shouldResumePrompt = searchParams.get("resumePrompt") === "1";
+  const shouldResumeTemplate = searchParams.get("resumeTemplate") === "1";
 
   const loadProjects = useCallback(async () => {
     try {
@@ -477,14 +494,21 @@ function DashboardContent() {
   }, [loadProjects]);
 
   useEffect(() => {
+    if (shouldResumePrompt || shouldResumeTemplate) return;
     if (!user?.email || loading || isResumingPrompt) return;
     if (projects.length > 0) return;
     if (hasCompletedOnboarding(user.email)) return;
     setShowOnboarding(true);
-  }, [isResumingPrompt, loading, projects.length, user?.email]);
+  }, [
+    isResumingPrompt,
+    loading,
+    projects.length,
+    shouldResumePrompt,
+    shouldResumeTemplate,
+    user?.email,
+  ]);
 
   useEffect(() => {
-    const shouldResumePrompt = searchParams.get("resumePrompt") === "1";
     if (!shouldResumePrompt || resumeAttemptedRef.current) return;
 
     const pendingInput = readPendingVenueInput();
@@ -505,9 +529,14 @@ function DashboardContent() {
       try {
         setIsResumingPrompt(true);
         setError("");
+        setShowOnboarding(false);
         clearPendingVenueInput();
         clearPendingPrompt();
         const project = await createProjectFromVenueInput({ prompt, file });
+        if (user?.email && !hasCompletedOnboarding(user.email)) {
+          markOnboardingComplete(user.email);
+          queueEditorTour();
+        }
         router.replace(`/editor/${project.id}`);
       } catch (err) {
         if (pendingInput) {
@@ -527,7 +556,49 @@ function DashboardContent() {
     };
 
     void resume();
-  }, [router, searchParams]);
+  }, [router, shouldResumePrompt, user?.email]);
+
+  useEffect(() => {
+    if (!shouldResumeTemplate || resumeAttemptedRef.current) return;
+
+    const templateId = readPendingTemplate();
+    const template = PROJECT_TEMPLATES.find((entry) => entry.id === templateId);
+
+    if (!template) {
+      resumeAttemptedRef.current = true;
+      clearPendingTemplate();
+      router.replace("/dashboard");
+      return;
+    }
+
+    resumeAttemptedRef.current = true;
+
+    const resumeTemplate = async () => {
+      try {
+        setIsResumingPrompt(true);
+        setError("");
+        setShowOnboarding(false);
+        clearPendingTemplate();
+        const savedProject = await upsertProject(template.buildProject(template.name));
+        if (user?.email && !hasCompletedOnboarding(user.email)) {
+          markOnboardingComplete(user.email);
+          queueEditorTour();
+        }
+        router.replace(`/editor/${savedProject.id}`);
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Failed to create a project from your selected template.",
+        );
+        router.replace("/dashboard");
+      } finally {
+        setIsResumingPrompt(false);
+      }
+    };
+
+    void resumeTemplate();
+  }, [router, shouldResumeTemplate, user?.email]);
 
   const openProjectCreation = useCallback(
     (initialStep: ProjectPipeline = "menu", continueIntoEditor = false) => {
@@ -557,6 +628,27 @@ function DashboardContent() {
   const recentProjects = filteredProjects.slice(0, 4);
   const filteredTemplates = PROJECT_TEMPLATES.filter((template) =>
     templateFilter === "All" ? true : template.category === templateFilter,
+  );
+
+  const createProjectFromTemplate = useCallback(
+    async (template: ProjectTemplate) => {
+      try {
+        setCreatingTemplateId(template.id);
+        setError("");
+        const savedProject = await upsertProject(template.buildProject(template.name));
+        await loadProjects();
+        router.push(`/editor/${savedProject.id}`);
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Failed to create a project from that template.",
+        );
+      } finally {
+        setCreatingTemplateId("");
+      }
+    },
+    [loadProjects, router],
   );
 
   return (
@@ -606,12 +698,14 @@ function DashboardContent() {
                   </p>
                   <div className="mt-5 grid gap-4 md:grid-cols-3 2xl:grid-cols-4">
                     <ActionCard
+                      tourId="ai-generate"
                       icon={WandSparkles}
                       title="Generate from prompt"
                       subtitle="Describe your event and let AI lay it out."
                       onClick={() => openProjectCreation("prompt")}
                     />
                     <ActionCard
+                      tourId="import-launch"
                       icon={UploadCloud}
                       title="Upload floor plan"
                       subtitle="XML, draw.io, HTML, PNG, or PDF."
@@ -660,7 +754,7 @@ function DashboardContent() {
                   )}
                 </section>
 
-                <section>
+                <section data-tour="templates-section">
                   <SectionHeader
                     title="Pick a venue to start"
                     subtitle="Production-ready templates you can edit in seconds."
@@ -676,7 +770,9 @@ function DashboardContent() {
                       <TemplateCard
                         key={template.id}
                         template={template}
-                        onUse={() => openProjectCreation("template")}
+                        onUse={() => void createProjectFromTemplate(template)}
+                        isCreating={creatingTemplateId === template.id}
+                        disabled={Boolean(creatingTemplateId)}
                       />
                     ))}
                   </div>
