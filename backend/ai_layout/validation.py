@@ -32,13 +32,19 @@ def validate_generated_project(project, intent):
     half_depth = room["depth"] / 2
     issues = []
     hard_failures = []
+    repaired_bounds = 0
 
     for item in project["items"]:
         radius = item_radius(item)
         x = float(item.get("x", 0))
         z = float(item.get("z", 0))
         if abs(x) + radius > half_width or abs(z) + radius > half_depth:
-            hard_failures.append(f"{item.get('label', item.get('type'))} is outside the room boundary.")
+            item["x"] = max(-half_width + radius, min(half_width - radius, x))
+            item["z"] = max(-half_depth + radius, min(half_depth - radius, z))
+            repaired_bounds += 1
+
+    if repaired_bounds:
+        issues.append(f"Adjusted {repaired_bounds} items to stay inside the room boundary.")
 
     major_items = [
         item

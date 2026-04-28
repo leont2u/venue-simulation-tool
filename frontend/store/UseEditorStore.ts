@@ -69,6 +69,7 @@ interface EditorState {
 
   addItem: (item: SceneItem) => void;
   addItemFromAsset: (assetId: string) => void;
+  replaceSelectedFromAsset: (assetId: string) => void;
   clearScene: () => void;
   updateItem: (id: string, patch: Partial<SceneItem>) => void;
   updateItems: (ids: string[], updater: (item: SceneItem) => SceneItem) => void;
@@ -90,6 +91,17 @@ interface EditorState {
 }
 
 function withSceneSettings(project: Project): Project {
+  const hasUsableArchitecture =
+    project.architecture &&
+    Array.isArray(project.architecture.doors) &&
+    Array.isArray(project.architecture.windows) &&
+    Array.isArray(project.architecture.columns) &&
+    Array.isArray(project.architecture.entrances) &&
+    Array.isArray(project.architecture.exits) &&
+    Array.isArray(project.architecture.stageAccessRoutes);
+  const venueEnvironment = project.sceneSettings?.venueEnvironment ?? "indoor";
+  const isOutdoor = venueEnvironment === "outdoor";
+
   return {
     ...project,
     connections: project.connections ?? [],
@@ -110,9 +122,9 @@ function withSceneSettings(project: Project): Project {
       wallThickness:
         project.room.wallThickness ?? project.sceneSettings?.wallThickness ?? 0.15,
     },
-    architecture: project.architecture ?? {
+    architecture: hasUsableArchitecture ? project.architecture : {
       shape: "rectangular",
-      doors: [
+      doors: isOutdoor ? [] : [
         {
           id: "door-main",
           wall: "south",
@@ -122,7 +134,7 @@ function withSceneSettings(project: Project): Project {
           label: "Main entrance",
         },
       ],
-      windows: [
+      windows: isOutdoor ? [] : [
         {
           id: "window-west-1",
           wall: "west",
@@ -142,7 +154,7 @@ function withSceneSettings(project: Project): Project {
       ],
       columns: [],
       entrances: [],
-      exits: [
+      exits: isOutdoor ? [] : [
         {
           id: "exit-north-east",
           wall: "north",
@@ -163,9 +175,9 @@ function withSceneSettings(project: Project): Project {
           ],
         },
       ],
-      hasCeiling: project.sceneSettings?.venueEnvironment !== "outdoor",
+      hasCeiling: !isOutdoor,
       ceilingHeight: project.room.height,
-      decorativeLighting: true,
+      decorativeLighting: !isOutdoor,
       stageBackdrop: "draping",
     },
     sceneSettings: {
@@ -378,6 +390,43 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     get().addItem(item);
   },
 
+  replaceSelectedFromAsset: (assetId) => {
+    const project = get().project;
+    const selectedIds = get().selectedIds;
+    const asset = get().assetCatalog.find((entry) => entry.id === assetId);
+    if (!project || !asset) return;
+
+    if (selectedIds.length === 0) {
+      get().addItemFromAsset(assetId);
+      return;
+    }
+
+    get().applyProjectMutation((currentProject) => ({
+      ...currentProject,
+      items: currentProject.items.map((item) =>
+        selectedIds.includes(item.id)
+          ? {
+              ...item,
+              type: asset.type,
+              scale: asset.defaultScale,
+              assetUrl: asset.modelUrl,
+              label: asset.name,
+              source: asset.source,
+              sourceId: asset.polyPizzaId,
+              sourceUrl: asset.polyPizzaUrl,
+              attribution: asset.attribution,
+              license: asset.license,
+              creator: asset.creator,
+              color: undefined,
+              material: undefined,
+            }
+          : item,
+      ),
+    }));
+
+    set({ selectedIds });
+  },
+
   addConnection: (fromItemId, toItemId, cableType = "video") => {
     if (fromItemId === toItemId) return;
 
@@ -524,6 +573,21 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   updateSceneSettings: (patch) => {
     get().applyProjectMutation((project) => ({
       ...project,
+      architecture: patch.venueEnvironment
+        ? {
+            ...(project.architecture ?? {
+              shape: "rectangular",
+              doors: [],
+              windows: [],
+              columns: [],
+              entrances: [],
+              exits: [],
+              stageAccessRoutes: [],
+            }),
+            hasCeiling: patch.venueEnvironment !== "outdoor",
+            decorativeLighting: patch.venueEnvironment !== "outdoor",
+          }
+        : project.architecture,
       sceneSettings: {
         ...DEFAULT_SCENE_SETTINGS,
         ...project.sceneSettings,

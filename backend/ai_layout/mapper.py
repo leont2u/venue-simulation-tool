@@ -108,16 +108,28 @@ def add_round_tables(items, intent, cabaret=False, standing=False):
         1,
         math.ceil(intent["capacity"] / max(1, seats_per_table or 10)),
     )
-    columns = max(2, math.ceil(table_count**0.5))
     has_aisle = intent["layout"]["seating"]["hasCentralAisle"]
-    if has_aisle and columns % 2 and table_count > 4:
-        columns += 1
     spacing_x = 4.2
     spacing_z = 4.2
+    seat_radius = 1.35
+    room_width = intent["room"]["width"]
+    room_depth = intent["room"]["depth"]
+    front_reserved = 6.0 if intent["layout"]["stage"]["enabled"] else 4.5
+    min_table_z = -room_depth / 2 + front_reserved + seat_radius
+    max_table_z = room_depth / 2 - seat_radius - 0.8
+    available_depth = max(spacing_z, max_table_z - min_table_z)
+    max_rows = max(1, math.floor(available_depth / spacing_z) + 1)
+    columns = max(2, math.ceil(table_count / max_rows))
+    columns = max(columns, math.ceil(table_count**0.5) - 1)
+    if has_aisle and columns % 2 and table_count > 4:
+        columns += 1
     aisle_width = 1.8 if has_aisle else 0
+    usable_width = max(spacing_x, room_width - (seat_radius * 2) - aisle_width - 1.2)
+    if columns > 1:
+        spacing_x = min(spacing_x, usable_width / (columns - 1))
     total_width = (columns - 1) * spacing_x + aisle_width
     start_x = -total_width / 2
-    start_z = -1 if intent["layout"]["stage"]["enabled"] else -intent["room"]["depth"] / 2 + 4.5
+    start_z = min_table_z
     front_focus_z = -intent["room"]["depth"] / 2
     half_columns = columns // 2
 
@@ -136,11 +148,10 @@ def add_round_tables(items, intent, cabaret=False, standing=False):
         if standing or seats_per_table <= 0:
             continue
 
-        radius = 1.35
         for seat in range(seats_per_table):
             angle = (math.pi * 2 * seat) / seats_per_table
-            chair_x = table_x + math.cos(angle) * radius
-            chair_z = table_z + math.sin(angle) * radius
+            chair_x = table_x + math.cos(angle) * seat_radius
+            chair_z = table_z + math.sin(angle) * seat_radius
             rotation_y = -angle + math.pi / 2
 
             if cabaret:
@@ -395,6 +406,10 @@ def prompt_scene_plan_to_project(intent):
 
     event_type = intent["eventType"]
     layout_style = intent["layoutStyle"].replace("_", " ")
+    indoor_outdoor = intent.get("promptUnderstanding", {}).get("indoorOutdoor", "inferred_indoor")
+    venue_environment = "outdoor" if indoor_outdoor in {"outdoor", "inferred_outdoor"} else "indoor"
+    lighting_mood = "daylight" if venue_environment == "outdoor" else ("wedding" if event_type == "wedding" else "presentation")
+
     return {
         "id": str(uuid4()),
         "name": f"{event_type[0].upper()}{event_type[1:]} {layout_style.title()} Layout",
@@ -406,4 +421,31 @@ def prompt_scene_plan_to_project(intent):
             "height": intent["room"]["height"],
         },
         "items": items,
+        "sceneSettings": {
+            "venueEnvironment": venue_environment,
+            "lightingMood": lighting_mood,
+            "floorMaterial": "Concrete" if venue_environment == "outdoor" else "Wood",
+            "floorColor": "#6f7e63" if venue_environment == "outdoor" else "#F4F1EA",
+            "wallColor": "#F6F2EC",
+            "wallThickness": 0.15,
+            "showGrid": True,
+            "enableHdri": True,
+            "ambientLightIntensity": 1.2 if venue_environment == "outdoor" else 1.1,
+            "directionalLightIntensity": 2.7 if venue_environment == "outdoor" else 2.1,
+            "snapToGrid": True,
+            "livestreamMode": intent.get("promptUnderstanding", {}).get("livestreamRequired", False),
+        },
+        "architecture": {
+            "shape": "rectangular",
+            "doors": [] if venue_environment == "outdoor" else [{"id": "door-main", "wall": "south", "offset": 0, "width": 2.4, "height": 2.3}],
+            "windows": [],
+            "columns": [],
+            "entrances": [],
+            "exits": [],
+            "stageAccessRoutes": [],
+            "hasCeiling": venue_environment != "outdoor",
+            "ceilingHeight": intent["room"]["height"],
+            "decorativeLighting": venue_environment != "outdoor",
+            "stageBackdrop": "draping",
+        },
     }

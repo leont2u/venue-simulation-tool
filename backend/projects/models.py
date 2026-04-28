@@ -39,3 +39,28 @@ class SharedProject(models.Model):
 
     def __str__(self):
         return f"Share {self.project_id}"
+
+
+class SharedProjectComment(models.Model):
+    shared_project = models.ForeignKey(
+        SharedProject,
+        on_delete=models.CASCADE,
+        related_name="comments",
+    )
+    parent = models.ForeignKey(
+        "self",
+        on_delete=models.CASCADE,
+        related_name="replies",
+        null=True,
+        blank=True,
+    )
+    author_name = models.CharField(max_length=120)
+    body = models.TextField()
+    is_admin_reply = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"Comment on {self.shared_project_id} by {self.author_name}"

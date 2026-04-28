@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Project } from "@/types/types";
 import { exportProjectAsPdf, exportProjectAsPng } from "@/lib/floorplanExport";
+import { exportProjectAsGlb } from "@/lib/project3dExport";
 import { createShareToken } from "@/lib/shareProject";
 
 export function ShareExportModal({
@@ -80,6 +81,23 @@ export function ShareExportModal({
     }
   };
 
+  const handleExportGlb = async () => {
+    if (!project) return;
+
+    try {
+      await exportProjectAsGlb(project);
+      setError("");
+      setStatus("3D export started.");
+    } catch (exportError) {
+      setStatus("");
+      setError(
+        exportError instanceof Error
+          ? exportError.message
+          : "Failed to export 3D file.",
+      );
+    }
+  };
+
   if (!open) return null;
 
   return (
@@ -125,9 +143,15 @@ export function ShareExportModal({
           <div className="rounded-2xl border border-black/10 bg-[#F7F8F5] p-4">
             <div className="text-lg font-semibold text-[#2F3E46]">Export</div>
             <div className="mt-2 text-sm text-[#52796F]">
-              Export a simple 2D floorplan for clients and print-ready review.
+              Export a 3D GLB model or a simple 2D floorplan for client review.
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                onClick={handleExportGlb}
+                className="rounded-xl border border-black/10 bg-white px-4 py-2 text-sm text-[#354F52]"
+              >
+                Export 3D
+              </button>
               <button
                 onClick={handleExportPng}
                 className="rounded-xl border border-black/10 bg-white px-4 py-2 text-sm text-[#354F52]"
@@ -162,7 +186,7 @@ export function ShareExportModal({
           </div>
           <div className="mt-2 text-sm text-[#52796F]">
             Shared layouts open in a browser-based 3D viewer without edit tools.
-            Comment threads are not included in this first version.
+            Comment threads are available on the shared viewer link.
           </div>
         </div>
       </div>

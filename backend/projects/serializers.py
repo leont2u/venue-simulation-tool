@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Project
+from .models import Project, SharedProjectComment
 
 
 class ProjectSerializer(serializers.ModelSerializer):
@@ -10,6 +10,7 @@ class ProjectSerializer(serializers.ModelSerializer):
     measurements = serializers.JSONField(required=False)
     connections = serializers.JSONField(required=False)
     sceneSettings = serializers.JSONField(source="scene_settings", required=False)
+    architecture = serializers.JSONField(required=False, write_only=True)
 
     class Meta:
         model = Project
@@ -23,6 +24,7 @@ class ProjectSerializer(serializers.ModelSerializer):
             "connections",
             "measurements",
             "sceneSettings",
+            "architecture",
         ]
 
     def create(self, validated_data):
@@ -30,9 +32,11 @@ class ProjectSerializer(serializers.ModelSerializer):
         validated_data.setdefault("measurements", [])
         validated_data.setdefault("connections", [])
         validated_data.setdefault("scene_settings", {})
+        validated_data.pop("architecture", None)
         return Project.objects.create(owner=request.user, **validated_data)
 
     def update(self, instance, validated_data):
+        validated_data.pop("architecture", None)
         for field in [
             "name",
             "room",
@@ -48,3 +52,22 @@ class ProjectSerializer(serializers.ModelSerializer):
 
         instance.save()
         return instance
+
+
+class SharedProjectReplySerializer(serializers.ModelSerializer):
+    createdAt = serializers.DateTimeField(source="created_at", read_only=True)
+    isAdminReply = serializers.BooleanField(source="is_admin_reply", read_only=True)
+
+    class Meta:
+        model = SharedProjectComment
+        fields = ["id", "author_name", "body", "isAdminReply", "createdAt"]
+
+
+class SharedProjectCommentSerializer(serializers.ModelSerializer):
+    createdAt = serializers.DateTimeField(source="created_at", read_only=True)
+    isAdminReply = serializers.BooleanField(source="is_admin_reply", read_only=True)
+    replies = SharedProjectReplySerializer(many=True, read_only=True)
+
+    class Meta:
+        model = SharedProjectComment
+        fields = ["id", "author_name", "body", "isAdminReply", "createdAt", "replies"]

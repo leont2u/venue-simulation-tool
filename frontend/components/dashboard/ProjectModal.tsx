@@ -5,6 +5,7 @@ import { createProjectFromDrawioFile } from "@/lib/drawioImport";
 import { queueEditorTour } from "@/lib/onboardingTour";
 import { PROJECT_TEMPLATES } from "@/lib/projectTemplates";
 import { generateProjectFromPrompt } from "@/lib/promptLayout";
+import { buildClarifiedPrompt, getPromptClarifications } from "@/lib/promptClarification";
 import { upsertProject } from "@/lib/storage";
 import { Project } from "@/types/types";
 import { X } from "lucide-react";
@@ -35,12 +36,15 @@ export default function ProjectModal({
   const [step, setStep] = useState<ProjectPipeline>(initialStep);
   const [name, setName] = useState("");
   const [prompt, setPrompt] = useState("");
+  const [clarityAnswers, setClarityAnswers] = useState<Record<string, string>>({});
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const clarityQuestions = getPromptClarifications(prompt);
+  const clarifiedPrompt = buildClarifiedPrompt(prompt, clarityAnswers);
 
   useEffect(() => {
     if (open) {
@@ -54,6 +58,7 @@ export default function ProjectModal({
     setStep(initialStep);
     setName("");
     setPrompt("");
+    setClarityAnswers({});
     setSelectedTemplateId("");
     setFile(null);
     setError("");
@@ -167,7 +172,7 @@ export default function ProjectModal({
       setLoading(true);
       setError("");
 
-      const project = await generateProjectFromPrompt(prompt);
+      const project = await generateProjectFromPrompt(clarifiedPrompt);
       const finalProject = {
         ...project,
         name: name.trim() || project.name || "Prompt Generated Project",
@@ -426,10 +431,49 @@ export default function ProjectModal({
 
             <textarea
               value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
+              onChange={(e) => {
+                setPrompt(e.target.value);
+                setClarityAnswers({});
+              }}
               placeholder="Create a church event layout with 120 chairs..."
               className="mt-4 min-h-30 w-full rounded-[8px] border border-[var(--sf-border-strong)] bg-white px-4 py-3 text-[13px] text-[var(--sf-text)] placeholder:text-[var(--sf-text-faint)]"
             />
+
+            {prompt.trim() && clarityQuestions.length ? (
+              <div className="mt-4 space-y-3 rounded-[8px] border border-[var(--sf-border)] bg-[#f7faf8] p-3">
+                {clarityQuestions.map((question) => (
+                  <div key={question.id}>
+                    <div className="text-[12px] font-semibold text-[#53645f]">
+                      {question.question}
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {question.options.map((option) => {
+                        const selected = clarityAnswers[question.id] === option;
+                        return (
+                          <button
+                            key={option}
+                            type="button"
+                            onClick={() =>
+                              setClarityAnswers((current) => ({
+                                ...current,
+                                [question.id]: option,
+                              }))
+                            }
+                            className={`rounded-[7px] border px-3 py-1.5 text-[12px] font-semibold transition ${
+                              selected
+                                ? "border-[#5d7f73] bg-[#5d7f73] text-white"
+                                : "border-[#d9e3df] bg-white text-[#64746f] hover:border-[#9bb2aa]"
+                            }`}
+                          >
+                            {option}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
 
             <div className="mt-5 flex justify-end">
               <button

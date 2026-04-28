@@ -43,6 +43,8 @@ function CatalogIcon({ type }: { type: string }) {
 
 export function AssetCatalog() {
   const addItemFromAsset = useEditorStore((s) => s.addItemFromAsset);
+  const replaceSelectedFromAsset = useEditorStore((s) => s.replaceSelectedFromAsset);
+  const selectedIds = useEditorStore((s) => s.selectedIds);
   const assetLibraryTab = useEditorStore((s) => s.assetLibraryTab);
   const setAssetLibraryTab = useEditorStore((s) => s.setAssetLibraryTab);
   const assetSearch = useEditorStore((s) => s.assetSearch);
@@ -302,9 +304,13 @@ export function AssetCatalog() {
                     onDragStart={(event) =>
                       event.dataTransfer.setData("text/asset-id", asset.id)
                     }
-                    onClick={() => addItemFromAsset(asset.id)}
+                    onClick={() => replaceSelectedFromAsset(asset.id)}
                     className="group relative aspect-[1/1] overflow-hidden rounded-[10px] border border-[#edf0ee] bg-[#fbfcfb] text-left transition hover:ring-2 hover:ring-[#d9e3de]"
-                    title={asset.attribution || asset.name}
+                    title={
+                      selectedIds.length > 0
+                        ? `Replace selected with ${asset.name}`
+                        : asset.attribution || asset.name
+                    }
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img

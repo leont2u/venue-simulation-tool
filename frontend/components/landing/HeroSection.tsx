@@ -17,6 +17,7 @@ import {
 } from "@/lib/onboarding";
 import { queueEditorTour } from "@/lib/onboardingTour";
 import { savePendingVenueInput } from "@/lib/pendingVenueInput";
+import { buildClarifiedPrompt, getPromptClarifications } from "@/lib/promptClarification";
 import { useRouter } from "next/navigation";
 
 function formatFileKind(file: File | null) {
@@ -35,15 +36,18 @@ export function Hero() {
     "Wedding for 200 guests with stage and livestream setup",
   );
   const [file, setFile] = useState<File | null>(null);
+  const [clarityAnswers, setClarityAnswers] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const hasInput = Boolean(prompt.trim() || file);
+  const clarityQuestions = getPromptClarifications(prompt);
+  const clarifiedPrompt = buildClarifiedPrompt(prompt, clarityAnswers);
 
   const createAndOpenProject = async () => {
     setLoading(true);
     setError("");
-    const project = await createProjectFromVenueInput({ prompt, file });
+    const project = await createProjectFromVenueInput({ prompt: clarifiedPrompt, file });
     if (user?.email && !hasCompletedOnboarding(user.email)) {
       markOnboardingComplete(user.email);
       queueEditorTour();
@@ -58,7 +62,7 @@ export function Hero() {
     }
 
     if (!isAuthenticated) {
-      await savePendingVenueInput(prompt.trim(), file);
+      await savePendingVenueInput(clarifiedPrompt, file);
       router.push(
         `/register?next=${encodeURIComponent("/dashboard?resumePrompt=1")}`,
       );
@@ -113,7 +117,10 @@ export function Hero() {
 
           <textarea
             value={prompt}
-            onChange={(event) => setPrompt(event.target.value)}
+            onChange={(event) => {
+              setPrompt(event.target.value);
+              setClarityAnswers({});
+            }}
             onKeyDown={(event) => {
               if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
                 void runVenueFlow();
@@ -122,6 +129,42 @@ export function Hero() {
             placeholder="Wedding for 200 guests with stage and livestream setup"
             className="min-h-[118px] w-full resize-none rounded-[10px] border-0 bg-white px-2 py-2 text-[16px] leading-7 text-[#161d1b] placeholder:text-[#96a39f]"
           />
+
+          {prompt.trim() && clarityQuestions.length ? (
+            <div className="mx-1 mb-3 space-y-3 rounded-[10px] border border-[#e5ece8] bg-[#f7faf8] p-3">
+              {clarityQuestions.map((question) => (
+                <div key={question.id}>
+                  <div className="text-[12px] font-semibold text-[#53645f]">
+                    {question.question}
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {question.options.map((option) => {
+                      const selected = clarityAnswers[question.id] === option;
+                      return (
+                        <button
+                          key={option}
+                          type="button"
+                          onClick={() =>
+                            setClarityAnswers((current) => ({
+                              ...current,
+                              [question.id]: option,
+                            }))
+                          }
+                          className={`rounded-[8px] border px-3 py-1.5 text-[12px] font-semibold transition ${
+                            selected
+                              ? "border-[#5d7f73] bg-[#5d7f73] text-white"
+                              : "border-[#d9e3df] bg-white text-[#64746f] hover:border-[#9bb2aa]"
+                          }`}
+                        >
+                          {option}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : null}
 
           {file ? (
             <div className="mx-1 mb-3 flex items-center justify-between rounded-[8px] border border-[#dfe8e4] bg-[#f7faf9] px-3 py-2 text-[13px] text-[#536c64]">
