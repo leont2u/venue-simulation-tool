@@ -27,6 +27,8 @@ type Props = {
     stopPropagation: () => void;
     target: EventTarget;
     pointerId: number;
+    clientX: number;
+    clientY: number;
   }) => void;
   onPointerEnter?: () => void;
   onPointerLeave?: () => void;
@@ -133,6 +135,49 @@ function LocalSelectionRing({ color = "#49d24d" }: { color?: string }) {
   );
 }
 
+function HitBox({
+  size,
+  onPointerDown,
+}: {
+  size: [number, number, number];
+  onPointerDown?: Props["onPointerDown"];
+}) {
+  const hitMaterial = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+      }),
+    [],
+  );
+
+  return (
+    <mesh
+      position={[0, size[1] / 2, 0]}
+      material={hitMaterial}
+      onPointerDown={(event) => {
+        event.stopPropagation();
+        onPointerDown?.({
+          shiftKey: event.shiftKey,
+          ctrlKey: event.ctrlKey,
+          metaKey: event.metaKey,
+          altKey: event.altKey,
+          ray: event.ray.clone(),
+          point: event.point.clone(),
+          stopPropagation: event.stopPropagation,
+          target: (event.target ?? event.currentTarget) as EventTarget,
+          pointerId: event.pointerId,
+          clientX: event.nativeEvent.clientX,
+          clientY: event.nativeEvent.clientY,
+        });
+      }}
+    >
+      <boxGeometry args={size} />
+    </mesh>
+  );
+}
+
 function applySceneMaterial(
   root: THREE.Object3D,
   color?: string,
@@ -216,6 +261,8 @@ function GltfAsset({
           stopPropagation: event.stopPropagation,
           target: (event.target ?? event.currentTarget) as EventTarget,
           pointerId: event.pointerId,
+          clientX: event.nativeEvent.clientX,
+          clientY: event.nativeEvent.clientY,
         });
       }}
       onPointerEnter={(event) => {
@@ -227,6 +274,14 @@ function GltfAsset({
         onPointerLeave?.();
       }}
     >
+      <HitBox
+        size={[
+          Math.max(0.9, scale[0] * 1.35),
+          Math.max(0.9, scale[1] * 1.35),
+          Math.max(0.9, scale[2] * 1.35),
+        ]}
+        onPointerDown={onPointerDown}
+      />
       <primitive
         object={normalizedScene}
         position={position}
@@ -321,6 +376,8 @@ function PrimitiveShape({
           stopPropagation: event.stopPropagation,
           target: (event.target ?? event.currentTarget) as EventTarget,
           pointerId: event.pointerId,
+          clientX: event.nativeEvent.clientX,
+          clientY: event.nativeEvent.clientY,
         });
       }}
       onPointerEnter={(event) => {
@@ -332,6 +389,14 @@ function PrimitiveShape({
         onPointerLeave?.();
       }}
     >
+      <HitBox
+        size={[
+          Math.max(0.9, scale[0] * 1.25),
+          Math.max(0.9, scale[1] * 1.25),
+          Math.max(0.9, scale[2] * 1.25),
+        ]}
+        onPointerDown={onPointerDown}
+      />
       <mesh
         position={[0, yOffset, 0]}
         scale={scale}
@@ -591,6 +656,8 @@ function GeneratedVenueAsset({
           stopPropagation: event.stopPropagation,
           target: (event.target ?? event.currentTarget) as EventTarget,
           pointerId: event.pointerId,
+          clientX: event.nativeEvent.clientX,
+          clientY: event.nativeEvent.clientY,
         });
       }}
       onPointerEnter={(event) => {
@@ -602,6 +669,7 @@ function GeneratedVenueAsset({
         onPointerLeave?.();
       }}
     >
+      <HitBox size={[1.35, 1.35, 1.35]} onPointerDown={onPointerDown} />
       {child}
       {selected ? (
         <LocalSelectionRing color="#4D96FF" />

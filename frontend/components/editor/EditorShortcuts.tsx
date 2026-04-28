@@ -31,8 +31,12 @@ export function EditorShortcuts() {
     const onKeyDown = (e: KeyboardEvent) => {
       if (isTypingTarget(e.target)) return;
       if (!project) return;
+      const isMac =
+        typeof navigator !== "undefined" &&
+        /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+      const primaryModifier = isMac ? e.metaKey : e.metaKey || e.ctrlKey;
 
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
+      if (primaryModifier && e.key.toLowerCase() === "z") {
         e.preventDefault();
         if (e.shiftKey) {
           redo();
@@ -42,17 +46,19 @@ export function EditorShortcuts() {
         return;
       }
 
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "d") {
+      if (primaryModifier && e.key.toLowerCase() === "d") {
         e.preventDefault();
         duplicateSelected();
         return;
       }
 
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "a") {
+      if (primaryModifier && e.key.toLowerCase() === "a") {
         e.preventDefault();
         setSelectedIds(project.items.map((item) => item.id));
         return;
       }
+
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
 
       if (e.key === "Escape") {
         e.preventDefault();

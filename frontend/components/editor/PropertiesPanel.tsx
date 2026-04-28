@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
-import { Box } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Box, Wand2 } from "lucide-react";
 import { clampToRoom } from "@/lib/editorPhysics";
+import { generateProjectFromPrompt } from "@/lib/promptLayout";
 import { getCableColor } from "@/lib/sceneConnections";
+import { upsertProject } from "@/lib/storage";
 import { useEditorStore } from "@/store/UseEditorStore";
 import { FloorplanCanvas } from "./FloorplanCanvas";
 import { SceneCanvas } from "../scene/SceneCanvas";
@@ -62,9 +64,13 @@ export function PropertiesPanel() {
   const updateItem = useEditorStore((s) => s.updateItem);
   const updateSceneSettings = useEditorStore((s) => s.updateSceneSettings);
   const applyProjectMutation = useEditorStore((s) => s.applyProjectMutation);
+  const setProject = useEditorStore((s) => s.setProject);
   const activeView = useEditorStore((s) => s.activeView);
   const setActiveView = useEditorStore((s) => s.setActiveView);
   const assetCatalog = useEditorStore((s) => s.assetCatalog);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
 
   const item = useMemo(() => {
     if (!project || selectedIds.length !== 1) return null;
@@ -115,6 +121,42 @@ export function PropertiesPanel() {
       ) as [number, number, number],
     });
   };
+  const refineWithAi = async () => {
+    if (!project || !aiPrompt.trim()) {
+      setAiError("Enter what you want the AI to change.");
+      return;
+    }
+
+    setAiLoading(true);
+    setAiError("");
+
+    try {
+      const refined = await generateProjectFromPrompt(
+        [
+          `Existing project: ${project.name}.`,
+          `Current room is ${project.room.width}m wide, ${project.room.depth}m deep, ${project.room.height}m high.`,
+          `Current venue type is ${project.sceneSettings?.venueEnvironment ?? "indoor"}.`,
+          `Current scene has ${project.items.length} objects.`,
+          `Revise the layout with this instruction: ${aiPrompt.trim()}`,
+        ].join(" "),
+      );
+      const nextProject = {
+        ...refined,
+        id: project.id,
+        name: project.name,
+        createdAt: project.createdAt,
+        updatedAt: new Date().toISOString(),
+      };
+
+      setProject(nextProject);
+      await upsertProject(nextProject);
+      setAiPrompt("");
+    } catch (error) {
+      setAiError(error instanceof Error ? error.message : "AI refinement failed.");
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   return (
     <aside
@@ -150,6 +192,33 @@ export function PropertiesPanel() {
 
         {!item ? (
           <div>
+            <section className="space-y-3 border-b border-[#eef1ee] px-4 py-4">
+              <div className="flex items-center gap-2">
+                <Wand2 className="h-4 w-4 text-[#5d7f73]" />
+                <SectionTitle>AI Edit</SectionTitle>
+              </div>
+              <textarea
+                value={aiPrompt}
+                onChange={(event) => setAiPrompt(event.target.value)}
+                placeholder="Make this an outdoor wedding for 400 guests with banquet tables and livestream cameras"
+                className="min-h-24 w-full resize-none rounded-[10px] border border-[#e1e7e4] bg-white px-3 py-2 text-[13px] leading-5 text-[#28312d] outline-none placeholder:text-[#9aa7a2]"
+              />
+              {aiError ? (
+                <div className="rounded-[8px] border border-[#f0d6d6] bg-[#fff7f7] px-3 py-2 text-[12px] text-[#9b2f2f]">
+                  {aiError}
+                </div>
+              ) : null}
+              <button
+                type="button"
+                onClick={refineWithAi}
+                disabled={aiLoading}
+                className="flex h-10 w-full items-center justify-center gap-2 rounded-[8px] bg-[#5d7f73] px-3 text-[13px] font-bold text-white transition hover:bg-[#4f7166] disabled:opacity-60"
+              >
+                <Wand2 className="h-4 w-4" />
+                {aiLoading ? "Updating scene..." : "Update scene with AI"}
+              </button>
+            </section>
+
             <section className="space-y-3 border-b border-[#eef1ee] px-4 py-4">
               <SectionTitle>Basic</SectionTitle>
               <NumberField

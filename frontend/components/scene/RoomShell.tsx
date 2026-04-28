@@ -315,7 +315,7 @@ function Routes({ routes, material }: { routes: VenueArchitecture["stageAccessRo
 }
 
 function CeilingDetails({ width, depth, height, architecture }: { width: number; depth: number; height: number; architecture: VenueArchitecture }) {
-  if (!architecture.ceilingDraping && !architecture.decorativeLighting) return null;
+  if (!architecture.hasCeiling || (!architecture.ceilingDraping && !architecture.decorativeLighting)) return null;
   return (
     <group>
       {architecture.ceilingDraping
@@ -457,7 +457,7 @@ export function RoomShell({
         </mesh>
       ) : null}
 
-      <CeilingDetails width={width} depth={depth} height={height} architecture={resolvedArchitecture} />
+      {!isOutdoor ? <CeilingDetails width={width} depth={depth} height={height} architecture={resolvedArchitecture} /> : null}
       <StageBackdrop width={width} depth={depth} height={height} architecture={resolvedArchitecture} />
     </group>
   );

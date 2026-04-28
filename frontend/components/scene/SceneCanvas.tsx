@@ -37,15 +37,20 @@ type MarqueeState = {
   currentX: number;
   currentY: number;
   mode: "select" | "deselect";
+  active: boolean;
 };
 
 type DragState = {
   itemId: string;
   selectedIds: string[];
   startPoint: THREE.Vector3;
+  startClientX: number;
+  startClientY: number;
+  longPressTimer: number | null;
   originalItems: Map<string, { x: number; y: number; z: number }>;
   beforeProject: Project;
   didMove: boolean;
+  armed: boolean;
   pointerId: number;
   raf: number | null;
   latestDelta: THREE.Vector3;
@@ -56,8 +61,9 @@ type CanvasPointerEvent = React.PointerEvent<HTMLDivElement> & {
   ray?: THREE.Ray;
 };
 
-const DRAG_THRESHOLD = 0.04;
-const POINTER_SELECT_THRESHOLD = 4;
+const DRAG_INTENT_PX = 3;
+const LONG_PRESS_MS = 160;
+const MARQUEE_INTENT_PX = 8;
 const GROUND_PLANE = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
 function rectFromPoints(a: { x: number; y: number }, b: { x: number; y: number }) {
@@ -106,9 +112,36 @@ function itemFullyInsideRect(
     { x: item.x + footprint.halfWidth, y: item.y, z: item.z + footprint.halfDepth },
   ];
 
-  return corners.every((corner) =>
+  const center = pointInsideRect(projectItemToScreen(item, camera, bounds), rect);
+  const fullyInside = corners.every((corner) =>
     pointInsideRect(projectItemToScreen(corner, camera, bounds), rect),
   );
+
+  return center || fullyInside;
+}
+
+function clampGroupDeltaToRoom(
+  selectedItems: Project["items"],
+  room: Project["room"],
+  delta: THREE.Vector3,
+) {
+  let nextX = delta.x;
+  let nextZ = delta.z;
+
+  for (const item of selectedItems) {
+    const footprint = getItemFootprint(item);
+    const minX = -room.width / 2 + footprint.halfWidth;
+    const maxX = room.width / 2 - footprint.halfWidth;
+    const minZ = -room.depth / 2 + footprint.halfDepth;
+    const maxZ = room.depth / 2 - footprint.halfDepth;
+
+    nextX = Math.max(nextX, minX - item.x);
+    nextX = Math.min(nextX, maxX - item.x);
+    nextZ = Math.max(nextZ, minZ - item.z);
+    nextZ = Math.min(nextZ, maxZ - item.z);
+  }
+
+  return new THREE.Vector3(nextX, 0, nextZ);
 }
 
 function ViewportBridge({
@@ -293,9 +326,8 @@ function TransformGizmo({
 
   if (
     !primaryItem ||
-    toolMode === "select" ||
     toolMode === "connect" ||
-    (selectedItems.length > 1 && toolMode !== "move")
+    (selectedItems.length > 1 && toolMode !== "move" && toolMode !== "select")
   ) {
     onGuidesChange([]);
     return null;
@@ -304,7 +336,7 @@ function TransformGizmo({
   return (
     <TransformControls
       ref={transformRef as never}
-      mode={toolMode === "move" ? "translate" : toolMode}
+      mode={toolMode === "move" || toolMode === "select" ? "translate" : toolMode}
       translationSnap={snapToGrid ? 0.25 : undefined}
       rotationSnap={snapToGrid ? Math.PI / 12 : undefined}
       scaleSnap={snapToGrid ? 0.1 : undefined}
@@ -442,10 +474,19 @@ function SceneControls({
         makeDefault
         enabled={enabled}
         enablePan
+        screenSpacePanning
+        rotateSpeed={0.55}
+        zoomSpeed={0.72}
+        panSpeed={0.82}
         minDistance={6}
         maxDistance={80}
         enableDamping
         dampingFactor={0.08}
+        mouseButtons={{
+          LEFT: THREE.MOUSE.ROTATE,
+          MIDDLE: THREE.MOUSE.DOLLY,
+          RIGHT: THREE.MOUSE.PAN,
+        }}
         target={[0, 0, 0]}
         camera={camera}
       />
@@ -592,7 +633,8 @@ function VenueLighting({
   const wedding = mood === "wedding";
   const concert = mood === "concert";
   const chapel = mood === "chapel";
-  const daylight = mood === "daylight";
+  const isOutdoor = settings?.venueEnvironment === "outdoor";
+  const daylight = mood === "daylight" || isOutdoor;
 
   const ceilingRows = useMemo(() => {
     const columns = Math.max(3, Math.min(6, Math.floor(room.width / 6)));
@@ -620,7 +662,7 @@ function VenueLighting({
         shadow-camera-top={room.depth / 1.5}
         shadow-camera-bottom={-room.depth / 1.5}
       />
-      {ceilingRows.map((x, index) => (
+      {!isOutdoor ? ceilingRows.map((x, index) => (
         <pointLight
           key={x}
           position={[x, room.height - 0.45, index % 2 === 0 ? -room.depth * 0.18 : room.depth * 0.18]}
@@ -631,8 +673,8 @@ function VenueLighting({
           shadow-mapSize-width={512}
           shadow-mapSize-height={512}
         />
-      ))}
-      {[-1, 1].map((side) => (
+      )) : null}
+      {!isOutdoor ? [-1, 1].map((side) => (
         <spotLight
           key={side}
           position={[side * room.width * 0.26, room.height - 0.2, -room.depth * 0.22]}
@@ -644,7 +686,7 @@ function VenueLighting({
           shadow-mapSize-width={1024}
           shadow-mapSize-height={1024}
         />
-      ))}
+      )) : null}
       {wedding
         ? [-0.42, -0.14, 0.14, 0.42].map((factor) => (
             <pointLight
@@ -725,12 +767,14 @@ export function SceneCanvas({
   const canvasElementRef = useRef<HTMLCanvasElement | null>(null);
   const dragStateRef = useRef<DragState | null>(null);
   const marqueeStateRef = useRef<MarqueeState | null>(null);
+  const selectionRectRef = useRef<SelectionRect | null>(null);
   const pointerDownRef = useRef<{ x: number; y: number } | null>(null);
 
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [guides, setGuides] = useState<AlignmentGuide[]>([]);
   const [selectionRect, setSelectionRect] = useState<SelectionRect | null>(null);
   const [sceneReady, setSceneReady] = useState(false);
+  const [isObjectDragging, setIsObjectDragging] = useState(false);
   const project = projectOverride ?? storedProject;
 
   useEffect(() => {
@@ -739,7 +783,7 @@ export function SceneCanvas({
 
   useEffect(() => {
     if (readOnly) return;
-    if (dragStateRef.current) {
+    if (isObjectDragging) {
       document.body.style.cursor = "grabbing";
     } else if (hoveredId) {
       document.body.style.cursor = toolMode === "select" ? "grab" : "pointer";
@@ -751,7 +795,7 @@ export function SceneCanvas({
     return () => {
       document.body.style.cursor = "default";
     };
-  }, [hoveredId, readOnly, toolMode]);
+  }, [hoveredId, isObjectDragging, readOnly, toolMode]);
 
   if (!project) return null;
 
@@ -790,6 +834,8 @@ export function SceneCanvas({
       altKey: boolean;
       ray: THREE.Ray;
       pointerId: number;
+      clientX: number;
+      clientY: number;
       target: EventTarget;
     },
   ) => {
@@ -832,31 +878,49 @@ export function SceneCanvas({
     const target = event.target as HTMLElement;
     target.setPointerCapture?.(event.pointerId);
     if (orbitRef.current) orbitRef.current.enabled = false;
+    setIsObjectDragging(true);
     dragStateRef.current = {
       itemId,
       selectedIds: nextSelectedIds,
       startPoint,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      longPressTimer: window.setTimeout(() => {
+        const activeState = dragStateRef.current;
+        if (!activeState || activeState.pointerId !== event.pointerId) return;
+        activeState.armed = true;
+        setIsObjectDragging(true);
+      }, LONG_PRESS_MS),
       originalItems,
       beforeProject: project,
       didMove: false,
+      armed: false,
       pointerId: event.pointerId,
       raf: null,
       latestDelta: new THREE.Vector3(),
     };
   };
 
-  const updateDrag = (ray: THREE.Ray) => {
+  const updateDrag = (ray: THREE.Ray, pointer: { clientX: number; clientY: number }) => {
     const state = dragStateRef.current;
     if (!state || !project) return;
+
+    const intentDistance = Math.hypot(
+      pointer.clientX - state.startClientX,
+      pointer.clientY - state.startClientY,
+    );
+    if (intentDistance < DRAG_INTENT_PX && !state.didMove && !state.armed) return;
+    state.armed = true;
+    if (state.longPressTimer !== null) {
+      window.clearTimeout(state.longPressTimer);
+      state.longPressTimer = null;
+    }
 
     const point = intersectGround(ray);
     if (!point) return;
 
-    const delta = point.clone().sub(state.startPoint);
-    if (delta.length() < DRAG_THRESHOLD && !state.didMove) return;
-
     state.didMove = true;
-    state.latestDelta.copy(delta);
+    state.latestDelta.copy(point.clone().sub(state.startPoint));
     if (state.raf !== null) return;
 
     state.raf = window.requestAnimationFrame(() => {
@@ -866,43 +930,53 @@ export function SceneCanvas({
 
       let guidesForDrag: AlignmentGuide[] = [];
       const selectedSet = new Set(activeState.selectedIds);
+      const selectedItems = project.items.filter((item) => selectedSet.has(item.id));
       const others = project.items.filter((item) => !selectedSet.has(item.id));
-      const snapToGrid = project.sceneSettings?.snapToGrid ?? true;
+      const constrainedDelta = clampGroupDeltaToRoom(
+        selectedItems,
+        project.room,
+        activeState.latestDelta,
+      );
+      const candidates = new Map<string, Project["items"][number]>();
+      let finalDelta = constrainedDelta.clone();
+      const anchorItem = project.items.find((item) => item.id === activeState.itemId);
+      const anchorOriginal = activeState.originalItems.get(activeState.itemId);
 
-      updateItemsTransient(activeState.selectedIds, (item) => {
-        const original = activeState.originalItems.get(item.id);
-        if (!original) return item;
-
-        const rawCandidate = {
-          ...item,
-          x: original.x + activeState.latestDelta.x,
-          z: original.z + activeState.latestDelta.z,
+      if (anchorItem && anchorOriginal) {
+        const rawAnchor = {
+          ...anchorItem,
+          x: anchorOriginal.x + constrainedDelta.x,
+          z: anchorOriginal.z + constrainedDelta.z,
         };
-
-        const snapped =
-          item.id === activeState.itemId
-            ? snapPositionToNeighbors(rawCandidate, others)
-            : { x: rawCandidate.x, z: rawCandidate.z, guides: [] };
-        if (item.id === activeState.itemId) guidesForDrag = snapped.guides;
-
-        const clamped = clampToRoom(
-          {
-            ...rawCandidate,
-            x: snapped.x,
-            z: snapped.z,
-          },
-          project.room,
+        const snapped = snapPositionToNeighbors(rawAnchor, others);
+        guidesForDrag = snapped.guides;
+        finalDelta = new THREE.Vector3(
+          constrainedDelta.x + (snapped.x - rawAnchor.x),
+          0,
+          constrainedDelta.z + (snapped.z - rawAnchor.z),
         );
+        finalDelta = clampGroupDeltaToRoom(selectedItems, project.room, finalDelta);
+      }
 
-        const candidate = {
-          ...rawCandidate,
-          x: snapToGrid ? Math.round(clamped.x * 4) / 4 : clamped.x,
-          z: snapToGrid ? Math.round(clamped.z * 4) / 4 : clamped.z,
-        };
+      for (const item of selectedItems) {
+        const original = activeState.originalItems.get(item.id);
+        if (!original) continue;
 
-        if (collidesWithOthers(candidate, others)) return item;
-        return candidate;
+        candidates.set(item.id, {
+          ...item,
+          x: original.x + finalDelta.x,
+          z: original.z + finalDelta.z,
+        });
+      }
+
+      const groupBlocked = selectedItems.some((item) => {
+        const candidate = candidates.get(item.id);
+        return candidate ? collidesWithOthers(candidate, others) : false;
       });
+
+      updateItemsTransient(activeState.selectedIds, (item) =>
+        groupBlocked ? item : candidates.get(item.id) ?? item,
+      );
 
       setGuides(guidesForDrag);
     });
@@ -914,12 +988,16 @@ export function SceneCanvas({
     if (state.raf !== null) {
       window.cancelAnimationFrame(state.raf);
     }
+    if (state.longPressTimer !== null) {
+      window.clearTimeout(state.longPressTimer);
+    }
     if (state.didMove) {
       commitProjectSnapshot(state.beforeProject);
     }
     dragStateRef.current = null;
     setGuides([]);
     if (orbitRef.current) orbitRef.current.enabled = true;
+    setIsObjectDragging(false);
   };
 
   const selectByRect = (rect: SelectionRect) => {
@@ -938,12 +1016,14 @@ export function SceneCanvas({
 
   const beginMarquee = (event: { clientX: number; clientY: number; altKey: boolean; shiftKey: boolean }) => {
     const mode = event.altKey && event.shiftKey ? "deselect" : "select";
+    if (orbitRef.current) orbitRef.current.enabled = false;
     marqueeStateRef.current = {
       startX: event.clientX,
       startY: event.clientY,
       currentX: event.clientX,
       currentY: event.clientY,
       mode,
+      active: false,
     };
     pointerDownRef.current = { x: event.clientX, y: event.clientY };
   };
@@ -957,23 +1037,35 @@ export function SceneCanvas({
       { x: state.startX, y: state.startY },
       { x: state.currentX, y: state.currentY },
     );
-    if (rect.width > POINTER_SELECT_THRESHOLD || rect.height > POINTER_SELECT_THRESHOLD) {
-      setSelectionRect({ ...rect, mode: state.mode });
+
+    if (!state.active) {
+      const intentDistance = Math.hypot(
+        state.currentX - state.startX,
+        state.currentY - state.startY,
+      );
+      if (intentDistance < MARQUEE_INTENT_PX) return;
+      state.active = true;
     }
+
+    const nextRect = { ...rect, mode: state.mode };
+    selectionRectRef.current = nextRect;
+    setSelectionRect(nextRect);
   };
 
   const endMarquee = () => {
     const state = marqueeStateRef.current;
-    const rect = selectionRect;
+    const rect = selectionRectRef.current;
     marqueeStateRef.current = null;
     pointerDownRef.current = null;
+    selectionRectRef.current = null;
 
-    if (rect && state) {
+    if (rect && state?.active) {
       selectByRect(rect);
     } else if (!readOnly) {
       clearSelection();
     }
     setSelectionRect(null);
+    if (orbitRef.current) orbitRef.current.enabled = true;
   };
 
   return (
@@ -994,6 +1086,7 @@ export function SceneCanvas({
           if (readOnly) return;
           if (settings?.cameraMode === "walkthrough") return;
           const sourceEvent = event.sourceEvent ?? event.nativeEvent ?? event;
+          if (!sourceEvent.shiftKey && !sourceEvent.altKey) return;
           beginMarquee({
             clientX: sourceEvent.clientX,
             clientY: sourceEvent.clientY,
@@ -1006,9 +1099,13 @@ export function SceneCanvas({
           if (settings?.cameraMode === "walkthrough") return;
           const sourceEvent = event.sourceEvent ?? event.nativeEvent ?? event;
           if (dragStateRef.current && event.ray) {
-            updateDrag(event.ray);
+            updateDrag(event.ray, {
+              clientX: sourceEvent.clientX,
+              clientY: sourceEvent.clientY,
+            });
             return;
           }
+          if (!marqueeStateRef.current) return;
           updateMarquee({
             clientX: sourceEvent.clientX,
             clientY: sourceEvent.clientY,
@@ -1021,7 +1118,10 @@ export function SceneCanvas({
             endDrag();
             return;
           }
-          if (marqueeStateRef.current) endMarquee();
+          if (marqueeStateRef.current) {
+            endMarquee();
+            return;
+          }
         }}
       >
         <SceneReadySignal
@@ -1165,7 +1265,7 @@ export function SceneCanvas({
             enabled={settings?.cameraMode !== "walkthrough"}
           />
           <WalkthroughControls
-            enabled={!readOnly && settings?.cameraMode === "walkthrough"}
+            enabled={settings?.cameraMode === "walkthrough"}
             room={project.room}
           />
           {!readOnly ? (
@@ -1202,7 +1302,7 @@ export function SceneCanvas({
           ? "Walkthrough: WASD/arrows move · Q/E turn · R looks back · Shift+trackpad turns."
           : toolMode === "connect"
           ? "Connect mode: click one AV item, then another to create a cable run."
-          : "Mouse: rotate · Scroll: zoom · Shift+drag: pan"}
+          : "Drag empty space to rotate · scroll to zoom · right-drag pans · Shift-drag selects many"}
       </div>
       ) : null}
     </div>
