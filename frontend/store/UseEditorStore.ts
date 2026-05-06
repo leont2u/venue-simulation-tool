@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import { fetchPolyPizzaAssets } from "@/lib/polyPizzaAssets";
 import { getProjectById, upsertProject } from "@/lib/storage";
 import {
   AssetDefinition,
@@ -35,6 +36,76 @@ const DEFAULT_SCENE_SETTINGS: SceneSettings = {
   venueEnvironment: "indoor",
   lightingMood: "presentation",
 };
+
+const REQUIRED_ASSET_QUERIES: Record<string, string> = {
+  chair: "event chair",
+  round_table: "round table",
+  banquet_table: "banquet round table",
+  rectangular_table: "rectangular table",
+  sofa: "sofa",
+  plant: "plant",
+  bar: "bar counter",
+};
+
+function requiredAssetType(assetUrl: string) {
+  if (!assetUrl.startsWith("poly-pizza://required/")) return "";
+  return assetUrl.replace("poly-pizza://required/", "").split("?")[0];
+}
+
+function needsPolyPizzaResolution(item: SceneItem) {
+  return item.assetUrl.startsWith("poly-pizza://required/");
+}
+
+function applyPolyPizzaAsset(item: SceneItem, asset: AssetDefinition): SceneItem {
+  return {
+    ...item,
+    assetUrl: asset.modelUrl,
+    source: asset.source,
+    sourceId: asset.polyPizzaId,
+    sourceUrl: asset.polyPizzaUrl,
+    attribution: asset.attribution,
+    license: asset.license,
+    creator: asset.creator,
+  };
+}
+
+async function resolveRequiredPolyPizzaAssets(project: Project): Promise<Project> {
+  const requiredItems = project.items.filter(needsPolyPizzaResolution);
+  if (!requiredItems.length) return project;
+
+  const cache = new Map<string, AssetDefinition | null>();
+  const nextItems = [...project.items];
+
+  for (const item of requiredItems) {
+    const assetType = requiredAssetType(item.assetUrl) || item.type;
+    const query = item.assetSearch || REQUIRED_ASSET_QUERIES[assetType] || assetType.replace(/_/g, " ");
+    const cacheKey = query.toLowerCase();
+
+    if (!cache.has(cacheKey)) {
+      try {
+        const payload = await fetchPolyPizzaAssets({
+          q: query,
+          preset: "venue",
+          page: 0,
+          limit: 8,
+        });
+        cache.set(cacheKey, payload.results[0] ?? null);
+      } catch {
+        cache.set(cacheKey, null);
+      }
+    }
+
+    const asset = cache.get(cacheKey);
+    if (!asset) continue;
+
+    const index = nextItems.findIndex((entry) => entry.id === item.id);
+    if (index >= 0) {
+      nextItems[index] = applyPolyPizzaAsset(nextItems[index], asset);
+    }
+  }
+
+  return { ...project, items: nextItems };
+}
 
 interface EditorState {
   project: Project | null;
@@ -110,6 +181,10 @@ function withSceneSettings(project: Project): Project {
         ? {
             ...item,
             assetUrl: `poly-pizza://required/${item.type}`,
+            assetSearch:
+              item.assetSearch ||
+              REQUIRED_ASSET_QUERIES[item.type] ||
+              item.type.replace(/_/g, " "),
             source: "Poly Pizza",
             sourceId: undefined,
             sourceUrl: undefined,
@@ -274,8 +349,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 
     try {
       const project = await getProjectById(id);
+      const hydratedProject = project
+        ? withSceneSettings(await resolveRequiredPolyPizzaAssets(withSceneSettings(project)))
+        : null;
       set({
-        project: project ? withSceneSettings(project) : null,
+        project: hydratedProject,
         selectedIds: [],
         historyPast: [],
         historyFuture: [],
@@ -296,13 +374,23 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   },
 
   setProject: (project) =>
-    set({
-      project: withSceneSettings(project),
-      selectedIds: [],
-      historyPast: [],
-      historyFuture: [],
-      projectError: "",
-    }),
+    {
+      const baseProject = withSceneSettings(project);
+      set({
+        project: baseProject,
+        selectedIds: [],
+        historyPast: [],
+        historyFuture: [],
+        projectError: "",
+      });
+
+      void resolveRequiredPolyPizzaAssets(baseProject).then((resolvedProject) => {
+        set((state) => {
+          if (state.project?.id !== baseProject.id) return state;
+          return { project: withSceneSettings(resolvedProject) };
+        });
+      });
+    },
 
   selectItem: (id, append = false) => {
     if (!id) {

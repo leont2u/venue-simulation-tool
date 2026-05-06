@@ -27,6 +27,9 @@ function itemGeometry(item: SceneItem) {
   if (item.type === "round_table" || item.type === "banquet_table" || item.type === "plant") {
     return new THREE.CylinderGeometry(0.5, 0.5, 1, 32);
   }
+  if (item.type === "column" || item.type === "ceiling_light" || item.type === "pendant_fan") {
+    return new THREE.CylinderGeometry(0.5, 0.5, 1, 32);
+  }
 
   if (item.type === "chair") return new THREE.BoxGeometry(0.55, 0.82, 0.55);
   if (item.type === "church_bench") return new THREE.BoxGeometry(2.3, 0.82, 0.62);
@@ -34,6 +37,7 @@ function itemGeometry(item: SceneItem) {
   if (item.type === "camera") return new THREE.BoxGeometry(0.48, 1.25, 0.48);
   if (item.type === "speaker") return new THREE.BoxGeometry(0.7, 1.2, 0.7);
   if (item.type === "stage") return new THREE.BoxGeometry(1, 0.35, 1);
+  if (item.type === "dance_floor") return new THREE.BoxGeometry(1, 0.04, 1);
 
   return new THREE.BoxGeometry(1, 1, 1);
 }
@@ -51,6 +55,14 @@ function itemColor(item: SceneItem) {
     desk: "#b28a61",
     banquet_table: "#d8c3a5",
     round_table: "#d8c3a5",
+    rectangular_table: "#c9ada7",
+    dance_floor: "#d4a373",
+    column: "#777d7d",
+    ceiling_light: "#fff7d7",
+    ceiling_cove: "#9ec7ff",
+    pendant_fan: "#8b5e35",
+    railing: "#6f7775",
+    sofa: "#8f9ea1",
     speaker: "#30343b",
     mixing_desk: "#343a55",
     stage: "#6d6875",

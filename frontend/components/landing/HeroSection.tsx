@@ -23,6 +23,8 @@ import { useRouter } from "next/navigation";
 function formatFileKind(file: File | null) {
   if (!file) return "Attach";
   if (/\.drawio$/i.test(file.name)) return "draw.io";
+  if (/\.(png|jpe?g)$/i.test(file.name)) return "image floor plan";
+  if (/\.pdf$/i.test(file.name)) return "PDF floor plan";
   if (/\.html?$/i.test(file.name)) return "HTML";
   if (/\.xml$/i.test(file.name)) return "XML";
   return "File";
@@ -186,7 +188,7 @@ export function Hero() {
             <input
               ref={fileRef}
               type="file"
-              accept=".drawio,.xml,.html,.htm"
+              accept=".drawio,.xml,.html,.htm,.png,.jpg,.jpeg,.pdf,image/png,image/jpeg,application/pdf"
               className="hidden"
               onChange={(event) => setFile(event.target.files?.[0] || null)}
             />
