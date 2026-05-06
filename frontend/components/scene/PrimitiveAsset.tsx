@@ -317,8 +317,17 @@ function PrimitiveShape({
   onPointerLeave,
 }: PrimitiveShapeProps) {
   const geometry = useMemo(() => {
-    if (type === "round_table" || type === "plant") {
+    if (
+      type === "round_table" ||
+      type === "plant" ||
+      type === "column" ||
+      type === "ceiling_light"
+    ) {
       return new THREE.CylinderGeometry(0.5, 0.5, 1, 24);
+    }
+
+    if (type === "pendant_fan") {
+      return new THREE.CylinderGeometry(0.5, 0.5, 0.08, 32);
     }
 
     if (type === "speaker") {
@@ -342,6 +351,14 @@ function PrimitiveShape({
       sofa: "#84a98c",
       bar: "#9c6644",
       plant: "#6a994e",
+      wall: "#d9d3c7",
+      door: "#7b5a43",
+      window: "#8fb8c8",
+      column: "#777d7d",
+      ceiling_light: "#fff7d7",
+      ceiling_cove: "#9ec7ff",
+      pendant_fan: "#8b5e35",
+      railing: "#6f7775",
       entrance: "#52796f",
       speaker: "#ba7517",
       mixing_desk: "#534ab7",

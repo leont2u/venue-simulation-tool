@@ -5,6 +5,7 @@ from rest_framework.views import APIView
 from projects.serializers import ProjectSerializer
 
 from .services import drawio_file_to_project
+from .renderer import floorplan_file_to_project
 
 
 class DrawioImportView(APIView):
@@ -30,3 +31,28 @@ class DrawioImportView(APIView):
         except Exception as exc:
             return Response(str(exc), status=status.HTTP_400_BAD_REQUEST)
 
+
+class FloorplanImportView(APIView):
+    def post(self, request):
+        uploaded_file = request.FILES.get("file")
+        if uploaded_file is None:
+            return Response("File is required.", status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            px_to_meter = request.data.get("pxToMeter")
+            project = floorplan_file_to_project(
+                uploaded_file.read(),
+                uploaded_file.name,
+                request.data.get("name"),
+                float(px_to_meter) if px_to_meter else None,
+            )
+            project.pop("floorPlanUnderstanding", None)
+            serializer = ProjectSerializer(
+                data=project,
+                context={"request": request},
+            )
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        except Exception as exc:
+            return Response(str(exc), status=status.HTTP_400_BAD_REQUEST)

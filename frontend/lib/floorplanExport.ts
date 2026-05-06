@@ -17,6 +17,18 @@ function getItemFootprint(item: SceneItem) {
       return { width: 1.8, depth: 0.8, color: "#c9ada7" };
     case "stage":
       return { width: 5, depth: 3, color: "#6d6875" };
+    case "column":
+      return { width: Math.max(0.25, item.scale[0]), depth: Math.max(0.25, item.scale[2]), color: "#777d7d" };
+    case "sofa":
+      return { width: Math.max(1.2, item.scale[0]), depth: Math.max(0.7, item.scale[2]), color: "#8f9ea1" };
+    case "railing":
+      return { width: Math.max(1, item.scale[0]), depth: Math.max(0.12, item.scale[2]), color: "#6f7775" };
+    case "dance_floor":
+      return {
+        width: Math.max(2, item.scale[0]),
+        depth: Math.max(2, item.scale[2]),
+        color: "#d4a373",
+      };
     case "aisle":
       return {
         width: Math.max(1, item.scale[0]),

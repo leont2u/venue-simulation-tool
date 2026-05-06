@@ -196,7 +196,7 @@ export default function ProjectModal({
 
   const handleGenerateFromFile = async () => {
     if (!file) {
-      setError("Please select a .drawio, .xml, or .html file.");
+      setError("Please select a draw.io, XML, HTML, PNG, JPG, or PDF file.");
       return;
     }
 
@@ -277,7 +277,7 @@ export default function ProjectModal({
           <div className="grid gap-3">
             <PipelineCard
               title="Upload File"
-              subtitle="XML, draw.io, or HTML"
+              subtitle="draw.io, image, or PDF"
               onClick={() => setStep("upload")}
             />
 
@@ -383,13 +383,13 @@ export default function ProjectModal({
 
             <div className="mt-4 rounded-[8px] border border-dashed border-[var(--sf-border-strong)] bg-[var(--sf-surface-soft)] p-5">
               <div className="text-[13px] font-medium text-[var(--sf-text)]">
-                Select .drawio, .xml, or exported .html
+                Select draw.io, XML, HTML, PNG, JPG, or PDF
               </div>
 
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".drawio,.xml,.html,.htm"
+                accept=".drawio,.xml,.html,.htm,.png,.jpg,.jpeg,.pdf,image/png,image/jpeg,application/pdf"
                 className="mt-3 block w-full text-[13px] text-[var(--sf-text-muted)] file:mr-4 file:rounded-[6px] file:border-0 file:bg-[var(--sf-text)] file:px-4 file:py-2 file:text-white"
                 onChange={(e) => setFile(e.target.files?.[0] || null)}
               />

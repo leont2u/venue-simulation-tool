@@ -2,6 +2,7 @@
 
 import { Environment, Grid, OrbitControls, PointerLockControls, TransformControls } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { XR, createXRStore, useXR, useXRSessionModeSupported, type XRStore } from "@react-three/xr";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import {
@@ -170,6 +171,56 @@ function SceneReadySignal({ onReady }: { onReady: () => void }) {
   });
 
   return null;
+}
+
+function XRSessionStateSync({
+  room,
+  onPresentingChange,
+}: {
+  room: Project["room"];
+  onPresentingChange: (presenting: boolean) => void;
+}) {
+  const mode = useXR((state) => state.mode);
+  const { camera } = useThree();
+
+  useEffect(() => {
+    const presenting = mode === "immersive-vr";
+    onPresentingChange(presenting);
+    if (presenting) {
+      camera.position.set(0, 1.6, Math.min(room.depth / 2 - 3, 8));
+    }
+  }, [camera, mode, onPresentingChange, room.depth]);
+
+  return null;
+}
+
+function EnterVRButton({
+  store,
+  hidden,
+}: {
+  store: XRStore;
+  hidden: boolean;
+}) {
+  const supported = useXRSessionModeSupported("immersive-vr");
+  const [error, setError] = useState("");
+
+  if (hidden || supported !== true) return null;
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        setError("");
+        void store.enterVR().catch(() => {
+          setError("VR session could not start.");
+        });
+      }}
+      title={error || "Enter VR"}
+      className="absolute right-5 top-[112px] z-20 rounded-[10px] border border-[#5d7f73] bg-[#5d7f73] px-3 py-2 text-[12px] font-bold text-white shadow-[0_2px_10px_rgba(15,23,42,0.12)] transition hover:bg-[#4f7166]"
+    >
+      Enter VR
+    </button>
+  );
 }
 
 function SceneLoadingOverlay() {
@@ -762,6 +813,7 @@ export function SceneCanvas({
   const updateItemsTransient = useEditorStore((s) => s.updateItemsTransient);
   const commitProjectSnapshot = useEditorStore((s) => s.commitProjectSnapshot);
   const viewportZoom = useEditorStore((s) => s.viewportZoom);
+  const xrStore = useMemo(() => createXRStore(), []);
   const orbitRef = useRef<{ enabled: boolean } | null>(null);
   const cameraRef = useRef<THREE.Camera | null>(null);
   const canvasElementRef = useRef<HTMLCanvasElement | null>(null);
@@ -775,6 +827,7 @@ export function SceneCanvas({
   const [selectionRect, setSelectionRect] = useState<SelectionRect | null>(null);
   const [sceneReady, setSceneReady] = useState(false);
   const [isObjectDragging, setIsObjectDragging] = useState(false);
+  const [isXRPresenting, setIsXRPresenting] = useState(false);
   const project = projectOverride ?? storedProject;
 
   useEffect(() => {
@@ -1124,161 +1177,169 @@ export function SceneCanvas({
           }
         }}
       >
-        <SceneReadySignal
-          key={`${project.id}-${activeLayer}-${readOnly ? "preview" : "main"}`}
-          onReady={() => setSceneReady(true)}
-        />
-        <ViewportBridge cameraRef={cameraRef} elementRef={canvasElementRef} />
-        <VenueLighting room={project.room} settings={settings} />
-
-        <Suspense fallback={null}>
-          {settings?.enableHdri !== false ? <Environment preset="city" /> : null}
-          {settings?.showGrid !== false && settings?.presentationMode !== true && settings?.cameraMode !== "walkthrough" ? (
-            <Grid
-              args={[80, 80]}
-              cellSize={1}
-              sectionSize={5}
-              fadeDistance={80}
-            />
-          ) : null}
-
-          <RoomShell
-            width={project.room.width}
-            depth={project.room.depth}
-            height={project.room.height}
-            wallThickness={
-              project.room.wallThickness ?? project.sceneSettings?.wallThickness
-            }
-            wallColor={project.sceneSettings?.wallColor}
-            floorColor={project.sceneSettings?.floorColor}
-            settings={project.sceneSettings}
-            architecture={project.architecture}
-          />
-
-          {visibleConnections.map((connection) => {
-            const resolved = resolveConnectionItems(project, connection);
-            if (!resolved) return null;
-
-            const cablePoints = getCablePathPoints(
-              resolved.fromItem,
-              resolved.toItem,
-            );
-
-            return (
-              <line key={connection.id}>
-                <bufferGeometry>
-                  <bufferAttribute
-                    attach="attributes-position"
-                    args={[
-                      new Float32Array(
-                        cablePoints.flatMap((point) => [point.x, 0.08, point.z]),
-                      ),
-                      3,
-                    ]}
-                  />
-                </bufferGeometry>
-                <lineBasicMaterial color={getCableColor(connection.cableType)} />
-              </line>
-            );
-          })}
-
-          {visibleItems.map((item) => (
-            <group key={item.id}>
-              <PrimitiveAsset
-                url={item.assetUrl}
-                position={[item.x, item.y, item.z]}
-                rotation={[0, item.rotationY, 0]}
-                scale={item.scale}
-                selected={!readOnly && selectedIds.includes(item.id)}
-                hovered={item.id === hoveredId}
-                color={item.color}
-                material={item.material}
-                onPointerEnter={readOnly ? undefined : () => setHoveredId(item.id)}
-                onPointerLeave={readOnly ? undefined : () => setHoveredId((current) => (current === item.id ? null : current))}
-                onPointerDown={
-                  readOnly
-                    ? undefined
-                    : (event) => beginItemPointer(item.id, event)
-                }
-              />
-
-              {item.type === "camera" ? (
-                <CameraCoverage
-                  position={[item.x, item.y, item.z]}
-                  rotationY={item.rotationY}
-                  active={settings?.livestreamMode ?? false}
-                />
-              ) : null}
-            </group>
-          ))}
-
-          {!readOnly ? (
-            <SelectionBounds project={project} selectedIds={selectedIds} />
-          ) : null}
-
-          {guides.map((guide, index) =>
-            guide.orientation === "vertical" ? (
-              <line key={`guide-v-${index}`}>
-                <bufferGeometry>
-                  <bufferAttribute
-                    attach="attributes-position"
-                    args={[
-                      new Float32Array([
-                        guide.value,
-                        0.03,
-                        -project.room.depth / 2,
-                        guide.value,
-                        0.03,
-                        project.room.depth / 2,
-                      ]),
-                      3,
-                    ]}
-                  />
-                </bufferGeometry>
-                <lineBasicMaterial color="#4D96FF" />
-              </line>
-            ) : (
-              <line key={`guide-h-${index}`}>
-                <bufferGeometry>
-                  <bufferAttribute
-                    attach="attributes-position"
-                    args={[
-                      new Float32Array([
-                        -project.room.width / 2,
-                        0.03,
-                        guide.value,
-                        project.room.width / 2,
-                        0.03,
-                        guide.value,
-                      ]),
-                      3,
-                    ]}
-                  />
-                </bufferGeometry>
-                <lineBasicMaterial color="#4D96FF" />
-              </line>
-            ),
-          )}
-
-          <SceneControls
-            orbitRef={orbitRef}
-            enabled={settings?.cameraMode !== "walkthrough"}
-          />
-          <WalkthroughControls
-            enabled={settings?.cameraMode === "walkthrough"}
+        <XR store={xrStore}>
+          <XRSessionStateSync
             room={project.room}
+            onPresentingChange={setIsXRPresenting}
           />
-          {!readOnly ? (
-            <TransformGizmo
-              project={project}
-              orbitRef={orbitRef}
-              onGuidesChange={setGuides}
+          <SceneReadySignal
+            key={`${project.id}-${activeLayer}-${readOnly ? "preview" : "main"}`}
+            onReady={() => setSceneReady(true)}
+          />
+          <ViewportBridge cameraRef={cameraRef} elementRef={canvasElementRef} />
+          <VenueLighting room={project.room} settings={settings} />
+
+          <Suspense fallback={null}>
+            {settings?.enableHdri !== false ? <Environment preset="city" /> : null}
+            {settings?.showGrid !== false && settings?.presentationMode !== true && settings?.cameraMode !== "walkthrough" ? (
+              <Grid
+                args={[80, 80]}
+                cellSize={1}
+                sectionSize={5}
+                fadeDistance={80}
+              />
+            ) : null}
+
+            <RoomShell
+              width={project.room.width}
+              depth={project.room.depth}
+              height={project.room.height}
+              wallThickness={
+                project.room.wallThickness ?? project.sceneSettings?.wallThickness
+              }
+              wallColor={project.sceneSettings?.wallColor}
+              floorColor={project.sceneSettings?.floorColor}
+              settings={project.sceneSettings}
+              architecture={project.architecture}
             />
-          ) : null}
-        </Suspense>
+
+            {visibleConnections.map((connection) => {
+              const resolved = resolveConnectionItems(project, connection);
+              if (!resolved) return null;
+
+              const cablePoints = getCablePathPoints(
+                resolved.fromItem,
+                resolved.toItem,
+              );
+
+              return (
+                <line key={connection.id}>
+                  <bufferGeometry>
+                    <bufferAttribute
+                      attach="attributes-position"
+                      args={[
+                        new Float32Array(
+                          cablePoints.flatMap((point) => [point.x, 0.08, point.z]),
+                        ),
+                        3,
+                      ]}
+                    />
+                  </bufferGeometry>
+                  <lineBasicMaterial color={getCableColor(connection.cableType)} />
+                </line>
+              );
+            })}
+
+            {visibleItems.map((item) => (
+              <group key={item.id}>
+                <PrimitiveAsset
+                  url={item.assetUrl}
+                  position={[item.x, item.y, item.z]}
+                  rotation={[0, item.rotationY, 0]}
+                  scale={item.scale}
+                  selected={!readOnly && selectedIds.includes(item.id)}
+                  hovered={item.id === hoveredId}
+                  color={item.color}
+                  material={item.material}
+                  onPointerEnter={readOnly ? undefined : () => setHoveredId(item.id)}
+                  onPointerLeave={readOnly ? undefined : () => setHoveredId((current) => (current === item.id ? null : current))}
+                  onPointerDown={
+                    readOnly
+                      ? undefined
+                      : (event) => beginItemPointer(item.id, event)
+                  }
+                />
+
+                {item.type === "camera" ? (
+                  <CameraCoverage
+                    position={[item.x, item.y, item.z]}
+                    rotationY={item.rotationY}
+                    active={settings?.livestreamMode ?? false}
+                  />
+                ) : null}
+              </group>
+            ))}
+
+            {!readOnly ? (
+              <SelectionBounds project={project} selectedIds={selectedIds} />
+            ) : null}
+
+            {guides.map((guide, index) =>
+              guide.orientation === "vertical" ? (
+                <line key={`guide-v-${index}`}>
+                  <bufferGeometry>
+                    <bufferAttribute
+                      attach="attributes-position"
+                      args={[
+                        new Float32Array([
+                          guide.value,
+                          0.03,
+                          -project.room.depth / 2,
+                          guide.value,
+                          0.03,
+                          project.room.depth / 2,
+                        ]),
+                        3,
+                      ]}
+                    />
+                  </bufferGeometry>
+                  <lineBasicMaterial color="#4D96FF" />
+                </line>
+              ) : (
+                <line key={`guide-h-${index}`}>
+                  <bufferGeometry>
+                    <bufferAttribute
+                      attach="attributes-position"
+                      args={[
+                        new Float32Array([
+                          -project.room.width / 2,
+                          0.03,
+                          guide.value,
+                          project.room.width / 2,
+                          0.03,
+                          guide.value,
+                        ]),
+                        3,
+                      ]}
+                    />
+                  </bufferGeometry>
+                  <lineBasicMaterial color="#4D96FF" />
+                </line>
+              ),
+            )}
+
+            <SceneControls
+              orbitRef={orbitRef}
+              enabled={!isXRPresenting && settings?.cameraMode !== "walkthrough"}
+            />
+            <WalkthroughControls
+              enabled={!isXRPresenting && settings?.cameraMode === "walkthrough"}
+              room={project.room}
+            />
+            {!readOnly && !isXRPresenting ? (
+              <TransformGizmo
+                project={project}
+                orbitRef={orbitRef}
+                onGuidesChange={setGuides}
+              />
+            ) : null}
+          </Suspense>
+        </XR>
       </Canvas>
 
       {!sceneReady ? <SceneLoadingOverlay /> : null}
+
+      <EnterVRButton store={xrStore} hidden={readOnly} />
 
       {selectionRect ? (
         <div

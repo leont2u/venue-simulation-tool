@@ -74,6 +74,7 @@ export type SceneItem = {
   source?: string;
   sourceId?: string;
   sourceUrl?: string;
+  assetSearch?: string;
   attribution?: string;
   license?: string;
   creator?: string;
