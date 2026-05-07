@@ -24,32 +24,8 @@ import {
 } from "@/lib/sceneConnections";
 import { Project, SceneItem } from "@/types/types";
 import { useEditorStore } from "@/store/UseEditorStore";
-
-function getColor(type: string) {
-  switch (type) {
-    case "chair":
-      return "#84A98C";
-    case "podium":
-      return "#7F5539";
-    case "screen":
-      return "#355070";
-    case "camera":
-      return "#457B9D";
-    case "speaker":
-      return "#BA7517";
-    case "mixing_desk":
-      return "#534AB7";
-    case "banquet_table":
-    case "desk":
-      return "#D4A373";
-    default:
-      return "#9AA6B2";
-  }
-}
-
-function applySnap(value: number, enabled: boolean) {
-  return enabled ? Math.round(value * 4) / 4 : value;
-}
+import getColor from "./utils/getColor";
+import applySnap from "./utils/applySnap";
 
 export function FloorplanCanvas({
   projectOverride,
@@ -70,9 +46,9 @@ export function FloorplanCanvas({
 
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [guides, setGuides] = useState<AlignmentGuide[]>([]);
-  const [interactionMode, setInteractionMode] = useState<"drag" | "resize" | null>(
-    null,
-  );
+  const [interactionMode, setInteractionMode] = useState<
+    "drag" | "resize" | null
+  >(null);
   const interactionRef = useRef<{
     itemId?: string;
     pointerOffsetX?: number;
@@ -219,13 +195,20 @@ export function FloorplanCanvas({
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
     };
-  }, [applyProjectMutation, interactionMode, project, snapToGrid, toCanvasPoint, updateItem]);
+  }, [
+    applyProjectMutation,
+    interactionMode,
+    project,
+    snapToGrid,
+    toCanvasPoint,
+    updateItem,
+  ]);
 
   if (!project) return null;
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-[#f8f9f8]">
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(85,105,98,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(85,105,98,0.035)_1px,transparent_1px)] bg-[size:24px_24px]" />
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(85,105,98,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(85,105,98,0.035)_1px,transparent_1px)] bg-size-[24px_24px]" />
       <svg
         ref={svgRef}
         viewBox={viewBox}
@@ -291,7 +274,10 @@ export function FloorplanCanvas({
             resolved.toItem,
           );
           const path = cablePoints
-            .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.z}`)
+            .map(
+              (point, index) =>
+                `${index === 0 ? "M" : "L"} ${point.x} ${point.z}`,
+            )
             .join(" ");
 
           return (
@@ -301,7 +287,9 @@ export function FloorplanCanvas({
               fill="none"
               stroke={getCableColor(connection.cableType)}
               strokeWidth="0.12"
-              strokeDasharray={connection.cableType === "power" ? "0.28 0.18" : undefined}
+              strokeDasharray={
+                connection.cableType === "power" ? "0.28 0.18" : undefined
+              }
               opacity="0.95"
             />
           );
@@ -412,11 +400,11 @@ export function FloorplanCanvas({
       </svg>
 
       {!readOnly ? (
-      <div className="pointer-events-none absolute bottom-16 left-6 rounded-[10px] bg-white/92 px-3 py-2 text-[11px] font-medium text-[#687773] shadow-[0_2px_10px_rgba(15,23,42,0.08)]">
-        {toolMode === "connect"
-          ? "Connect mode: click one AV item, then another to create a cable run."
-          : "Drag furniture in 2D. Drag the corner handle to resize the room."}
-      </div>
+        <div className="pointer-events-none absolute bottom-16 left-6 rounded-[10px] bg-white/92 px-3 py-2 text-[11px] font-medium text-[#687773] shadow-[0_2px_10px_rgba(15,23,42,0.08)]">
+          {toolMode === "connect"
+            ? "Connect mode: click one AV item, then another to create a cable run."
+            : "Drag furniture in 2D. Drag the corner handle to resize the room."}
+        </div>
       ) : null}
     </div>
   );

@@ -19,6 +19,8 @@ import { fetchPolyPizzaAssets } from "@/lib/polyPizzaAssets";
 import { fetchCuratedSketchfabAssets } from "@/lib/sketchfabAssets";
 import { useEditorStore } from "@/store/UseEditorStore";
 import { AssetCategory, AssetDefinition } from "@/types/types";
+import SectionHeader from "./components/SectionHeader";
+import NavButton from "./components/NavButton";
 
 const PAGE_SIZE = 32;
 
@@ -35,7 +37,11 @@ const CATALOG_NAV = [
   { label: "AV Gear", category: "AV Gear", icon: "av" },
 ] as const;
 
-const SKETCHFAB_NAV = { label: "Sketchfab 3D", category: "Sketchfab" as const, icon: "sketchfab" };
+const SKETCHFAB_NAV = {
+  label: "Sketchfab 3D",
+  category: "Sketchfab" as const,
+  icon: "sketchfab",
+};
 
 function CatalogIcon({ type }: { type: string }) {
   if (type === "media") return <Camera className="h-4 w-4" />;
@@ -47,7 +53,9 @@ function CatalogIcon({ type }: { type: string }) {
 }
 
 export function AssetCatalog() {
-  const replaceSelectedFromAsset = useEditorStore((s) => s.replaceSelectedFromAsset);
+  const replaceSelectedFromAsset = useEditorStore(
+    (s) => s.replaceSelectedFromAsset,
+  );
   const selectedIds = useEditorStore((s) => s.selectedIds);
   const assetLibraryTab = useEditorStore((s) => s.assetLibraryTab);
   const setAssetLibraryTab = useEditorStore((s) => s.setAssetLibraryTab);
@@ -193,7 +201,7 @@ export function AssetCatalog() {
     return (
       <aside
         data-tour="editor-assets"
-        className="flex w-[58px] shrink-0 flex-col items-center gap-3 border-r border-[#edf0ee] bg-white py-3"
+        className="flex w-14.5 shrink-0 flex-col items-center gap-3 border-r border-[#edf0ee] bg-white py-3"
       >
         <button
           onClick={() => setIsCollapsed(false)}
@@ -234,7 +242,7 @@ export function AssetCatalog() {
   return (
     <aside
       data-tour="editor-assets"
-      className="flex w-[388px] shrink-0 flex-col border-r border-[#edf0ee] bg-white"
+      className="flex w-97 shrink-0 flex-col border-r border-[#edf0ee] bg-white"
     >
       <div className="flex h-16 shrink-0 items-center gap-3 border-b border-[#edf0ee] px-3">
         <button
@@ -258,7 +266,7 @@ export function AssetCatalog() {
       </div>
 
       <div className="flex min-h-0 flex-1">
-        <div className="sf-scroll w-[158px] shrink-0 overflow-y-auto border-r border-[#edf0ee] bg-white">
+        <div className="sf-scroll w-39.5 shrink-0 overflow-y-auto border-r border-[#edf0ee] bg-white">
           <section className="px-2 py-3">
             <div className="mb-2 flex items-center justify-between">
               <SectionHeader>Catalog</SectionHeader>
@@ -356,7 +364,7 @@ export function AssetCatalog() {
                       event.dataTransfer.setData("text/asset-id", asset.id)
                     }
                     onClick={() => replaceSelectedFromAsset(asset.id)}
-                    className="group relative aspect-[1/1] overflow-hidden rounded-[10px] border border-[#edf0ee] bg-[#fbfcfb] text-left transition hover:ring-2 hover:ring-[#d9e3de]"
+                    className="group relative aspect-square overflow-hidden rounded-[10px] border border-[#edf0ee] bg-[#fbfcfb] text-left transition hover:ring-2 hover:ring-[#d9e3de]"
                     title={
                       selectedIds.length > 0
                         ? `Replace selected with ${asset.name}`
@@ -380,7 +388,9 @@ export function AssetCatalog() {
                   </button>
                 ))}
 
-                {filteredAssets.length === 0 && !isPolyLoading && !isSketchfabLoading ? (
+                {filteredAssets.length === 0 &&
+                !isPolyLoading &&
+                !isSketchfabLoading ? (
                   <div className="col-span-2 rounded-lg border border-dashed border-[#d6d6d6] bg-[#fafaf8] px-3 py-8 text-center text-[12px] text-[#707070]">
                     {selectedCategory === "Sketchfab"
                       ? sketchfabError || "No Sketchfab models loaded."
@@ -396,7 +406,7 @@ export function AssetCatalog() {
               <button
                 onClick={() => void loadPolyPage(polyPage - 1)}
                 disabled={isPolyLoading || polyPage === 0}
-                className="flex h-8 w-8 items-center justify-center rounded-[6px] text-[#555a61] transition hover:bg-[#f6f6f6] disabled:opacity-35"
+                className="flex h-8 w-8 items-center justify-center rounded-md text-[#555a61] transition hover:bg-[#f6f6f6] disabled:opacity-35"
                 title="Previous page"
               >
                 <ChevronLeft className="h-4 w-4" />
@@ -407,7 +417,7 @@ export function AssetCatalog() {
               <button
                 onClick={() => void loadPolyPage(polyPage + 1)}
                 disabled={isPolyLoading || polyPage + 1 >= pageCount}
-                className="flex h-8 w-8 items-center justify-center rounded-[6px] text-[#555a61] transition hover:bg-[#f6f6f6] disabled:opacity-35"
+                className="flex h-8 w-8 items-center justify-center rounded-md text-[#555a61] transition hover:bg-[#f6f6f6] disabled:opacity-35"
                 title="Next page"
               >
                 <ChevronRight className="h-4 w-4" />
@@ -417,47 +427,5 @@ export function AssetCatalog() {
         </div>
       </div>
     </aside>
-  );
-}
-
-function SectionHeader({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="mb-2 flex items-center gap-1 text-[11px] font-bold uppercase text-[#7b8985]">
-      <ChevronRight className="h-3 w-3 rotate-90" />
-      {children}
-    </div>
-  );
-}
-
-function NavButton({
-  active,
-  icon,
-  label,
-  onClick,
-  dot,
-}: {
-  active?: boolean;
-  icon: React.ReactNode;
-  label: string;
-  onClick: () => void;
-  dot?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`mb-1 flex w-full items-center gap-2 rounded-[7px] px-2 py-1.5 text-left text-[12px] font-medium transition ${
-        active
-          ? "bg-[#eef4f1] text-[#526f65]"
-          : "text-[#687773] hover:bg-[#f7f9f7]"
-      }`}
-    >
-      <span className="flex h-5 w-5 shrink-0 items-center justify-center">
-        {icon}
-      </span>
-      <span className="min-w-0 truncate">{label}</span>
-      {dot ? (
-        <span className="ml-auto h-2 w-2 rounded-full bg-[#ff2e1f]" />
-      ) : null}
-    </button>
   );
 }

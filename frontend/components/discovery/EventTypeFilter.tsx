@@ -14,10 +14,11 @@ export function EventTypeFilter({ selected, onChange }: Props) {
     <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
       <button
         onClick={() => onChange(null)}
-        className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors
-          ${!selected
-            ? "bg-zinc-900 text-white"
-            : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+        className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors
+          ${
+            !selected
+              ? "bg-zinc-900 text-white"
+              : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
           }`}
       >
         All
@@ -26,10 +27,11 @@ export function EventTypeFilter({ selected, onChange }: Props) {
         <button
           key={type}
           onClick={() => onChange(selected === type ? null : type)}
-          className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors
-            ${selected === type
-              ? "bg-zinc-900 text-white"
-              : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+          className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-colors
+            ${
+              selected === type
+                ? "bg-zinc-900 text-white"
+                : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
             }`}
         >
           {EVENT_TYPE_LABELS[type]}

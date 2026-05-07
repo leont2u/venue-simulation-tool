@@ -7,14 +7,19 @@ import { EVENT_TYPE_LABELS } from "@/types/types";
 type Reason = "no_results" | "no_community_layouts" | "filtered_empty";
 
 type Props = {
-  reason:       Reason;
+  reason: Reason;
   activeFilter: EventType | null;
-  query:        string;
-  onClear:      () => void;
-  onGenerate?:  (prompt: string) => void;
+  query: string;
+  onClear: () => void;
+  onGenerate?: (prompt: string) => void;
 };
 
-export function EmptyDiscovery({ reason, activeFilter, query, onClear }: Props) {
+export function EmptyDiscovery({
+  reason,
+  activeFilter,
+  query,
+  onClear,
+}: Props) {
   if (reason === "no_community_layouts") {
     return (
       <div className="flex flex-col items-center py-20 text-center gap-4">
@@ -22,7 +27,9 @@ export function EmptyDiscovery({ reason, activeFilter, query, onClear }: Props) 
           <Layers3 size={24} className="text-[#5d7f73]" strokeWidth={1.5} />
         </div>
         <div>
-          <p className="text-[15px] font-semibold text-[#17211e]">No layouts published yet</p>
+          <p className="text-[15px] font-semibold text-[#17211e]">
+            No layouts published yet
+          </p>
           <p className="text-sm text-[#657872] mt-1 max-w-xs">
             Be the first to publish a layout to the community.
           </p>
@@ -43,7 +50,11 @@ export function EmptyDiscovery({ reason, activeFilter, query, onClear }: Props) 
     return (
       <div className="flex flex-col items-center py-20 text-center gap-4">
         <div className="w-14 h-14 rounded-2xl bg-[#f0f4f2] flex items-center justify-center">
-          <SlidersHorizontal size={24} className="text-[#5d7f73]" strokeWidth={1.5} />
+          <SlidersHorizontal
+            size={24}
+            className="text-[#5d7f73]"
+            strokeWidth={1.5}
+          />
         </div>
         <div>
           <p className="text-[15px] font-semibold text-[#17211e]">
@@ -73,7 +84,6 @@ export function EmptyDiscovery({ reason, activeFilter, query, onClear }: Props) 
     );
   }
 
-  // no_results (search)
   return (
     <div className="flex flex-col items-center py-20 text-center gap-4">
       <div className="w-14 h-14 rounded-2xl bg-[#f0f4f2] flex items-center justify-center">

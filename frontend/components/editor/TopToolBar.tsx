@@ -5,160 +5,17 @@ import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
   CircleHelp,
-  Keyboard,
   Lock,
   Trash2,
   Redo2,
   Save,
   Share2,
   Undo2,
-  X,
 } from "lucide-react";
 import { useEditorStore } from "@/store/UseEditorStore";
 import { ShareExportModal } from "./ShareExportModal";
-
-function ProjectNameInput({
-  name,
-  onRename,
-}: {
-  name: string;
-  onRename: (name: string) => void;
-}) {
-  const [projectName, setProjectName] = useState(name);
-
-  const commitProjectName = () => {
-    const cleanName = projectName.trim();
-    if (!cleanName) {
-      setProjectName(name);
-      return;
-    }
-    if (cleanName !== name) {
-      onRename(cleanName);
-    }
-  };
-
-  return (
-    <input
-      value={projectName}
-      onChange={(event) => setProjectName(event.target.value)}
-      onBlur={commitProjectName}
-      onKeyDown={(event) => {
-        if (event.key === "Enter") {
-          event.currentTarget.blur();
-        }
-        if (event.key === "Escape") {
-          setProjectName(name);
-          event.currentTarget.blur();
-        }
-      }}
-      aria-label="Project name"
-      className="min-w-0 max-w-[280px] rounded-[7px] border border-transparent bg-transparent px-2 py-1 text-[15px] font-semibold text-[#242a28] outline-none transition hover:border-[#e1e7e4] focus:border-[#b9cbc5] focus:bg-[#f8faf9]"
-    />
-  );
-}
-
-function ShortcutHelpModal({
-  open,
-  onClose,
-}: {
-  open: boolean;
-  onClose: () => void;
-}) {
-  if (!open) return null;
-
-  const sections = [
-    {
-      title: "Selection",
-      items: [
-        ["Click", "Select object"],
-        ["Shift + Click", "Multi-select"],
-        ["Cmd + Click", "Toggle selection"],
-        ["Drag empty space", "Selection box"],
-      ],
-    },
-    {
-      title: "Movement",
-      items: [
-        ["Click + Hold", "Grab and move"],
-        ["Arrow keys", "Small move"],
-        ["Shift + Arrow", "Large move"],
-      ],
-    },
-    {
-      title: "Actions",
-      items: [
-        ["Cmd + D", "Duplicate"],
-        ["Delete", "Delete selected"],
-        ["Cmd + Z", "Undo"],
-        ["Cmd + Shift + Z", "Redo"],
-        ["Esc", "Clear selection"],
-      ],
-    },
-    {
-      title: "View",
-      items: [
-        ["Pinch", "Zoom"],
-        ["Two-finger drag", "Pan"],
-        ["Right-drag", "Orbit camera"],
-      ],
-    },
-  ];
-
-  return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/25 px-6 backdrop-blur-sm">
-      <div className="w-full max-w-3xl rounded-[12px] border border-[#dfe5e2] bg-white shadow-[0_28px_100px_rgba(15,23,42,0.22)]">
-        <div className="flex h-16 items-center justify-between border-b border-[#edf0ee] px-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-[8px] bg-[#eef4f1] text-[#5d7f73]">
-              <Keyboard className="h-5 w-5" />
-            </div>
-            <div>
-              <div className="text-[18px] font-semibold tracking-[-0.03em] text-[#242a28]">
-                Editor shortcuts
-              </div>
-              <div className="text-[12px] text-[#71807b]">
-                MacBook trackpad controls for selection, movement, and view.
-              </div>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            title="Close help"
-            className="flex h-9 w-9 items-center justify-center rounded-[8px] text-[#697a76] transition hover:bg-[#f4f6f4]"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="grid gap-4 p-5 md:grid-cols-2">
-          {sections.map((section) => (
-            <section
-              key={section.title}
-              className="rounded-[8px] border border-[#edf0ee] bg-[#fbfcfb] p-4"
-            >
-              <div className="mb-3 text-[12px] font-bold uppercase tracking-[0.18em] text-[#6f8f84]">
-                {section.title}
-              </div>
-              <div className="space-y-2">
-                {section.items.map(([shortcut, action]) => (
-                  <div
-                    key={shortcut}
-                    className="flex items-center justify-between gap-4 text-[13px]"
-                  >
-                    <kbd className="rounded-[6px] border border-[#dfe5e2] bg-white px-2 py-1 font-mono text-[11px] font-semibold text-[#34413d] shadow-sm">
-                      {shortcut}
-                    </kbd>
-                    <span className="text-right text-[#5f6f6a]">{action}</span>
-                  </div>
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
+import ProjectNameInput from "./components/ProjectNameInput";
+import ShortcutHelpModal from "./components/ShortCutHelpModal";
 
 export function TopToolbar() {
   const router = useRouter();
@@ -183,18 +40,18 @@ export function TopToolbar() {
     <>
       <header
         data-tour="editor-toolbar"
-        className="flex h-[56px] shrink-0 items-center justify-between border-b border-[#ececec] bg-white px-4"
+        className="flex h-14 shrink-0 items-center justify-between border-b border-[#ececec] bg-white px-4"
       >
         <div className="flex min-w-0 items-center gap-4">
           <button
             onClick={() => router.push("/dashboard")}
             title="Back to dashboard"
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[8px] text-[#677773] transition hover:bg-[#f4f6f4]"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[#677773] transition hover:bg-[#f4f6f4]"
           >
             <ArrowLeft className="h-4 w-4" />
           </button>
 
-          <div className="hidden min-w-[172px] leading-none sm:block">
+          <div className="hidden min-w-43 leading-none sm:block">
             <div className="truncate text-[13px] font-semibold text-[#242a28]">
               Leon Manhimamanzi
             </div>
@@ -258,7 +115,7 @@ export function TopToolbar() {
 
           <div
             data-tour="editor-layer-toggle"
-            className="hidden items-center rounded-[8px] border border-[#e6e9e7] bg-white p-0.5 2xl:flex"
+            className="hidden items-center rounded-lg border border-[#e6e9e7] bg-white p-0.5 2xl:flex"
           >
             {(
               [

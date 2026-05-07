@@ -9,20 +9,12 @@ import {
   useState,
 } from "react";
 import {
-  Bell,
   Building2,
-  FolderKanban,
   Grid2X2,
-  Home,
   List,
-  type LucideIcon,
-  MessageCircle,
-  Plus,
   Search,
-  Send,
   UploadCloud,
   WandSparkles,
-  X,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -31,9 +23,7 @@ import { OnboardingWizard } from "@/components/dashboard/OnboardingWizard";
 import ProjectModal, {
   ProjectPipeline,
 } from "@/components/dashboard/ProjectModal";
-import ProjectPreviewCard, {
-  ProjectThumbnail,
-} from "@/components/dashboard/ProjectPreviewCard";
+import ProjectPreviewCard from "@/components/dashboard/ProjectPreviewCard";
 import {
   clearPendingPrompt,
   readPendingPrompt,
@@ -58,8 +48,18 @@ import { queueEditorTour } from "@/lib/onboardingTour";
 import { PROJECT_TEMPLATES, ProjectTemplate } from "@/lib/projectTemplates";
 import { getProjects, upsertProject } from "@/lib/storage";
 import { Project } from "@/types/types";
+import displayName from "@/components/dashboard/utils/displayName";
+import projectMatchesFilter from "@/components/dashboard/utils/projectMatchesFilter";
+import TopBar from "@/components/dashboard/components/TopBar";
+import Sidebar from "@/components/dashboard/components/SideBar";
+import SectionHeader from "@/components/dashboard/components/SectionHeader";
+import ActionCard from "@/components/dashboard/components/ActionCard";
+import FilterPills from "@/components/dashboard/components/FilterPills";
+import TemplateCard from "@/components/dashboard/components/TemplateCard";
+import cx from "@/components/dashboard/utils/cx";
+import HelpChat from "@/components/dashboard/components/HelpChat";
 
-type DashboardView = "home" | "projects";
+export type DashboardView = "home" | "projects";
 type ViewMode = "grid" | "list";
 
 const FILTERS = ["All", "Wedding", "Conference", "Church", "Concert"];
@@ -72,385 +72,6 @@ const TEMPLATE_FILTERS = [
   "Corporate",
   "Livestream",
 ];
-
-function cx(...classes: Array<string | false | null | undefined>) {
-  return classes.filter(Boolean).join(" ");
-}
-
-function displayName(email?: string) {
-  if (!email) return "Founder";
-  const name = email.split("@")[0]?.replace(/[._-]+/g, " ");
-  return name
-    ? name
-        .split(" ")
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join(" ")
-    : "Founder";
-}
-
-function projectMatchesFilter(project: Project, filter: string) {
-  if (filter === "All") return true;
-  return project.name.toLowerCase().includes(filter.toLowerCase());
-}
-
-function templateToPreviewProject(template: ProjectTemplate): Project {
-  return template.buildProject(template.name);
-}
-
-function estimateTemplateCapacity(template: ProjectTemplate) {
-  const preview = templateToPreviewProject(template);
-  const chairLike = preview.items.filter((item) =>
-    ["chair", "church_bench", "banquet_table", "desk"].includes(item.type),
-  ).length;
-  return Math.max(
-    chairLike * 8,
-    Math.round((preview.room.width * preview.room.depth) / 3),
-  );
-}
-
-function TopBar({
-  title,
-  search,
-  onSearchChange,
-  onNewProject,
-}: {
-  title: string;
-  search: string;
-  onSearchChange: (value: string) => void;
-  onNewProject: () => void;
-}) {
-  return (
-    <header className="sticky top-0 z-20 flex h-[82px] items-center gap-6 border-b border-[#edf0ee] bg-white px-8">
-      <div className="w-[104px] shrink-0 text-[20px] font-bold tracking-[-0.03em] text-[#24302d] lg:w-[120px]">
-        {title}
-      </div>
-      <label className="flex h-[50px] w-full max-w-[780px] items-center gap-3 rounded-[13px] border border-[#e6ebe8] bg-white px-4 text-[#6f807b] shadow-[0_1px_8px_rgba(32,43,40,0.07)]">
-        <Search size={21} />
-        <input
-          value={search}
-          onChange={(event) => onSearchChange(event.target.value)}
-          placeholder="Search projects, templates, assets..."
-          className="min-w-0 flex-1 bg-transparent text-[18px] text-[#24302d] placeholder:text-[#75857f]"
-        />
-      </label>
-      <div className="ml-auto flex items-center gap-5">
-        <button className="flex h-10 w-10 items-center justify-center rounded-full text-[#63756f] transition hover:bg-[#f1f5f3]">
-          <Bell size={21} />
-        </button>
-        <button
-          data-tour="new-project"
-          onClick={onNewProject}
-          className="flex h-[50px] w-35  items-center gap-4 rounded-[13px] bg-[#5d7f73] px-6 text-[9px] font-bold text-white shadow-[0_4px_10px_rgba(32,43,40,0.18)] transition hover:bg-[#4e7165]"
-        >
-          New project
-        </button>
-      </div>
-    </header>
-  );
-}
-
-function Sidebar({
-  activeView,
-  onViewChange,
-  userName,
-  userEmail,
-  onLogout,
-}: {
-  activeView: DashboardView;
-  onViewChange: (view: DashboardView) => void;
-  userName: string;
-  userEmail?: string;
-  onLogout: () => void;
-}) {
-  const initials = userName
-    .split(" ")
-    .map((part) => part[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-
-  return (
-    <aside className="hidden w-[300px] shrink-0 border-r border-[#edf0ee] bg-white lg:flex lg:flex-col">
-      <div className="h-[82px] border-b border-[#edf0ee] px-8 py-5">
-        <div className="text-[20px] font-bold leading-none tracking-[-0.03em] text-[#202927]">
-          Leon Manhimanzi
-        </div>
-        <div className="mt-2 text-[13px] font-bold uppercase tracking-[0.33em] text-[#75857f]">
-          Venue Simulation
-        </div>
-      </div>
-
-      <nav className="space-y-2 px-5 py-8">
-        {[
-          { view: "home" as const, label: "Home", icon: Home },
-          { view: "projects" as const, label: "Projects", icon: FolderKanban },
-        ].map((item) => {
-          const Icon = item.icon;
-          const selected = activeView === item.view;
-          return (
-            <button
-              key={item.view}
-              onClick={() => onViewChange(item.view)}
-              className={cx(
-                "flex h-[58px] w-full items-center gap-4 rounded-[16px] px-5 text-left text-[18px] font-bold transition",
-                selected
-                  ? "bg-[#eef3f1] text-[#5d7f73]"
-                  : "text-[#687a74] hover:bg-[#f5f8f6]",
-              )}
-            >
-              <Icon size={22} strokeWidth={2.2} />
-              {item.label}
-            </button>
-          );
-        })}
-      </nav>
-
-      <div className="mt-auto border-t border-[#edf0ee] p-8">
-        <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#e7efec] text-[16px] font-bold text-[#6a827a]">
-            {initials || "FO"}
-          </div>
-          <div className="min-w-0">
-            <div className="text-[18px] font-bold text-[#24302d]">
-              {userName || "Founder"}
-            </div>
-            <div className="truncate text-[14px] text-[#61736e]">
-              {userEmail || "founder@studio.com"}
-            </div>
-          </div>
-        </div>
-        <button
-          onClick={onLogout}
-          className="mt-5 h-11 w-full rounded-[13px] border border-[#dde6e2] bg-white text-[15px] font-bold text-[#5d7f73] transition hover:border-[#c5d8d3] hover:bg-[#f3f8f6]"
-        >
-          Logout
-        </button>
-      </div>
-    </aside>
-  );
-}
-
-function ActionCard({
-  icon: Icon,
-  title,
-  subtitle,
-  active,
-  tourId,
-  onClick,
-}: {
-  icon: LucideIcon;
-  title: string;
-  subtitle: string;
-  active?: boolean;
-  tourId?: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      data-tour={tourId}
-      onClick={onClick}
-      className={cx(
-        "flex min-h-[126px] items-center gap-5 rounded-[18px] border bg-white p-5 text-left transition hover:-translate-y-0.5 hover:border-[#c9d8d3] hover:shadow-[0_12px_30px_rgba(32,43,40,0.08)]",
-        active
-          ? "border-[#c5d8d3] shadow-[inset_0_0_0_1px_#c5d8d3]"
-          : "border-[#e9eeee]",
-      )}
-    >
-      <div
-        className={cx(
-          "flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-[13px] shadow-[0_4px_12px_rgba(32,43,40,0.12)]",
-          active ? "bg-[#f1f6f4] text-[#22302c]" : "bg-[#5d7f73] text-white",
-        )}
-      >
-        <Icon size={25} />
-      </div>
-      <div>
-        <div className="text-[16px] font-bold text-[#24302d]">{title}</div>
-        <div className="mt-2 text-[14px] leading-6 text-[#667873]">
-          {subtitle}
-        </div>
-      </div>
-    </button>
-  );
-}
-
-function SectionHeader({
-  title,
-  subtitle,
-  onViewAll,
-}: {
-  title: string;
-  subtitle?: string;
-  onViewAll?: () => void;
-}) {
-  return (
-    <div className="mb-5 flex items-end justify-between gap-4">
-      <div>
-        <h2 className="text-[22px] font-bold tracking-[-0.03em] text-[#24302d]">
-          {title}
-        </h2>
-        {subtitle ? (
-          <p className="mt-2 text-[16px] text-[#657872]">{subtitle}</p>
-        ) : null}
-      </div>
-      {onViewAll ? (
-        <button
-          onClick={onViewAll}
-          className="text-[16px] font-bold text-[#5d7f73] transition hover:text-[#3f6257]"
-        >
-          View all →
-        </button>
-      ) : null}
-    </div>
-  );
-}
-
-function FilterPills({
-  filters,
-  active,
-  onChange,
-}: {
-  filters: string[];
-  active: string;
-  onChange: (filter: string) => void;
-}) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {filters.map((filter) => (
-        <button
-          key={filter}
-          onClick={() => onChange(filter)}
-          className={cx(
-            "h-9 rounded-full border px-4 text-[14px] font-bold transition",
-            active === filter
-              ? "border-[#202927] bg-[#202927] text-white"
-              : "border-[#e2e9e6] bg-white text-[#657872] hover:border-[#cbd8d3]",
-          )}
-        >
-          {filter}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function TemplateCard({
-  template,
-  onUse,
-  isCreating = false,
-  disabled = false,
-}: {
-  template: ProjectTemplate;
-  onUse: () => void;
-  isCreating?: boolean;
-  disabled?: boolean;
-}) {
-  const previewProject = useMemo(
-    () => templateToPreviewProject(template),
-    [template],
-  );
-  const capacity = estimateTemplateCapacity(template);
-  const highlighted = template.category === "Church";
-
-  return (
-    <button
-      onClick={onUse}
-      disabled={disabled}
-      className={cx(
-        "group overflow-hidden rounded-[18px] border bg-white text-left transition hover:-translate-y-0.5 hover:border-[#c7d7d2] hover:shadow-[0_12px_30px_rgba(32,43,40,0.08)] disabled:cursor-wait disabled:opacity-70",
-        highlighted
-          ? "border-[#bcd3cd] shadow-[inset_0_0_0_1px_#bcd3cd]"
-          : "border-[#e9eeee]",
-      )}
-    >
-      <div className="relative h-[216px]">
-        <ProjectThumbnail project={previewProject} />
-        {template.avReady ? (
-          <div className="absolute bottom-3 left-3 flex gap-2">
-            <span className="rounded-full bg-white px-3 py-1 text-[12px] font-bold text-[#24302d] shadow">
-              Livestream
-            </span>
-            <span className="rounded-full bg-white px-3 py-1 text-[12px] font-bold text-[#657872] shadow">
-              PTZ
-            </span>
-          </div>
-        ) : null}
-        <span className="absolute bottom-3 right-3 hidden items-center gap-2 rounded-[10px] bg-[#5d7f73] px-4 py-2 text-[14px] font-bold text-white shadow group-hover:flex">
-          <Plus size={18} />
-          {isCreating ? "Opening" : "Use"}
-        </span>
-      </div>
-      <div className="border-t border-[#edf1ef] p-4">
-        <div className="flex items-center justify-between gap-4 text-[12px] font-bold uppercase tracking-[0.12em] text-[#6e837d]">
-          <span>{template.category}</span>
-          <span className="font-semibold normal-case tracking-normal text-[#6e7e79]">
-            {capacity.toLocaleString()} pax
-          </span>
-        </div>
-        <div className="mt-3 truncate text-[16px] font-bold tracking-[-0.02em] text-[#24302d]">
-          {template.name}
-        </div>
-      </div>
-    </button>
-  );
-}
-
-function HelpChat() {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <div className="fixed bottom-7 right-7 z-40">
-      {open ? (
-        <div className="mb-4 w-[340px] overflow-hidden rounded-[18px] border border-[#dfe8e4] bg-white shadow-[0_18px_60px_rgba(32,43,40,0.18)]">
-          <div className="flex items-center justify-between border-b border-[#edf1ef] bg-[#f8fbf9] px-5 py-4">
-            <div>
-              <div className="text-[15px] font-bold text-[#24302d]">
-                Venue help
-              </div>
-              <div className="text-[12px] text-[#657872]">
-                Dashboard assistant
-              </div>
-            </div>
-            <button
-              onClick={() => setOpen(false)}
-              className="flex h-8 w-8 items-center justify-center rounded-full text-[#657872] hover:bg-[#eaf1ee]"
-            >
-              <X size={18} />
-            </button>
-          </div>
-          <div className="space-y-3 px-5 py-5">
-            <div className="max-w-[260px] rounded-[14px] bg-[#eef5f2] px-4 py-3 text-[14px] leading-6 text-[#4f625c]">
-              Hi, I can help with project creation, imports, templates, and
-              export questions.
-            </div>
-            <div className="ml-auto max-w-[240px] rounded-[14px] bg-[#5d7f73] px-4 py-3 text-[14px] leading-6 text-white">
-              Chat is coming soon.
-            </div>
-          </div>
-          <div className="flex items-center gap-2 border-t border-[#edf1ef] p-4">
-            <input
-              disabled
-              placeholder="Ask for help..."
-              className="h-10 min-w-0 flex-1 rounded-[12px] border border-[#e1e8e5] bg-[#f8fbf9] px-3 text-[14px] placeholder:text-[#8b9a95]"
-            />
-            <button
-              disabled
-              className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-[#d8e4e0] text-[#6a7d76]"
-            >
-              <Send size={17} />
-            </button>
-          </div>
-        </div>
-      ) : null}
-      <button
-        onClick={() => setOpen((value) => !value)}
-        className="flex h-16 w-16 items-center justify-center rounded-full bg-[#5d7f73] text-white shadow-[0_10px_30px_rgba(32,43,40,0.22)] transition hover:-translate-y-0.5 hover:bg-[#4e7165]"
-      >
-        <MessageCircle size={28} />
-      </button>
-    </div>
-  );
-}
 
 function DashboardContent() {
   const router = useRouter();
@@ -579,7 +200,9 @@ function DashboardContent() {
         setError("");
         setShowOnboarding(false);
         clearPendingTemplate();
-        const savedProject = await upsertProject(template.buildProject(template.name));
+        const savedProject = await upsertProject(
+          template.buildProject(template.name),
+        );
         if (user?.email && !hasCompletedOnboarding(user.email)) {
           markOnboardingComplete(user.email);
           queueEditorTour();
@@ -635,7 +258,9 @@ function DashboardContent() {
       try {
         setCreatingTemplateId(template.id);
         setError("");
-        const savedProject = await upsertProject(template.buildProject(template.name));
+        const savedProject = await upsertProject(
+          template.buildProject(template.name),
+        );
         await loadProjects();
         router.push(`/editor/${savedProject.id}`);
       } catch (err) {
@@ -792,14 +417,14 @@ function DashboardContent() {
                   </div>
                   <button
                     onClick={() => openProjectCreation()}
-                    className="flex h-[56px] w-fit items-center gap-4 rounded-[13px] bg-[#5d7f73] px-7 text-[20px] font-bold text-white shadow-[0_4px_10px_rgba(32,43,40,0.18)] transition hover:bg-[#4e7165]"
+                    className="flex h-14 w-fit items-center gap-4 rounded-[13px] bg-[#5d7f73] px-7 text-[20px] font-bold text-white shadow-[0_4px_10px_rgba(32,43,40,0.18)] transition hover:bg-[#4e7165]"
                   >
                     New project
                   </button>
                 </div>
 
                 <div className="mb-8 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                  <label className="flex h-[60px] w-full max-w-[400px] items-center gap-4 rounded-[16px] border border-[#e9eeee] bg-white px-5 text-[#6f807b] shadow-[0_1px_8px_rgba(32,43,40,0.05)]">
+                  <label className="flex h-15 w-full max-w-100 items-center gap-4 rounded-2xl border border-[#e9eeee] bg-white px-5 text-[#6f807b] shadow-[0_1px_8px_rgba(32,43,40,0.05)]">
                     <Search size={24} />
                     <input
                       value={search}
@@ -814,11 +439,11 @@ function DashboardContent() {
                       active={projectFilter}
                       onChange={setProjectFilter}
                     />
-                    <div className="flex h-[54px] rounded-[16px] border border-[#e9eeee] bg-white p-1">
+                    <div className="flex h-13.5 rounded-2xl border border-[#e9eeee] bg-white p-1">
                       <button
                         onClick={() => setViewMode("grid")}
                         className={cx(
-                          "flex h-11 w-11 items-center justify-center rounded-[12px]",
+                          "flex h-11 w-11 items-center justify-center rounded-xl",
                           viewMode === "grid"
                             ? "bg-[#f0f5f3] text-[#24302d] shadow"
                             : "text-[#657872]",
@@ -829,7 +454,7 @@ function DashboardContent() {
                       <button
                         onClick={() => setViewMode("list")}
                         className={cx(
-                          "flex h-11 w-11 items-center justify-center rounded-[12px]",
+                          "flex h-11 w-11 items-center justify-center rounded-xl",
                           viewMode === "list"
                             ? "bg-[#f0f5f3] text-[#24302d] shadow"
                             : "text-[#657872]",

@@ -6,65 +6,82 @@ import { Bookmark, GitFork, Heart } from "lucide-react";
 import { apiClient } from "@/lib/apiClient";
 import { EVENT_TYPE_LABELS } from "@/types/types";
 import type { DiscoveryLayout } from "@/types/types";
+import Image from "next/image";
 
 const EVENT_TYPE_COLORS: Record<string, string> = {
-  wedding:          "bg-[#f9ece9] text-[#c4736a]",
-  funeral:          "bg-[#f0f0f0] text-[#6b7280]",
-  conference:       "bg-[#e8f0f7] text-[#4a7fa5]",
-  concert:          "bg-[#f0ecf9] text-[#7c5cbf]",
-  church_service:   "bg-[#f4efea] text-[#8b7355]",
-  gala:             "bg-[#f5eedf] text-[#b07d3a]",
-  graduation:       "bg-[#e8f4f2] text-[#3a7a6b]",
-  agm:              "bg-[#e8f0f7] text-[#4a6fa5]",
-  birthday:         "bg-[#faeee6] text-[#d4855a]",
+  wedding: "bg-[#f9ece9] text-[#c4736a]",
+  funeral: "bg-[#f0f0f0] text-[#6b7280]",
+  conference: "bg-[#e8f0f7] text-[#4a7fa5]",
+  concert: "bg-[#f0ecf9] text-[#7c5cbf]",
+  church_service: "bg-[#f4efea] text-[#8b7355]",
+  gala: "bg-[#f5eedf] text-[#b07d3a]",
+  graduation: "bg-[#e8f4f2] text-[#3a7a6b]",
+  agm: "bg-[#e8f0f7] text-[#4a6fa5]",
+  birthday: "bg-[#faeee6] text-[#d4855a]",
   corporate_dinner: "bg-[#e8f0f7] text-[#4a6fa5]",
-  product_launch:   "bg-[#f0ecf9] text-[#7c5cbf]",
-  memorial:         "bg-[#f0f0f0] text-[#6b7280]",
-  engagement:       "bg-[#f9ece9] text-[#c4736a]",
-  award_ceremony:   "bg-[#f5eedf] text-[#b07d3a]",
-  fundraiser:       "bg-[#e8f4f2] text-[#3a7a6b]",
-  livestream:       "bg-[#f0ecf9] text-[#7c5cbf]",
-  exhibition:       "bg-[#e8f0f7] text-[#4a7fa5]",
-  other:            "bg-[#f0f4f2] text-[#657872]",
+  product_launch: "bg-[#f0ecf9] text-[#7c5cbf]",
+  memorial: "bg-[#f0f0f0] text-[#6b7280]",
+  engagement: "bg-[#f9ece9] text-[#c4736a]",
+  award_ceremony: "bg-[#f5eedf] text-[#b07d3a]",
+  fundraiser: "bg-[#e8f4f2] text-[#3a7a6b]",
+  livestream: "bg-[#f0ecf9] text-[#7c5cbf]",
+  exhibition: "bg-[#e8f0f7] text-[#4a7fa5]",
+  other: "bg-[#f0f4f2] text-[#657872]",
 };
 
 type Props = {
-  layout:        DiscoveryLayout;
-  onFork:        (projectId: string) => void;
-  onPreview:     (layout: DiscoveryLayout) => void;
+  layout: DiscoveryLayout;
+  onFork: (projectId: string) => void;
+  onPreview: (layout: DiscoveryLayout) => void;
   isForkingThis: boolean;
 };
 
-export function LayoutCard({ layout, onFork, onPreview, isForkingThis }: Props) {
-  const [saved, setSaved]       = useState(false);
+export function LayoutCard({
+  layout,
+  onFork,
+  onPreview,
+  isForkingThis,
+}: Props) {
+  const [saved, setSaved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  const eventColor = EVENT_TYPE_COLORS[layout.eventType] ?? EVENT_TYPE_COLORS.other;
+  const eventColor =
+    EVENT_TYPE_COLORS[layout.eventType] ?? EVENT_TYPE_COLORS.other;
   const eventLabel = EVENT_TYPE_LABELS[layout.eventType] ?? layout.eventType;
 
-  const handleSave = useCallback(async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (isSaving) return;
-    setIsSaving(true);
-    const next = !saved;
-    setSaved(next); // optimistic
-    try {
-      if (next) {
-        await apiClient.post(`/api/community/layouts/${layout.projectId}/save/`);
-      } else {
-        await apiClient.delete(`/api/community/layouts/${layout.projectId}/save/`);
+  const handleSave = useCallback(
+    async (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (isSaving) return;
+      setIsSaving(true);
+      const next = !saved;
+      setSaved(next); // optimistic
+      try {
+        if (next) {
+          await apiClient.post(
+            `/api/community/layouts/${layout.projectId}/save/`,
+          );
+        } else {
+          await apiClient.delete(
+            `/api/community/layouts/${layout.projectId}/save/`,
+          );
+        }
+      } catch {
+        setSaved(!next); // rollback
+      } finally {
+        setIsSaving(false);
       }
-    } catch {
-      setSaved(!next); // rollback
-    } finally {
-      setIsSaving(false);
-    }
-  }, [saved, isSaving, layout.projectId]);
+    },
+    [saved, isSaving, layout.projectId],
+  );
 
-  const handleFork = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    onFork(layout.projectId);
-  }, [onFork, layout.projectId]);
+  const handleFork = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      onFork(layout.projectId);
+    },
+    [onFork, layout.projectId],
+  );
 
   return (
     <article
@@ -76,14 +93,14 @@ export function LayoutCard({ layout, onFork, onPreview, isForkingThis }: Props) 
         hover:shadow-[0_8px_24px_rgba(32,43,40,0.11)] hover:border-[#c8d8d2]
       "
     >
-      {/* Thumbnail */}
       <div className="relative aspect-video overflow-hidden bg-[#f0f4f2]">
         {layout.coverImageUrl ? (
-          <img
+          <Image
             src={layout.coverImageUrl}
             alt={`${layout.title} layout thumbnail`}
-            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+            fill
             loading="lazy"
+            className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
@@ -91,29 +108,33 @@ export function LayoutCard({ layout, onFork, onPreview, isForkingThis }: Props) 
           </div>
         )}
 
-        {/* Event type pill — top left */}
-        <span className={`absolute top-2.5 left-2.5 px-2 py-0.5 rounded-full text-[11px] font-semibold ${eventColor}`}>
+        <span
+          className={`absolute top-2.5 left-2.5 px-2 py-0.5 rounded-full text-[11px] font-semibold ${eventColor}`}
+        >
           {eventLabel}
         </span>
 
-        {/* Save button — top right, appears on hover */}
         <button
           onClick={handleSave}
           aria-label={saved ? "Remove from saved" : "Save layout"}
           className={`
             absolute top-2.5 right-2.5 w-7 h-7 flex items-center justify-center rounded-full
             transition-all duration-150
-            ${saved
-              ? "bg-[#5d7f73] text-white opacity-100"
-              : "bg-white/90 text-[#657872] opacity-0 group-hover:opacity-100"
+            ${
+              saved
+                ? "bg-[#5d7f73] text-white opacity-100"
+                : "bg-white/90 text-[#657872] opacity-0 group-hover:opacity-100"
             }
             hover:scale-110 active:scale-95
           `}
         >
-          <Bookmark size={13} strokeWidth={2.2} fill={saved ? "currentColor" : "none"} />
+          <Bookmark
+            size={13}
+            strokeWidth={2.2}
+            fill={saved ? "currentColor" : "none"}
+          />
         </button>
 
-        {/* Hover overlay — fork CTA */}
         <div
           className="
             absolute inset-0 flex flex-col items-center justify-center gap-2
@@ -145,7 +166,6 @@ export function LayoutCard({ layout, onFork, onPreview, isForkingThis }: Props) 
         </div>
       </div>
 
-      {/* Card body */}
       <div className="flex flex-col gap-1.5 p-3.5 flex-1">
         <p className="text-[13.5px] font-semibold text-[#17211e] leading-snug line-clamp-1 tracking-[-0.01em]">
           {layout.title}
@@ -157,12 +177,12 @@ export function LayoutCard({ layout, onFork, onPreview, isForkingThis }: Props) 
         )}
       </div>
 
-      {/* Footer */}
       <div className="flex items-center justify-between px-3.5 pb-3 pt-1">
         <div className="flex items-center gap-2 min-w-0">
-          {/* Avatar initial */}
-          <div className="w-5 h-5 rounded-full bg-[#d4e3de] flex items-center justify-center
-                          text-[10px] font-bold text-[#5d7f73] shrink-0">
+          <div
+            className="w-5 h-5 rounded-full bg-[#d4e3de] flex items-center justify-center
+                          text-[10px] font-bold text-[#5d7f73] shrink-0"
+          >
             {layout.publisher.name.charAt(0).toUpperCase()}
           </div>
           {layout.publisher.handle ? (
@@ -174,7 +194,9 @@ export function LayoutCard({ layout, onFork, onPreview, isForkingThis }: Props) 
               {layout.publisher.name}
             </Link>
           ) : (
-            <span className="text-xs text-[#657872] truncate">{layout.publisher.name}</span>
+            <span className="text-xs text-[#657872] truncate">
+              {layout.publisher.name}
+            </span>
           )}
         </div>
 
