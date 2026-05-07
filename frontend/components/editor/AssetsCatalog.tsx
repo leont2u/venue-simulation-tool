@@ -47,7 +47,6 @@ function CatalogIcon({ type }: { type: string }) {
 }
 
 export function AssetCatalog() {
-  const addItemFromAsset = useEditorStore((s) => s.addItemFromAsset);
   const replaceSelectedFromAsset = useEditorStore((s) => s.replaceSelectedFromAsset);
   const selectedIds = useEditorStore((s) => s.selectedIds);
   const assetLibraryTab = useEditorStore((s) => s.assetLibraryTab);
@@ -199,7 +198,7 @@ export function AssetCatalog() {
         <button
           onClick={() => setIsCollapsed(false)}
           title="Expand assets"
-          className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-[#eef4f1] text-[#647b73] transition hover:bg-[#e5eeea]"
+          className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#eef4f1] text-[#647b73] transition hover:bg-[#e5eeea]"
         >
           <PanelLeftOpen className="h-5 w-5" />
         </button>
@@ -209,7 +208,7 @@ export function AssetCatalog() {
             setAssetLibraryTab("Assets");
           }}
           title="Assets"
-          className="flex h-10 w-10 items-center justify-center rounded-[8px] text-[#555a61] transition hover:bg-[#f6f6f6]"
+          className="flex h-10 w-10 items-center justify-center rounded-lg text-[#555a61] transition hover:bg-[#f6f6f6]"
         >
           <Grid3X3 className="h-5 w-5" />
         </button>
@@ -224,7 +223,7 @@ export function AssetCatalog() {
             }, 0);
           }}
           title="Search assets"
-          className="flex h-10 w-10 items-center justify-center rounded-[8px] text-[#555a61] transition hover:bg-[#f6f6f6]"
+          className="flex h-10 w-10 items-center justify-center rounded-lg text-[#555a61] transition hover:bg-[#f6f6f6]"
         >
           <Search className="h-5 w-5" />
         </button>
@@ -241,7 +240,7 @@ export function AssetCatalog() {
         <button
           onClick={() => setIsCollapsed(true)}
           title="Collapse assets"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[#eef4f1] text-[#647b73] transition hover:bg-[#e5eeea]"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#eef4f1] text-[#647b73] transition hover:bg-[#e5eeea]"
         >
           <PanelLeftClose className="h-5 w-5" />
         </button>
@@ -253,7 +252,7 @@ export function AssetCatalog() {
             value={assetSearch}
             onChange={(event) => setAssetSearch(event.target.value)}
             placeholder="Search by entering key..."
-            className="h-full w-full rounded-[12px] border border-[#e8ece9] bg-white py-2 pl-10 pr-3 text-[13px] text-[#333941] shadow-[0_1px_4px_rgba(15,23,42,0.05)] placeholder:text-[#778782] transition focus:border-[#d8d8d8]"
+            className="h-full w-full rounded-xl border border-[#e8ece9] bg-white py-2 pl-10 pr-3 text-[13px] text-[#333941] shadow-[0_1px_4px_rgba(15,23,42,0.05)] placeholder:text-[#778782] transition focus:border-[#d8d8d8]"
           />
         </div>
       </div>
@@ -335,14 +334,14 @@ export function AssetCatalog() {
                       : `${filteredAssets.length}/${polyAssets.length} shown`}
               </div>
             </div>
-            <button className="ml-auto flex h-8 w-8 items-center justify-center rounded-[8px] border border-[#e8ece9] text-[#62666c]">
+            <button className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg border border-[#e8ece9] text-[#62666c]">
               <ListFilter className="h-4 w-4" />
             </button>
           </div>
 
           <div className="sf-scroll min-h-0 flex-1 overflow-y-auto px-3 pb-3 pt-3">
             {assetLibraryTab !== "Assets" ? (
-              <div className="rounded-[8px] border border-dashed border-[#d6d6d6] bg-[#fafaf8] px-3 py-8 text-center text-[12px] text-[#707070]">
+              <div className="rounded-lg border border-dashed border-[#d6d6d6] bg-[#fafaf8] px-3 py-8 text-center text-[12px] text-[#707070]">
                 {assetLibraryTab === "Uploads"
                   ? "Uploads are disabled while Poly Pizza is the active source."
                   : "Favorites will appear here once asset starring is enabled."}
@@ -382,7 +381,7 @@ export function AssetCatalog() {
                 ))}
 
                 {filteredAssets.length === 0 && !isPolyLoading && !isSketchfabLoading ? (
-                  <div className="col-span-2 rounded-[8px] border border-dashed border-[#d6d6d6] bg-[#fafaf8] px-3 py-8 text-center text-[12px] text-[#707070]">
+                  <div className="col-span-2 rounded-lg border border-dashed border-[#d6d6d6] bg-[#fafaf8] px-3 py-8 text-center text-[12px] text-[#707070]">
                     {selectedCategory === "Sketchfab"
                       ? sketchfabError || "No Sketchfab models loaded."
                       : "No Poly Pizza assets on this page."}

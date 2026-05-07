@@ -2,7 +2,7 @@
 
 import { MeshReflectorMaterial } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { useMemo, useRef } from "react";
+import { useMemo } from "react";
 import * as THREE from "three";
 import { Project, SceneSettings, VenueArchitecture, VenueOpening } from "@/types/types";
 
@@ -396,7 +396,7 @@ function AdaptiveWallVisibility({
   return null;
 }
 
-function OpeningDetails({ width, depth, height, architecture }: { width: number; depth: number; height: number; architecture: VenueArchitecture }) {
+function OpeningDetails({ width, depth, architecture }: { width: number; depth: number; height: number; architecture: VenueArchitecture }) {
   const allDoors = [...architecture.doors, ...architecture.entrances, ...architecture.exits];
   const toPosition = (opening: VenueOpening, y: number): [number, number, number] => {
     if (opening.wall === "north") return [opening.offset, y, -depth / 2 + 0.04];
