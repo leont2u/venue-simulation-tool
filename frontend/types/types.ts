@@ -45,8 +45,12 @@ export type AssetDefinition = {
     height: number;
   };
   source?: string;
+  sourceId?: string;
+  sourceUrl?: string;
   polyPizzaId?: string;
   polyPizzaUrl?: string;
+  sketchfabUid?: string;
+  sketchfabUrl?: string;
   attribution?: string;
   license?: string;
   creator?: string;
@@ -168,7 +172,133 @@ export type Project = {
   connections?: SceneConnection[];
   measurements?: MeasurementLine[];
   sceneSettings?: SceneSettings;
+
+  // Community fields — optional for backward compatibility
+  visibility?:       LayoutVisibility;
+  eventType?:        EventType | null;
+  tags?:             string[];
+  thumbnailUrl?:     string | null;
+  forkedFromId?:     string | null;
+  forkDepth?:        number;
+  attribution?:      Attribution | null;
+  publishState?:     LayoutPublishState;
+  publishedListing?: PublishedListing | null;
 };
+
+// ─── Community / Publishing types ────────────────────────────────────────────
+
+export type LayoutVisibility = "PRIVATE" | "UNLISTED" | "PUBLIC";
+
+export type LayoutPublishState =
+  | "DRAFT_PRIVATE"
+  | "PUBLISHED_CLEAN"
+  | "PUBLISHED_DIRTY"
+  | "ARCHIVED";
+
+export type EventType =
+  | "wedding"
+  | "engagement"
+  | "conference"
+  | "agm"
+  | "corporate_dinner"
+  | "product_launch"
+  | "funeral"
+  | "memorial"
+  | "concert"
+  | "award_ceremony"
+  | "graduation"
+  | "birthday"
+  | "gala"
+  | "fundraiser"
+  | "church_service"
+  | "livestream"
+  | "exhibition"
+  | "other";
+
+export const EVENT_TYPE_LABELS: Record<EventType, string> = {
+  wedding:          "Wedding",
+  engagement:       "Engagement",
+  conference:       "Conference",
+  agm:              "AGM",
+  corporate_dinner: "Corporate Dinner",
+  product_launch:   "Product Launch",
+  funeral:          "Funeral",
+  memorial:         "Memorial",
+  concert:          "Concert",
+  award_ceremony:   "Award Ceremony",
+  graduation:       "Graduation",
+  birthday:         "Birthday",
+  gala:             "Gala",
+  fundraiser:       "Fundraiser",
+  church_service:   "Church Service",
+  livestream:       "Livestream",
+  exhibition:       "Exhibition",
+  other:            "Other",
+};
+
+export type PublishedListing = {
+  id:                string;
+  title:             string;
+  tagline:           string;
+  eventType:         EventType;
+  theme:             string;
+  tags:              string[];
+  coverImageUrl:     string | null;
+  estimatedCapacity: number | null;
+  moderationStatus:  "PENDING" | "APPROVED" | "REJECTED" | "FLAGGED";
+  viewCount:         number;
+  forkCount:         number;
+  saveCount:         number;
+  likeCount:         number;
+  featuredAt:        string | null;
+  trendingScore:     number;
+  publishedAt:       string;
+  publisherId:       number;
+  publisherName:     string;
+  autoApproved:      boolean;
+};
+
+export type Attribution = {
+  sourceId:      string | null;
+  sourceTitle:   string;
+  sourceCreator: string;
+};
+
+export type DiscoveryLayout = {
+  id:                string;
+  projectId:         string;
+  title:             string;
+  tagline:           string;
+  eventType:         EventType;
+  theme:             string;
+  tags:              string[];
+  coverImageUrl:     string | null;
+  estimatedCapacity: number | null;
+  forkCount:         number;
+  saveCount:         number;
+  likeCount:         number;
+  trendingScore:     number;
+  publishedAt:       string;
+  publisher: {
+    id:       number;
+    username: string;
+    name:     string;
+    handle:   string | null;
+  };
+};
+
+export type DiscoveryLayoutDetail = DiscoveryLayout & {
+  publishedSnapshot: {
+    room:           Project["room"];
+    items:          SceneItem[];
+    connections:    SceneConnection[];
+    scene_settings: SceneSettings;
+    architecture:   VenueArchitecture | null;
+  };
+  attribution: Attribution | null;
+};
+
+// ─── End community types ──────────────────────────────────────────────────────
 
 export type MeasurementLine = {
   id: string;

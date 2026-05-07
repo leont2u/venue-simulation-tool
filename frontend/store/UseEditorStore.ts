@@ -2,12 +2,14 @@
 
 import { create } from "zustand";
 import { fetchPolyPizzaAssets } from "@/lib/polyPizzaAssets";
+import { apiClient } from "@/lib/apiClient";
 import { getProjectById, upsertProject } from "@/lib/storage";
 import {
   AssetDefinition,
   CableType,
   EditorLayerMode,
   EditorViewMode,
+  LayoutVisibility,
   Project,
   SceneItem,
   SceneSettings,
@@ -37,70 +39,100 @@ const DEFAULT_SCENE_SETTINGS: SceneSettings = {
   lightingMood: "presentation",
 };
 
-const REQUIRED_ASSET_QUERIES: Record<string, string> = {
-  chair: "event chair",
-  round_table: "round table",
-  banquet_table: "banquet round table",
+// PolyPizza fallback queries for types not covered by pinned Sketchfab models
+const POLYPIZZA_FALLBACK_QUERIES: Record<string, string> = {
+  banquet_table:     "banquet table",
   rectangular_table: "rectangular table",
-  sofa: "sofa",
-  plant: "plant",
-  bar: "bar counter",
+  desk:              "desk",
+  mixing_desk:       "mixing desk",
 };
+
+// Cache for pinned assets fetched from the backend (type → AssetDefinition)
+let _pinnedAssetsCache: Record<string, AssetDefinition> | null = null;
+
+async function fetchPinnedAssets(): Promise<Record<string, AssetDefinition>> {
+  if (_pinnedAssetsCache) return _pinnedAssetsCache;
+  try {
+    const r = await apiClient.get<{ results: Array<AssetDefinition & { pinnedType: string }> }>(
+      "/api/assets/sketchfab/pinned/"
+    );
+    const map: Record<string, AssetDefinition> = {};
+    for (const asset of r.data.results ?? []) {
+      if (asset.pinnedType) map[asset.pinnedType] = asset;
+    }
+    _pinnedAssetsCache = map;
+    return map;
+  } catch {
+    return {};
+  }
+}
 
 function requiredAssetType(assetUrl: string) {
   if (!assetUrl.startsWith("poly-pizza://required/")) return "";
   return assetUrl.replace("poly-pizza://required/", "").split("?")[0];
 }
 
-function needsPolyPizzaResolution(item: SceneItem) {
+function needsRequiredAssetResolution(item: SceneItem) {
   return item.assetUrl.startsWith("poly-pizza://required/");
 }
 
-function applyPolyPizzaAsset(item: SceneItem, asset: AssetDefinition): SceneItem {
+function applyResolvedAsset(item: SceneItem, asset: AssetDefinition): SceneItem {
   return {
     ...item,
     assetUrl: asset.modelUrl,
     source: asset.source,
-    sourceId: asset.polyPizzaId,
-    sourceUrl: asset.polyPizzaUrl,
+    sourceId: asset.sourceId || asset.polyPizzaId || asset.sketchfabUid || asset.id,
+    sourceUrl: asset.sourceUrl || asset.polyPizzaUrl || asset.sketchfabUrl,
     attribution: asset.attribution,
     license: asset.license,
     creator: asset.creator,
   };
 }
 
-async function resolveRequiredPolyPizzaAssets(project: Project): Promise<Project> {
-  const requiredItems = project.items.filter(needsPolyPizzaResolution);
+async function resolveRequiredSceneAssets(project: Project): Promise<Project> {
+  const requiredItems = project.items.filter(needsRequiredAssetResolution);
   if (!requiredItems.length) return project;
 
-  const cache = new Map<string, AssetDefinition | null>();
+  // Load pinned Sketchfab assets once (cached after first call)
+  const pinnedAssets = await fetchPinnedAssets();
+
+  const polyPizzaCache = new Map<string, AssetDefinition | null>();
   const nextItems = [...project.items];
 
   for (const item of requiredItems) {
     const assetType = requiredAssetType(item.assetUrl) || item.type;
-    const query = item.assetSearch || REQUIRED_ASSET_QUERIES[assetType] || assetType.replace(/_/g, " ");
-    const cacheKey = query.toLowerCase();
 
-    if (!cache.has(cacheKey)) {
-      try {
-        const payload = await fetchPolyPizzaAssets({
-          q: query,
-          preset: "venue",
-          page: 0,
-          limit: 8,
-        });
-        cache.set(cacheKey, payload.results[0] ?? null);
-      } catch {
-        cache.set(cacheKey, null);
+    // 1. Use exact pinned Sketchfab model if we have one for this type
+    let asset: AssetDefinition | null | undefined = pinnedAssets[assetType] ?? null;
+
+    // 2. Fall back to PolyPizza search for types not in the pinned list
+    if (!asset) {
+      const fallbackQuery =
+        item.assetSearch ||
+        POLYPIZZA_FALLBACK_QUERIES[assetType] ||
+        assetType.replace(/_/g, " ");
+      const cacheKey = `poly-pizza:${fallbackQuery.toLowerCase()}`;
+      if (!polyPizzaCache.has(cacheKey)) {
+        try {
+          const payload = await fetchPolyPizzaAssets({
+            q: fallbackQuery,
+            preset: "venue",
+            page: 0,
+            limit: 8,
+          });
+          polyPizzaCache.set(cacheKey, payload.results[0] ?? null);
+        } catch {
+          polyPizzaCache.set(cacheKey, null);
+        }
       }
+      asset = polyPizzaCache.get(cacheKey);
     }
 
-    const asset = cache.get(cacheKey);
     if (!asset) continue;
 
     const index = nextItems.findIndex((entry) => entry.id === item.id);
     if (index >= 0) {
-      nextItems[index] = applyPolyPizzaAsset(nextItems[index], asset);
+      nextItems[index] = applyResolvedAsset(nextItems[index], asset);
     }
   }
 
@@ -123,8 +155,19 @@ interface EditorState {
   isProjectSaving: boolean;
   projectError: string;
 
+  // Publishing state
+  publishDrawerOpen: boolean;
+  isPublishing: boolean;
+  publishError: string;
+
   loadProject: (id: string) => Promise<void>;
   setProject: (project: Project) => void;
+
+  // Publishing actions
+  setPublishDrawerOpen: (open: boolean) => void;
+  setLayoutVisibility: (visibility: LayoutVisibility) => Promise<void>;
+  updatePublishedListing: (listing: Project["publishedListing"]) => void;
+  clearPublishError: () => void;
 
   selectItem: (id: string | null, append?: boolean) => void;
   setSelectedIds: (ids: string[]) => void;
@@ -183,7 +226,7 @@ function withSceneSettings(project: Project): Project {
             assetUrl: `poly-pizza://required/${item.type}`,
             assetSearch:
               item.assetSearch ||
-              REQUIRED_ASSET_QUERIES[item.type] ||
+              POLYPIZZA_FALLBACK_QUERIES[item.type] ||
               item.type.replace(/_/g, " "),
             source: "Poly Pizza",
             sourceId: undefined,
@@ -320,8 +363,8 @@ function createItemFromAsset(
     assetUrl: asset.modelUrl,
     label: asset.name,
     source: asset.source,
-    sourceId: asset.polyPizzaId,
-    sourceUrl: asset.polyPizzaUrl,
+    sourceId: asset.sourceId || asset.polyPizzaId || asset.sketchfabUid || asset.id,
+    sourceUrl: asset.sourceUrl || asset.polyPizzaUrl || asset.sketchfabUrl,
     attribution: asset.attribution,
     license: asset.license,
     creator: asset.creator,
@@ -344,13 +387,18 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   isProjectSaving: false,
   projectError: "",
 
+  // Publishing state
+  publishDrawerOpen: false,
+  isPublishing: false,
+  publishError: "",
+
   loadProject: async (id) => {
     set({ isProjectLoading: true, projectError: "" });
 
     try {
       const project = await getProjectById(id);
       const hydratedProject = project
-        ? withSceneSettings(await resolveRequiredPolyPizzaAssets(withSceneSettings(project)))
+        ? withSceneSettings(await resolveRequiredSceneAssets(withSceneSettings(project)))
         : null;
       set({
         project: hydratedProject,
@@ -384,7 +432,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         projectError: "",
       });
 
-      void resolveRequiredPolyPizzaAssets(baseProject).then((resolvedProject) => {
+      void resolveRequiredSceneAssets(baseProject).then((resolvedProject) => {
         set((state) => {
           if (state.project?.id !== baseProject.id) return state;
           return { project: withSceneSettings(resolvedProject) };
@@ -500,8 +548,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
               assetUrl: asset.modelUrl,
               label: asset.name,
               source: asset.source,
-              sourceId: asset.polyPizzaId,
-              sourceUrl: asset.polyPizzaUrl,
+              sourceId: asset.sourceId || asset.polyPizzaId || asset.sketchfabUid || asset.id,
+              sourceUrl: asset.sourceUrl || asset.polyPizzaUrl || asset.sketchfabUrl,
               attribution: asset.attribution,
               license: asset.license,
               creator: asset.creator,
@@ -729,6 +777,43 @@ export const useEditorStore = create<EditorState>((set, get) => ({
           error instanceof Error ? error.message : "Failed to save project.",
       });
       throw error;
+    }
+  },
+
+  // ─── Publishing actions ────────────────────────────────────────────────────
+
+  setPublishDrawerOpen: (open) => set({ publishDrawerOpen: open, publishError: "" }),
+
+  clearPublishError: () => set({ publishError: "" }),
+
+  updatePublishedListing: (listing) => {
+    const project = get().project;
+    if (!project) return;
+    set({
+      project: {
+        ...project,
+        publishedListing: listing,
+        visibility:       listing ? "PUBLIC" : "PRIVATE",
+        publishState:     listing ? "PUBLISHED_CLEAN" : "DRAFT_PRIVATE",
+      },
+    });
+  },
+
+  setLayoutVisibility: async (visibility) => {
+    const project = get().project;
+    if (!project) return;
+
+    const previous = project.visibility;
+
+    // Optimistic update
+    set({ project: { ...project, visibility } });
+
+    try {
+      const { apiClient } = await import("@/lib/apiClient");
+      await apiClient.patch(`/api/projects/${project.id}/`, { visibility });
+    } catch {
+      // Roll back on failure
+      set({ project: { ...project, visibility: previous } });
     }
   },
 }));

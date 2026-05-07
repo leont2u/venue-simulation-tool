@@ -16,9 +16,9 @@ def create_item(item_type, x, z, label, rotation_y=0, scale=None, asset_url=None
         "rectangular_table": {"assetUrl": "primitive://rectangular_table", "scale": [1.8, 0.75, 0.8]},
         "stage": {"assetUrl": "primitive://stage", "scale": [5, 0.45, 3]},
         "aisle": {"assetUrl": "primitive://aisle", "scale": [1.8, 0.02, 7]},
-        "plant": {"assetUrl": "primitive://plant", "scale": [0.6, 1.2, 0.6]},
-        "sofa": {"assetUrl": "primitive://sofa", "scale": [1.8, 0.8, 0.8]},
-        "bar": {"assetUrl": "primitive://bar", "scale": [1.5, 1.0, 0.7]},
+        "plant": {"assetUrl": "poly-pizza://required/plant", "scale": [0.6, 1.2, 0.6]},
+        "sofa": {"assetUrl": "poly-pizza://required/sofa", "scale": [1.8, 0.8, 0.8]},
+        "bar": {"assetUrl": "poly-pizza://required/bar", "scale": [1.5, 1.0, 0.7]},
         "entrance": {"assetUrl": "primitive://entrance", "scale": [2.0, 2.4, 0.4]},
     }
     visual = default_visuals[item_type]

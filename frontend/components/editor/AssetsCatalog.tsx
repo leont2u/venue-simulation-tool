@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Box,
   Camera,
   ChevronLeft,
   ChevronRight,
@@ -15,6 +16,7 @@ import {
   Star,
 } from "lucide-react";
 import { fetchPolyPizzaAssets } from "@/lib/polyPizzaAssets";
+import { fetchCuratedSketchfabAssets } from "@/lib/sketchfabAssets";
 import { useEditorStore } from "@/store/UseEditorStore";
 import { AssetCategory, AssetDefinition } from "@/types/types";
 
@@ -33,16 +35,18 @@ const CATALOG_NAV = [
   { label: "AV Gear", category: "AV Gear", icon: "av" },
 ] as const;
 
+const SKETCHFAB_NAV = { label: "Sketchfab 3D", category: "Sketchfab" as const, icon: "sketchfab" };
+
 function CatalogIcon({ type }: { type: string }) {
   if (type === "media") return <Camera className="h-4 w-4" />;
   if (type === "av") return <Cable className="h-4 w-4" />;
   if (type === "stage") return <Grid3X3 className="h-4 w-4" />;
   if (type === "table") return <ListFilter className="h-4 w-4" />;
+  if (type === "sketchfab") return <Box className="h-4 w-4" />;
   return <Star className="h-4 w-4" />;
 }
 
 export function AssetCatalog() {
-  const addItemFromAsset = useEditorStore((s) => s.addItemFromAsset);
   const replaceSelectedFromAsset = useEditorStore((s) => s.replaceSelectedFromAsset);
   const selectedIds = useEditorStore((s) => s.selectedIds);
   const assetLibraryTab = useEditorStore((s) => s.assetLibraryTab);
@@ -59,8 +63,11 @@ export function AssetCatalog() {
   const [polyPage, setPolyPage] = useState(0);
   const [polyTotal, setPolyTotal] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState<
-    AssetCategory | "All"
+    AssetCategory | "All" | "Sketchfab"
   >("All");
+  const [isSketchfabLoading, setIsSketchfabLoading] = useState(false);
+  const [sketchfabError, setSketchfabError] = useState("");
+  const sketchfabRef = useRef<AssetDefinition[]>([]);
   const pageCacheRef = useRef(new Map<string, CachedAssetPage>());
   const requestIdRef = useRef(0);
 
@@ -76,7 +83,7 @@ export function AssetCatalog() {
       setPolyAssets(payload.results);
       setPolyPage(page);
       setPolyTotal(payload.total);
-      setAssetCatalog(payload.results);
+      setAssetCatalog([...sketchfabRef.current, ...payload.results]);
     },
     [setAssetCatalog],
   );
@@ -118,7 +125,7 @@ export function AssetCatalog() {
         setPolyAssets([]);
         setPolyPage(0);
         setPolyTotal(0);
-        setAssetCatalog([]);
+        setAssetCatalog([...sketchfabRef.current]);
         setPolyError(
           error instanceof Error
             ? error.message
@@ -141,10 +148,31 @@ export function AssetCatalog() {
     };
   }, [loadPolyPage]);
 
+  useEffect(() => {
+    setIsSketchfabLoading(true);
+    fetchCuratedSketchfabAssets()
+      .then((data) => {
+        sketchfabRef.current = data.results;
+        setAssetCatalog([...data.results, ...polyAssets]);
+      })
+      .catch(() => {
+        setSketchfabError("Sketchfab assets unavailable.");
+      })
+      .finally(() => {
+        setIsSketchfabLoading(false);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const filteredAssets = useMemo(() => {
     return assetCatalog.filter((asset) => {
-      if (asset.source !== "Poly Pizza") return false;
       if (assetLibraryTab !== "Assets") return false;
+
+      if (selectedCategory === "Sketchfab") {
+        return asset.source === "Sketchfab";
+      }
+
+      if (asset.source !== "Poly Pizza") return false;
       if (selectedCategory !== "All" && asset.category !== selectedCategory) {
         return false;
       }
@@ -170,7 +198,7 @@ export function AssetCatalog() {
         <button
           onClick={() => setIsCollapsed(false)}
           title="Expand assets"
-          className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-[#eef4f1] text-[#647b73] transition hover:bg-[#e5eeea]"
+          className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#eef4f1] text-[#647b73] transition hover:bg-[#e5eeea]"
         >
           <PanelLeftOpen className="h-5 w-5" />
         </button>
@@ -180,7 +208,7 @@ export function AssetCatalog() {
             setAssetLibraryTab("Assets");
           }}
           title="Assets"
-          className="flex h-10 w-10 items-center justify-center rounded-[8px] text-[#555a61] transition hover:bg-[#f6f6f6]"
+          className="flex h-10 w-10 items-center justify-center rounded-lg text-[#555a61] transition hover:bg-[#f6f6f6]"
         >
           <Grid3X3 className="h-5 w-5" />
         </button>
@@ -195,7 +223,7 @@ export function AssetCatalog() {
             }, 0);
           }}
           title="Search assets"
-          className="flex h-10 w-10 items-center justify-center rounded-[8px] text-[#555a61] transition hover:bg-[#f6f6f6]"
+          className="flex h-10 w-10 items-center justify-center rounded-lg text-[#555a61] transition hover:bg-[#f6f6f6]"
         >
           <Search className="h-5 w-5" />
         </button>
@@ -212,7 +240,7 @@ export function AssetCatalog() {
         <button
           onClick={() => setIsCollapsed(true)}
           title="Collapse assets"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[#eef4f1] text-[#647b73] transition hover:bg-[#e5eeea]"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#eef4f1] text-[#647b73] transition hover:bg-[#e5eeea]"
         >
           <PanelLeftClose className="h-5 w-5" />
         </button>
@@ -224,7 +252,7 @@ export function AssetCatalog() {
             value={assetSearch}
             onChange={(event) => setAssetSearch(event.target.value)}
             placeholder="Search by entering key..."
-            className="h-full w-full rounded-[12px] border border-[#e8ece9] bg-white py-2 pl-10 pr-3 text-[13px] text-[#333941] shadow-[0_1px_4px_rgba(15,23,42,0.05)] placeholder:text-[#778782] transition focus:border-[#d8d8d8]"
+            className="h-full w-full rounded-xl border border-[#e8ece9] bg-white py-2 pl-10 pr-3 text-[13px] text-[#333941] shadow-[0_1px_4px_rgba(15,23,42,0.05)] placeholder:text-[#778782] transition focus:border-[#d8d8d8]"
           />
         </div>
       </div>
@@ -262,6 +290,21 @@ export function AssetCatalog() {
                 }}
               />
             ))}
+            <div className="my-2 border-t border-[#edf0ee]" />
+            <SectionHeader>Real 3D</SectionHeader>
+            <NavButton
+              active={
+                selectedCategory === SKETCHFAB_NAV.category &&
+                assetLibraryTab === "Assets"
+              }
+              icon={<CatalogIcon type={SKETCHFAB_NAV.icon} />}
+              label={SKETCHFAB_NAV.label}
+              dot={isSketchfabLoading}
+              onClick={() => {
+                setAssetLibraryTab("Assets");
+                setSelectedCategory(SKETCHFAB_NAV.category);
+              }}
+            />
           </section>
         </div>
 
@@ -270,27 +313,35 @@ export function AssetCatalog() {
             <div className="min-w-0">
               <div className="truncate font-medium text-[#555a61]">
                 {assetLibraryTab === "Assets"
-                  ? selectedCategory === "All"
-                    ? "Poly Pizza"
-                    : selectedCategory
+                  ? selectedCategory === "Sketchfab"
+                    ? "Sketchfab 3D"
+                    : selectedCategory === "All"
+                      ? "Poly Pizza"
+                      : selectedCategory
                   : assetLibraryTab}
               </div>
               <div>
-                {isPolyLoading
-                  ? "Loading"
-                  : polyError
-                    ? "Unavailable"
-                    : `${filteredAssets.length}/${polyAssets.length} shown`}
+                {selectedCategory === "Sketchfab"
+                  ? isSketchfabLoading
+                    ? "Loading"
+                    : sketchfabError
+                      ? "Unavailable"
+                      : `${filteredAssets.length} models`
+                  : isPolyLoading
+                    ? "Loading"
+                    : polyError
+                      ? "Unavailable"
+                      : `${filteredAssets.length}/${polyAssets.length} shown`}
               </div>
             </div>
-            <button className="ml-auto flex h-8 w-8 items-center justify-center rounded-[8px] border border-[#e8ece9] text-[#62666c]">
+            <button className="ml-auto flex h-8 w-8 items-center justify-center rounded-lg border border-[#e8ece9] text-[#62666c]">
               <ListFilter className="h-4 w-4" />
             </button>
           </div>
 
           <div className="sf-scroll min-h-0 flex-1 overflow-y-auto px-3 pb-3 pt-3">
             {assetLibraryTab !== "Assets" ? (
-              <div className="rounded-[8px] border border-dashed border-[#d6d6d6] bg-[#fafaf8] px-3 py-8 text-center text-[12px] text-[#707070]">
+              <div className="rounded-lg border border-dashed border-[#d6d6d6] bg-[#fafaf8] px-3 py-8 text-center text-[12px] text-[#707070]">
                 {assetLibraryTab === "Uploads"
                   ? "Uploads are disabled while Poly Pizza is the active source."
                   : "Favorites will appear here once asset starring is enabled."}
@@ -329,36 +380,40 @@ export function AssetCatalog() {
                   </button>
                 ))}
 
-                {filteredAssets.length === 0 && !isPolyLoading ? (
-                  <div className="col-span-2 rounded-[8px] border border-dashed border-[#d6d6d6] bg-[#fafaf8] px-3 py-8 text-center text-[12px] text-[#707070]">
-                    No Poly Pizza assets on this page.
+                {filteredAssets.length === 0 && !isPolyLoading && !isSketchfabLoading ? (
+                  <div className="col-span-2 rounded-lg border border-dashed border-[#d6d6d6] bg-[#fafaf8] px-3 py-8 text-center text-[12px] text-[#707070]">
+                    {selectedCategory === "Sketchfab"
+                      ? sketchfabError || "No Sketchfab models loaded."
+                      : "No Poly Pizza assets on this page."}
                   </div>
                 ) : null}
               </div>
             )}
           </div>
 
-          <div className="flex h-12 shrink-0 items-center justify-center gap-3 border-t border-[#edf0ee] text-[13px] text-[#61726d]">
-            <button
-              onClick={() => void loadPolyPage(polyPage - 1)}
-              disabled={isPolyLoading || polyPage === 0}
-              className="flex h-8 w-8 items-center justify-center rounded-[6px] text-[#555a61] transition hover:bg-[#f6f6f6] disabled:opacity-35"
-              title="Previous page"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <div className="min-w-16 text-center">
-              {polyPage + 1} / {pageCount}
+          {selectedCategory !== "Sketchfab" && (
+            <div className="flex h-12 shrink-0 items-center justify-center gap-3 border-t border-[#edf0ee] text-[13px] text-[#61726d]">
+              <button
+                onClick={() => void loadPolyPage(polyPage - 1)}
+                disabled={isPolyLoading || polyPage === 0}
+                className="flex h-8 w-8 items-center justify-center rounded-[6px] text-[#555a61] transition hover:bg-[#f6f6f6] disabled:opacity-35"
+                title="Previous page"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <div className="min-w-16 text-center">
+                {polyPage + 1} / {pageCount}
+              </div>
+              <button
+                onClick={() => void loadPolyPage(polyPage + 1)}
+                disabled={isPolyLoading || polyPage + 1 >= pageCount}
+                className="flex h-8 w-8 items-center justify-center rounded-[6px] text-[#555a61] transition hover:bg-[#f6f6f6] disabled:opacity-35"
+                title="Next page"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
             </div>
-            <button
-              onClick={() => void loadPolyPage(polyPage + 1)}
-              disabled={isPolyLoading || polyPage + 1 >= pageCount}
-              className="flex h-8 w-8 items-center justify-center rounded-[6px] text-[#555a61] transition hover:bg-[#f6f6f6] disabled:opacity-35"
-              title="Next page"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
+          )}
         </div>
       </div>
     </aside>

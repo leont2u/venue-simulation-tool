@@ -9,4 +9,7 @@ urlpatterns = [
     path("api/assets/", include("assets.urls")),
     path("api/imports/", include("layout_imports.urls")),
     path("api/projects/", include("projects.urls")),
+    path("api/community/", include("community.urls")),
+    path("api/planners/", include("profiles.urls")),
+    path("api/notifications/", include("notifications.urls")),
 ]

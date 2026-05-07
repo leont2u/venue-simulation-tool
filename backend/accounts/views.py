@@ -67,8 +67,35 @@ class RefreshView(APIView):
 
 class MeView(APIView):
     def get(self, request):
-        serializer = UserSerializer({"email": request.user.email})
-        return Response({"user": serializer.data}, status=status.HTTP_200_OK)
+        user = request.user
+        data = {"email": user.email}
+
+        # Attach profile fields if the profiles app is installed
+        try:
+            from profiles.models import UserProfile, _slugify_email, _unique_handle
+            profile, created = UserProfile.objects.get_or_create(user=user)
+            if created:
+                base   = _slugify_email(user.email)
+                handle = _unique_handle(base)
+                profile.handle = handle
+                profile.save(update_fields=["handle"])
+            data["handle"]      = profile.handle
+            data["displayName"] = profile.display_name or user.email.split("@")[0]
+            data["avatarUrl"]   = profile.avatar_url or ""
+            data["isVerified"]  = profile.is_verified
+        except Exception:
+            pass
+
+        # Unread notification count
+        try:
+            from notifications.models import Notification
+            data["unreadNotifications"] = Notification.objects.filter(
+                recipient=user, is_read=False
+            ).count()
+        except Exception:
+            data["unreadNotifications"] = 0
+
+        return Response({"user": data}, status=status.HTTP_200_OK)
 
 
 class LogoutView(APIView):

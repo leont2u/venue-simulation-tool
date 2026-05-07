@@ -15,7 +15,9 @@ export async function createProjectFromDrawioFile(
       : "";
 
   if (!endpoint) {
-    throw new Error("Unsupported import type. Upload draw.io, XML, HTML, PNG, JPG, or PDF.");
+    throw new Error(
+      "Unsupported import type. Upload draw.io, XML, HTML, PNG, JPG, or PDF.",
+    );
   }
 
   const formData = new FormData();
@@ -24,11 +26,7 @@ export async function createProjectFromDrawioFile(
     formData.append("name", name.trim());
   }
 
-  const response = await apiClient.post<Project>(endpoint, formData, {
-    headers: {
-      "Content-Type": "multipart/form-data",
-    },
-  });
+  const response = await apiClient.post<Project>(endpoint, formData);
 
   return response.data;
 }
