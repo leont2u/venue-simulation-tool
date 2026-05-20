@@ -109,6 +109,8 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "static/"
+MEDIA_URL  = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
 POLY_PIZZA_API_KEY = os.getenv("POLY_PIZZA_API_KEY", "")
 _POLY_PIZZA_CACHE_DIR = Path(
     os.getenv(

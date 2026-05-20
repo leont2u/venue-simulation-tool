@@ -16,6 +16,7 @@ import { useEditorStore } from "@/store/UseEditorStore";
 import { ShareExportModal } from "./ShareExportModal";
 import ProjectNameInput from "./components/ProjectNameInput";
 import ShortcutHelpModal from "./components/ShortCutHelpModal";
+import { VisibilityBadge } from "@/components/publishing/VisibilityBadge";
 
 export function TopToolbar() {
   const router = useRouter();
@@ -145,6 +146,11 @@ export function TopToolbar() {
           >
             <CircleHelp className="h-4 w-4" />
           </button>
+
+          <div className="hidden lg:block">
+            <VisibilityBadge />
+          </div>
+
           <button
             onClick={() => void saveProject()}
             disabled={isProjectSaving}

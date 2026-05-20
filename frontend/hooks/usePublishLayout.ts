@@ -3,17 +3,8 @@
 import { useCallback, useState } from "react";
 import { useEditorStore } from "@/store/UseEditorStore";
 import { apiClient } from "@/lib/apiClient";
+import { uploadProjectThumbnail } from "@/lib/captureCanvas";
 import type { PublishFormData } from "@/components/publishing/PublishForm";
-
-function captureViewportThumbnail(): string | null {
-  const canvas = document.querySelector<HTMLCanvasElement>("canvas");
-  if (!canvas) return null;
-  try {
-    return canvas.toDataURL("image/jpeg", 0.85);
-  } catch {
-    return null;
-  }
-}
 
 export function usePublishLayout() {
   const project            = useEditorStore((s) => s.project);
@@ -31,18 +22,7 @@ export function usePublishLayout() {
 
     // Auto-capture 3D viewport as thumbnail if user didn't provide a URL
     if (!coverUrl) {
-      const dataUrl = captureViewportThumbnail();
-      if (dataUrl) {
-        try {
-          const up = await apiClient.post("/api/community/thumbnails/", {
-            data_url:   dataUrl,
-            project_id: project.id,
-          });
-          coverUrl = up.data.url ?? "";
-        } catch {
-          // Non-fatal — publishing continues without auto-thumbnail
-        }
-      }
+      await uploadProjectThumbnail(project.id, (url) => { coverUrl = url; });
     }
 
     try {

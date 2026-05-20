@@ -3,9 +3,9 @@ import { ProjectTemplate } from "@/lib/projectTemplates";
 import { useMemo } from "react";
 import { templateToPreviewProject } from "../utils/templateToPreviewProject";
 import estimateTemplateCapacity from "../utils/estimateTemplateCapacity";
-import { ProjectThumbnail } from "../ProjectPreviewCard";
 import cx from "../utils/cx";
 import { Plus } from "lucide-react";
+import { ProjectThumbnail } from "../ProjectThumbnail";
 
 export default function TemplateCard({
   template,

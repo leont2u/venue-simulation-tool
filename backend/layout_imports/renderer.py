@@ -1,7 +1,12 @@
 import cv2
 import numpy as np
 
-from .detection import understand_floorplan
+from .detection import (
+    _parse_floor_plan_bytes,
+    _VIRTUAL_PX_TO_METER,
+    understand_floorplan,
+    vision_parsed_to_understanding,
+)
 from .photo_reconstruction import reconstruct_project_from_photo
 from .preprocessing import preprocess_floorplan
 from .reconstruction import reconstruct_project_from_understanding
@@ -25,6 +30,21 @@ def floorplan_file_to_project(
     project_name: str | None = None,
     px_to_meter: float | None = None,
 ):
+    # Try Gemma3 vision first — gives richer semantic results when Ollama is available.
+    try:
+        parsed = _parse_floor_plan_bytes(file_bytes)
+        if parsed["items"] or parsed["zones"]:
+            understanding = vision_parsed_to_understanding(parsed)
+            return reconstruct_project_from_understanding(
+                understanding,
+                file_name=file_name,
+                project_name=project_name,
+                px_to_meter=_VIRTUAL_PX_TO_METER,
+            )
+    except Exception:
+        pass
+
+    # Fall back to OpenCV pipeline.
     preprocessed = preprocess_floorplan(file_bytes, file_name)
     if _is_photo_like(preprocessed):
         return reconstruct_project_from_photo(

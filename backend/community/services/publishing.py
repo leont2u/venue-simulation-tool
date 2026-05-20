@@ -24,15 +24,7 @@ def _build_scene_snapshot(project: Project) -> dict:
 
 
 def _should_auto_approve(publisher) -> bool:
-    """
-    Trust publishers who already have approved layouts and no recent flags.
-    Prevents moderation from becoming a bottleneck as the community scales.
-    """
-    approved_count = PublishedLayout.objects.filter(
-        publisher=publisher,
-        moderation_status=PublishedLayout.MODERATION_APPROVED,
-    ).count()
-    return approved_count >= 5
+    return True
 
 
 @transaction.atomic

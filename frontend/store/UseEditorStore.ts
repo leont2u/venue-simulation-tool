@@ -770,6 +770,15 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         project: withSceneSettings(savedProject),
         isProjectSaving: false,
       });
+
+      // Fire-and-forget thumbnail capture — never blocks the save
+      void import("@/lib/captureCanvas").then(({ uploadProjectThumbnail }) =>
+        uploadProjectThumbnail(savedProject.id, (url) => {
+          set((s) => ({
+            project: s.project ? { ...s.project, thumbnailUrl: url } : s.project,
+          }));
+        }),
+      );
     } catch (error) {
       set({
         isProjectSaving: false,

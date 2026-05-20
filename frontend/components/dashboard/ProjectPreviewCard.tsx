@@ -6,6 +6,12 @@ import { Project } from "@/types/types";
 import estimateCapacity from "./utils/estimateCapacity";
 import { ProjectThumbnail } from "./ProjectThumbnail";
 import inferCategory from "./utils/inferCategory";
+import type { LayoutPublishState } from "@/types/types";
+
+const PUBLISH_BADGE: Partial<Record<LayoutPublishState, { label: string; className: string }>> = {
+  PUBLISHED_CLEAN: { label: "Public",            className: "bg-emerald-50 text-emerald-700" },
+  PUBLISHED_DIRTY: { label: "Public · Unsynced", className: "bg-amber-50 text-amber-700" },
+};
 
 export default function ProjectPreviewCard({
   project,
@@ -16,6 +22,9 @@ export default function ProjectPreviewCard({
 }) {
   const category = inferCategory(project);
   const capacity = estimateCapacity(project);
+  const publishBadge = project.publishState
+    ? PUBLISH_BADGE[project.publishState as LayoutPublishState]
+    : undefined;
 
   return (
     <Link
@@ -24,6 +33,11 @@ export default function ProjectPreviewCard({
     >
       <div className={`${compact ? "h-45" : "h-44"} relative`}>
         <ProjectThumbnail project={project} />
+        {publishBadge && (
+          <span className={`absolute bottom-2 left-2 rounded-full px-2 py-0.5 text-[10px] font-semibold ${publishBadge.className}`}>
+            {publishBadge.label}
+          </span>
+        )}
       </div>
 
       <div className="border-t border-[#edf1ef] p-4">

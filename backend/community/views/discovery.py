@@ -59,13 +59,12 @@ class LayoutDiscoveryView(ListAPIView):
             )
 
         sort_map = {
-            "trending":    "-trending_score",
             "newest":      "-published_at",
             "most_forked": "-fork_count",
             "most_saved":  "-save_count",
         }
-        sort = self.request.query_params.get("sort", "trending")
-        qs = qs.order_by(sort_map.get(sort, "-trending_score"))
+        sort = self.request.query_params.get("sort", "newest")
+        qs = qs.order_by(sort_map.get(sort, "-published_at"))
 
         return qs
 

@@ -5,6 +5,7 @@ from community.views.publishing import LayoutPublishView
 from community.views.actions import ForkLayoutView, SaveLayoutView, LikeLayoutView
 from community.views.stats import PlatformStatsView
 from community.views.analytics import CreatorAnalyticsView
+from community.views.thumbnails import ProjectThumbnailView
 
 urlpatterns = [
     # Discovery — public, no auth required
@@ -22,4 +23,7 @@ urlpatterns = [
     path("layouts/<uuid:project_id>/fork/",    ForkLayoutView.as_view()),
     path("layouts/<uuid:project_id>/save/",    SaveLayoutView.as_view()),
     path("layouts/<uuid:project_id>/like/",    LikeLayoutView.as_view()),
+
+    # Thumbnail upload
+    path("thumbnails/", ProjectThumbnailView.as_view()),
 ]

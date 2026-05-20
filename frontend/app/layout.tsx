@@ -15,7 +15,7 @@ const dmMono = DM_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Leon Manhimanzi | Venue Simulation Tool",
+  title: "VenueAR",
   description:
     "3D venue planning, draw.io import, AI generation, and client sharing.",
 };

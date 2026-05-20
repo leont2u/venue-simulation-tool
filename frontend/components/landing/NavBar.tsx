@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Bell } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { NotificationDropdown } from "@/components/notifications/NotificationDropdown";
@@ -14,26 +15,36 @@ export function Navbar() {
 
   return (
     <header className="relative z-50 bg-[#fbfcfb]">
-      <div className="mx-auto flex h-20.5 w-full max-w-7xl items-center gap-5 px-6 md:px-10">
-        <Link href="/" className="leading-tight">
-          <div className="text-[21px] font-semibold tracking-[-0.03em] text-[#0f1714]">
-            Leon Manhimanzi
-          </div>
-          <div className="mt-1 text-[13px] font-medium uppercase tracking-[0.16em] text-[#516660]">
-            Venue Simulation Tool
-          </div>
+      <div className="mx-auto flex h-30.5 w-full max-w-7xl items-center gap-5 px-6 md:px-10">
+        <Link href="/">
+          <Image
+            src="/logo.svg"
+            alt="VenueAR"
+            width={160}
+            height={100}
+            priority
+          />
         </Link>
 
         <div className="flex-1" />
 
         <nav className="hidden items-center gap-9 md:flex">
-          <a className="text-[15px] font-medium text-[#314a43]" href="#features">
+          <a
+            className="text-[15px] font-medium text-[#314a43]"
+            href="#features"
+          >
             Features
           </a>
-          <a className="text-[15px] font-medium text-[#314a43]" href="#how-it-works">
+          <a
+            className="text-[15px] font-medium text-[#314a43]"
+            href="#how-it-works"
+          >
             How It Works
           </a>
-          <a className="text-[15px] font-medium text-[#314a43]" href="#templates">
+          <a
+            className="text-[15px] font-medium text-[#314a43]"
+            href="#templates"
+          >
             Templates
           </a>
           <Link
@@ -56,8 +67,10 @@ export function Navbar() {
               >
                 <Bell size={18} strokeWidth={2} />
                 {unread > 0 && (
-                  <span className="absolute top-1 right-1 w-4 h-4 flex items-center justify-center
-                                   rounded-full bg-[#5d7f73] text-white text-[9px] font-bold leading-none">
+                  <span
+                    className="absolute top-1 right-1 w-4 h-4 flex items-center justify-center
+                                   rounded-full bg-[#5d7f73] text-white text-[9px] font-bold leading-none"
+                  >
                     {unread > 9 ? "9+" : unread}
                   </span>
                 )}

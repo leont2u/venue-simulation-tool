@@ -76,6 +76,7 @@ export function AssetCatalog() {
   const [isSketchfabLoading, setIsSketchfabLoading] = useState(false);
   const [sketchfabError, setSketchfabError] = useState("");
   const sketchfabRef = useRef<AssetDefinition[]>([]);
+  const polyAssetsRef = useRef<AssetDefinition[]>([]);
   const pageCacheRef = useRef(new Map<string, CachedAssetPage>());
   const requestIdRef = useRef(0);
 
@@ -88,6 +89,7 @@ export function AssetCatalog() {
 
   const applyAssetPage = useCallback(
     (page: number, payload: CachedAssetPage) => {
+      polyAssetsRef.current = payload.results;
       setPolyAssets(payload.results);
       setPolyPage(page);
       setPolyTotal(payload.total);
@@ -161,7 +163,7 @@ export function AssetCatalog() {
     fetchCuratedSketchfabAssets()
       .then((data) => {
         sketchfabRef.current = data.results;
-        setAssetCatalog([...data.results, ...polyAssets]);
+        setAssetCatalog([...data.results, ...polyAssetsRef.current]);
       })
       .catch(() => {
         setSketchfabError("Sketchfab assets unavailable.");

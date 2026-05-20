@@ -17,6 +17,8 @@ import {
   hasQueuedEditorTour,
 } from "@/lib/onboardingTour";
 import EditorLoadingScreen from "@/components/editor/components/EditorLoadingScreen";
+import { PublishDrawer } from "@/components/publishing/PublishDrawer";
+import { RepublishBanner } from "@/components/publishing/RepublishBanner";
 
 export default function EditorPage() {
   const params = useParams();
@@ -87,8 +89,10 @@ export default function EditorPage() {
 
   return (
     <ProtectedRoute>
+      <PublishDrawer />
       <div className="flex h-screen flex-col bg-(--sf-bg)">
         {presentationMode ? null : <TopToolbar />}
+        {presentationMode ? null : <RepublishBanner />}
 
         <div className="flex min-h-0 flex-1">
           {presentationMode ? null : <AssetCatalog />}

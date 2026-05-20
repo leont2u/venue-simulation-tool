@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { apiClient } from "@/lib/apiClient";
 import type { DiscoveryLayout, EventType } from "@/types/types";
 
-export type SortOption = "trending" | "newest" | "most_forked" | "most_saved";
+export type SortOption = "newest" | "most_forked" | "most_saved";
 
 export type DiscoveryFilters = {
   eventType: EventType | null;
@@ -14,7 +15,7 @@ export type DiscoveryFilters = {
 
 const DEFAULT_FILTERS: DiscoveryFilters = {
   eventType: null,
-  sort:      "trending",
+  sort:      "newest",
   query:     "",
 };
 
@@ -40,13 +41,19 @@ export type UseDiscoveryFeedReturn = {
 };
 
 export function useDiscoveryFeed(): UseDiscoveryFeedReturn {
+  const searchParams = useSearchParams();
+
   const [layouts, setLayouts]           = useState<DiscoveryLayout[]>([]);
   const [isLoading, setIsLoading]       = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError]               = useState<string | null>(null);
   const [hasMore, setHasMore]           = useState(false);
   const [totalCount, setTotalCount]     = useState(0);
-  const [filters, setFilters]           = useState<DiscoveryFilters>(DEFAULT_FILTERS);
+  const [filters, setFilters]           = useState<DiscoveryFilters>(() => ({
+    eventType: (searchParams.get("event_type") as EventType | null) ?? null,
+    sort:      (searchParams.get("sort") as SortOption | null) ?? "newest",
+    query:     searchParams.get("q") ?? "",
+  }));
   const [page, setPage]                 = useState(1);
 
   // Track current fetch so stale responses from previous filters are ignored

@@ -169,7 +169,7 @@ def _round_table_items(source, x, z, diameter):
             source_id=source.get("id"),
         )
     ]
-    seats = 8 if diameter < 2.1 else 10
+    seats = source.get("chairCount") or (8 if diameter < 2.1 else 10)
     radius = max(0.9, diameter / 2 + 0.38)
     for index in range(seats):
         angle = (math.pi * 2 * index) / seats

@@ -10,6 +10,7 @@ import {
 } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import {
+  DepthOfField,
   EffectComposer,
   N8AO,
   Bloom,
@@ -206,7 +207,52 @@ function ViewportBridge({
   return null;
 }
 
-const RECORDING_DURATION_S = 48;
+const RECORDING_DURATION_S = 60;
+const EYE_HEIGHT = 1.65;
+
+function easeInOutCubic(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+function easeInOutSine(t: number): number {
+  return -(Math.cos(Math.PI * t) - 1) / 2;
+}
+
+// Module-level scratch objects — zero allocation per frame inside the shot helper
+const _sp = new THREE.Vector3();
+const _ep = new THREE.Vector3();
+const _st = new THREE.Vector3();
+const _et = new THREE.Vector3();
+const _qs = new THREE.Quaternion();
+const _qe = new THREE.Quaternion();
+const _m4 = new THREE.Matrix4();
+const _WORLD_UP = new THREE.Vector3(0, 1, 0);
+
+// Cinematic shot helper: interpolates position with easing and rotation via
+// quaternion slerp derived from look-at matrices — never touches Euler angles.
+function applyCinematicShot(
+  camera: THREE.Camera,
+  sx: number, sy: number, sz: number,
+  stx: number, sty: number, stz: number,
+  ex: number, ey: number, ez: number,
+  etx: number, ety: number, etz: number,
+  phase: number,
+  easeFn: (t: number) => number = easeInOutCubic,
+) {
+  const e = easeFn(phase);
+  _sp.set(sx, sy, sz);
+  _ep.set(ex, ey, ez);
+  camera.position.lerpVectors(_sp, _ep, e);
+
+  _st.set(stx, sty, stz);
+  _et.set(etx, ety, etz);
+
+  _m4.lookAt(_sp, _st, _WORLD_UP);
+  _qs.setFromRotationMatrix(_m4);
+  _m4.lookAt(_ep, _et, _WORLD_UP);
+  _qe.setFromRotationMatrix(_m4);
+  camera.quaternion.slerpQuaternions(_qs, _qe, e);
+}
 
 function WalkthroughRecordingCamera({
   room,
@@ -249,76 +295,108 @@ function WalkthroughRecordingCamera({
     const w = room.width;
     const d = room.depth;
     const h = room.height;
-    const EYE = 1.65;
-    // Inner bounds — camera stays inside the room
-    const iX = w / 2 - 1.1;
-    const iZ = d / 2 - 1.1;
 
-    if (t < 0.07) {
-      // Phase 1 (0-7%, ~3.4s): brief overhead establishing shot, camera drifts in
-      const phase = t / 0.07;
-      const camH = Math.max(h + 4, 9);
-      const drift = THREE.MathUtils.lerp(Math.max(w, d) * 0.4, 0, phase);
-      camera.position.set(drift, camH, drift * 0.6);
-      camera.lookAt(0, 0, 0);
+    // Camera stays 1.5 units clear of walls
+    const iX = w / 2 - 1.5;
+    const iZ = d / 2 - 1.5;
 
-    } else if (t < 0.19) {
-      // Phase 2 (7-19%, ~5.8s): descend from above into front of room, walk to back
-      const phase = (t - 0.07) / 0.12;
-      const camH = THREE.MathUtils.lerp(Math.max(h + 4, 9), EYE, Math.min(phase * 1.8, 1));
-      const z = THREE.MathUtils.lerp(iZ, -iZ, phase);
-      camera.position.set(0, camH, z);
-      camera.lookAt(0, EYE * 0.85, z - 5);
+    // Shot-specific heights — vary the camera plane for cinematic variety
+    const craneH   = Math.min(EYE_HEIGHT * 5.0, h + 2);    // crane / drone
+    const closingH = Math.min(EYE_HEIGHT * 4.0, h + 1);    // elevated closing
+    const aerialH  = Math.max(h * 1.6, 8.5);               // hero establishing
 
-    } else if (t < 0.33) {
-      // Phase 3 (19-33%, ~6.7s): left-wall pass back→front, looking across the full room width
-      const phase = (t - 0.19) / 0.14;
-      const z = THREE.MathUtils.lerp(-iZ, iZ, phase);
-      camera.position.set(-iX, EYE, z);
-      camera.lookAt(iX, EYE * 0.9, z + 1.5);
+    if (t < 0.12) {
+      // Shot 1 — Establishing aerial (0-12%, ~7.2s)
+      // Wide hero shot: overhead position drifts gently, camera gazes down at the full venue
+      const phase = t / 0.12;
+      applyCinematicShot(
+        camera,
+        iX * 0.6,   aerialH,      iZ * 0.6,    // start pos — far corner, high
+        0,           0,            0,            // start looks at room centre
+        -iX * 0.3,  aerialH - 1,  -iZ * 0.2,   // end pos — slow drift
+        0,           0,            0,            // end still looks at room centre
+        phase, easeInOutSine,
+      );
 
-    } else if (t < 0.47) {
-      // Phase 4 (33-47%, ~6.7s): right-wall pass front→back, looking across the full room width
-      const phase = (t - 0.33) / 0.14;
-      const z = THREE.MathUtils.lerp(iZ, -iZ, phase);
-      camera.position.set(iX, EYE, z);
-      camera.lookAt(-iX, EYE * 0.9, z - 1.5);
+    } else if (t < 0.27) {
+      // Shot 2 — Entrance walk-in (12-27%, ~9s)
+      // First-person POV from entrance doors walking toward the heart of the room
+      const phase = (t - 0.12) / 0.15;
+      applyCinematicShot(
+        camera,
+        0,  EYE_HEIGHT,        iZ * 0.9,   // start pos — just inside entrance
+        0,  EYE_HEIGHT * 0.88, -iZ * 0.4,  // start looks toward mid-room
+        0,  EYE_HEIGHT,        iZ * 0.1,   // end pos — centre of room
+        0,  EYE_HEIGHT * 0.88, -iZ * 0.7,  // end looks toward back wall
+        phase, easeInOutCubic,
+      );
 
-    } else if (t < 0.60) {
-      // Phase 5 (47-60%, ~6.2s): center 360° slow spin — all four walls visible
-      const phase = (t - 0.47) / 0.13;
-      const angle = phase * Math.PI * 2;
-      camera.position.set(0, EYE, 0);
-      camera.lookAt(Math.sin(angle) * iX, EYE * 0.88, Math.cos(angle) * iZ);
+    } else if (t < 0.40) {
+      // Shot 3 — Table detail low angle (27-40%, ~7.8s)
+      // Seated-guest height dolly across table clusters — intimate and revealing
+      const phase = (t - 0.27) / 0.13;
+      applyCinematicShot(
+        camera,
+        iX * 0.55,  EYE_HEIGHT * 0.55,  iZ * 0.35,   // start — table height, right side
+        -iX * 0.25, 0.75,                -iZ * 0.1,   // start target — table surface ahead
+        iX * 0.1,   EYE_HEIGHT * 0.55,  -iZ * 0.3,   // end — slow dolly across
+        -iX * 0.2,  0.75,                -iZ * 0.55,  // end target — next table cluster
+        phase, easeInOutSine,
+      );
 
-    } else if (t < 0.73) {
-      // Phase 6 (60-73%, ~6.2s): diagonal front-left → back-right, angled perspective
-      const phase = (t - 0.60) / 0.13;
-      const x = THREE.MathUtils.lerp(-iX * 0.8, iX * 0.8, phase);
-      const z = THREE.MathUtils.lerp(iZ * 0.8, -iZ * 0.8, phase);
-      camera.position.set(x, EYE, z);
-      camera.lookAt(x + 2.5, EYE * 0.88, z - 3.5);
+    } else if (t < 0.53) {
+      // Shot 4 — Dance floor crane (40-53%, ~7.8s)
+      // Rises from eye level at the dance floor to a high crane shot — grand reveal
+      const phase = (t - 0.40) / 0.13;
+      applyCinematicShot(
+        camera,
+        0,  EYE_HEIGHT,  0,              // start — standing at dance floor centre
+        0,  EYE_HEIGHT * 0.7, -iZ * 0.6, // start looks toward head table end
+        0,  craneH,      0,              // end — crane height
+        0,  0,           iZ * 0.25,      // end looks down and slightly forward (avoids gimbal lock)
+        phase, easeInOutCubic,
+      );
 
-    } else if (t < 0.86) {
-      // Phase 7 (73-86%, ~6.2s): diagonal back-left → front-right, opposite angle
-      const phase = (t - 0.73) / 0.13;
-      const x = THREE.MathUtils.lerp(-iX * 0.8, iX * 0.8, phase);
-      const z = THREE.MathUtils.lerp(-iZ * 0.8, iZ * 0.8, phase);
-      camera.position.set(x, EYE, z);
-      camera.lookAt(x + 2.5, EYE * 0.88, z + 3.5);
+    } else if (t < 0.67) {
+      // Shot 5 — Head table hero (53-67%, ~8.4s)
+      // Three-point composition from a 45° angle with a slow cinematic push-in
+      const phase = (t - 0.53) / 0.14;
+      applyCinematicShot(
+        camera,
+        iX * 0.55,  EYE_HEIGHT,        -iZ * 0.55,  // start — 45° offset
+        0,          EYE_HEIGHT * 0.65,  -iZ * 0.88,  // start target — head table position
+        iX * 0.2,   EYE_HEIGHT * 1.05, -iZ * 0.4,   // end — pushed in and fractionally risen
+        0,          EYE_HEIGHT * 0.65,  -iZ * 0.88,  // end target — same head table (push-in)
+        phase, easeInOutSine,
+      );
+
+    } else if (t < 0.80) {
+      // Shot 6 — Ambient ceiling pan (67-80%, ~7.8s)
+      // Camera holds at eye level and sweeps its gaze upward across the ceiling —
+      // candlelight, chandeliers, draping. Uses continuous lookAt (no slerp needed
+      // for a tracked orbit pan — the target circles smoothly around the ceiling).
+      const phase = (t - 0.67) / 0.13;
+      const angle = easeInOutSine(phase) * Math.PI * 1.5; // 270° sweep
+      camera.position.set(iX * 0.1, EYE_HEIGHT, iZ * 0.1);
+      camera.lookAt(
+        Math.sin(angle) * iX * 0.45,
+        h * 0.85,
+        Math.cos(angle) * iZ * 0.45,
+      );
 
     } else {
-      // Phase 8 (86-100%, ~6.7s): smooth rise to low aerial inside/above room — final reveal
-      const phase = (t - 0.86) / 0.14;
-      const eased = 1 - Math.pow(1 - phase, 2);
-      const lastX = iX * 0.8;
-      const lastZ = iZ * 0.8;
-      camera.position.set(
-        THREE.MathUtils.lerp(lastX, 0, eased),
-        THREE.MathUtils.lerp(EYE, Math.max(h * 0.75, 4), eased),
-        THREE.MathUtils.lerp(lastZ, 0, eased),
+      // Shot 7 — Final wide pullback (80-100%, ~12s)
+      // Rises and retreats toward the entrance, opening to a closing aerial
+      // that frames the whole venue in one last breath-taking frame.
+      const phase = (t - 0.80) / 0.20;
+      applyCinematicShot(
+        camera,
+        iX * 0.4,  EYE_HEIGHT * 1.5,  iZ * 0.45,  // start — low elevated inside
+        0,         EYE_HEIGHT,         -iZ * 0.2,  // start looks across the room
+        0,         closingH,            iZ * 0.9,  // end — pullback toward entrance + rise
+        0,         0,                   0,          // end looks at room centre
+        phase, easeInOutCubic,
       );
-      camera.lookAt(0, 0, 0);
     }
 
     if (t >= 1 && !completedRef.current) {
@@ -1562,6 +1640,7 @@ export function SceneCanvas({
           antialias: false,
           toneMapping: THREE.NoToneMapping,
           localClippingEnabled: true,
+          preserveDrawingBuffer: true,
         }}
         camera={{
           position: [18 / viewportZoom, 14 / viewportZoom, 18 / viewportZoom],

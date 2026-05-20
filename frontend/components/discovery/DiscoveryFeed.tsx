@@ -13,7 +13,6 @@ import { EventTypeFilter } from "./EventTypeFilter";
 import type { DiscoveryLayout, EventType } from "@/types/types";
 
 const SORT_LABELS = {
-  trending:    "Trending",
   newest:      "Newest",
   most_forked: "Most Used",
   most_saved:  "Most Saved",

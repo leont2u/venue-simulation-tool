@@ -1,6 +1,22 @@
+import Image from "next/image";
 import { Project } from "@/types/types";
 
 export function ProjectThumbnail({ project }: { project: Project }) {
+  if (project.thumbnailUrl) {
+    return (
+      <div className="relative h-full w-full overflow-hidden bg-[#f0f4f2]">
+        <Image
+          src={project.thumbnailUrl}
+          alt={project.name}
+          fill
+          sizes="(max-width: 768px) 100vw, 25vw"
+          className="object-cover"
+          unoptimized
+        />
+      </div>
+    );
+  }
+
   const roomWidth = Math.max(project.room.width, 1);
   const roomDepth = Math.max(project.room.depth, 1);
   const visibleItems = project.items.slice(0, 24);
@@ -13,19 +29,8 @@ export function ProjectThumbnail({ project }: { project: Project }) {
         {visibleItems.map((item) => {
           const left = 50 + (item.x / roomWidth) * 86;
           const top = 50 + (item.z / roomDepth) * 86;
-          const isRound = [
-            "camera",
-            "speaker",
-            "banquet_table",
-            "chair",
-          ].includes(item.type);
-          const isAv = [
-            "camera",
-            "speaker",
-            "mixing_desk",
-            "screen",
-            "tv",
-          ].includes(item.type);
+          const isRound = ["camera", "speaker", "banquet_table", "chair"].includes(item.type);
+          const isAv   = ["camera", "speaker", "mixing_desk", "screen", "tv"].includes(item.type);
           return (
             <span
               key={item.id}
@@ -33,12 +38,10 @@ export function ProjectThumbnail({ project }: { project: Project }) {
                 isRound ? "rounded-full" : "rounded-[3px]"
               } ${isAv ? "bg-[#5f7f73]" : "bg-[#242b29]"}`}
               style={{
-                left: `${Math.min(92, Math.max(8, left))}%`,
-                top: `${Math.min(90, Math.max(10, top))}%`,
-                width:
-                  item.type === "screen" ? 26 : item.type === "stage" ? 34 : 12,
-                height:
-                  item.type === "screen" ? 5 : item.type === "stage" ? 18 : 12,
+                left:      `${Math.min(92, Math.max(8, left))}%`,
+                top:       `${Math.min(90, Math.max(10, top))}%`,
+                width:     item.type === "screen" ? 26 : item.type === "stage" ? 34 : 12,
+                height:    item.type === "screen" ? 5  : item.type === "stage" ? 18 : 12,
                 transform: `translate(-50%, -50%) rotate(${item.rotationY}rad)`,
               }}
             />

@@ -1493,3 +1493,319 @@ def understand_floorplan(plan: PreprocessedFloorPlan):
             "scaleFactor": plan.scale_factor,
         },
     }
+
+
+# ── Gemma3 vision pipeline ──────────────────────────────────────────────────
+
+import base64
+import json
+import os
+import urllib.request
+
+_OLLAMA_BASE_URL     = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
+_OLLAMA_VISION_MODEL = os.environ.get("OLLAMA_VISION_MODEL", os.environ.get("OLLAMA_MODEL", "gemma3"))
+
+_VALID_ITEM_TYPES = frozenset({
+    "stage", "screen", "tv", "camera", "speaker", "mixing_desk",
+    "round_table", "rectangular_table",
+    "chair", "sofa", "bar_counter", "reception_desk",
+    "dj_booth", "piano", "podium",
+})
+
+_ZONE_TYPES = frozenset({
+    "dance_floor", "dining_area", "bar_area", "lounge_area",
+    "stage_area", "reception_area", "buffet_area", "networking_area",
+    "entrance", "exit",
+})
+
+_TYPE_ALIASES: dict[str, str] = {
+    "table":             "round_table",
+    "dining table":      "round_table",
+    "round table":       "round_table",
+    "circular table":    "round_table",
+    "banquet table":     "rectangular_table",
+    "banquet_table":     "rectangular_table",
+    "long table":        "rectangular_table",
+    "trestle table":     "rectangular_table",
+    "projector screen":  "screen",
+    "monitor":           "tv",
+    "display":           "tv",
+    "microphone":        "speaker",
+    "lectern":           "podium",
+    "pulpit":            "podium",
+    "altar":             "podium",
+    "dj stand":          "dj_booth",
+    "dj desk":           "dj_booth",
+    "sound desk":        "mixing_desk",
+    "mixing desk":       "mixing_desk",
+    "audio desk":        "mixing_desk",
+    "bar":               "bar_counter",
+    "bar counter":       "bar_counter",
+    "reception":         "reception_desk",
+    "couch":             "sofa",
+    "settee":            "sofa",
+    "lounge chair":      "sofa",
+    "dance floor":       "dance_floor",
+    "buffet":            "buffet_area",
+    "networking":        "networking_area",
+    "dining area":       "dining_area",
+    "lounge":            "lounge_area",
+    "bar area":          "bar_area",
+    "stage area":        "stage_area",
+    "entrance area":     "entrance",
+}
+
+_CHAIR_DEFAULTS: dict[str, int] = {
+    "round_table":       6,
+    "rectangular_table": 8,
+    "sofa":              3,
+}
+
+_VISION_PROMPT = (
+    "You are a venue layout analyser. Look at this floor plan image and extract all "
+    "furniture items, equipment, and functional zones you can see.\n\n"
+    "Respond with ONLY valid JSON matching this exact schema:\n"
+    '{\n  "items": [\n    {\n'
+    '      "type": "<item_type>",\n'
+    '      "x": <0.0-1.0>,\n'
+    '      "y": <0.0-1.0>,\n'
+    '      "width": <0.0-1.0>,\n'
+    '      "height": <0.0-1.0>,\n'
+    '      "rotation": <degrees 0-360>,\n'
+    '      "confidence": <0.0-1.0>,\n'
+    '      "label": "<optional human-readable label>",\n'
+    '      "chairCount": <integer, only for tables>\n'
+    "    }\n  ],\n"
+    '  "zones": [\n    {\n'
+    '      "type": "<zone_type>",\n'
+    '      "x": <0.0-1.0>,\n'
+    '      "y": <0.0-1.0>,\n'
+    '      "width": <0.0-1.0>,\n'
+    '      "height": <0.0-1.0>,\n'
+    '      "confidence": <0.0-1.0>\n'
+    "    }\n  ]\n}\n\n"
+    "Valid item types: stage, screen, tv, camera, speaker, mixing_desk, "
+    "round_table, rectangular_table, chair, sofa, bar_counter, reception_desk, "
+    "dj_booth, piano, podium.\n\n"
+    "Valid zone types: dance_floor, dining_area, bar_area, lounge_area, stage_area, "
+    "reception_area, buffet_area, networking_area, entrance, exit.\n\n"
+    "All coordinates are normalised (0=left/top, 1=right/bottom). "
+    "width and height are the fraction of the image the item occupies. "
+    "For items you cannot identify clearly, use the closest match and set confidence < 0.5. "
+    "Do NOT include any explanation, markdown, or extra text — raw JSON only."
+)
+
+_VIRTUAL_CANVAS      = 1000   # px — bridge coordinate space
+_VIRTUAL_PX_TO_METER = 38.0 / _VIRTUAL_CANVAS  # 0.038 m/px
+
+
+def _extract_json_from_llm(text: str) -> dict:
+    text = text.strip()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    fence = text.find("```")
+    if fence != -1:
+        end_fence = text.find("```", fence + 3)
+        if end_fence != -1:
+            inner = text[fence + 3 : end_fence].strip()
+            if inner.startswith("json"):
+                inner = inner[4:].strip()
+            try:
+                return json.loads(inner)
+            except json.JSONDecodeError:
+                pass
+
+    start = text.find("{")
+    if start == -1:
+        raise ValueError("LLM response contained no JSON object")
+
+    depth = 0
+    in_str = False
+    escaped = False
+    for i, ch in enumerate(text[start:], start=start):
+        if escaped:
+            escaped = False
+            continue
+        if ch == "\\" and in_str:
+            escaped = True
+            continue
+        if ch == '"':
+            in_str = not in_str
+            continue
+        if in_str:
+            continue
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return json.loads(text[start : i + 1])
+
+    raise ValueError("Could not extract a complete JSON object from LLM response")
+
+
+def _normalize_item_type(raw: str) -> str | None:
+    s = raw.strip().lower().replace("-", "_")
+    if s in _VALID_ITEM_TYPES:
+        return s
+    spaced = s.replace("_", " ")
+    return _TYPE_ALIASES.get(spaced) or _TYPE_ALIASES.get(s)
+
+
+def _infer_chair_count(item_type: str, label: str = "") -> int:
+    for n in (12, 10, 8, 6, 4):
+        if str(n) in label:
+            return n
+    return _CHAIR_DEFAULTS.get(item_type, 6)
+
+
+def _clamp01(v) -> float:
+    try:
+        return max(0.0, min(1.0, float(v)))
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _postprocess_vision_output(raw: dict) -> dict:
+    items: list[dict] = []
+    for obj in raw.get("items", []):
+        canonical = _normalize_item_type(str(obj.get("type", "")))
+        if canonical is None:
+            continue
+        item: dict = {
+            "type":       canonical,
+            "x":          _clamp01(obj.get("x", 0.5)),
+            "y":          _clamp01(obj.get("y", 0.5)),
+            "width":      max(0.01, _clamp01(obj.get("width", 0.05))),
+            "height":     max(0.01, _clamp01(obj.get("height", 0.05))),
+            "rotation":   float(obj.get("rotation", 0)) % 360,
+            "confidence": _clamp01(obj.get("confidence", 0.7)),
+        }
+        label = str(obj.get("label", ""))
+        if label:
+            item["label"] = label
+        if canonical in ("round_table", "rectangular_table", "sofa"):
+            raw_chairs = obj.get("chairCount")
+            if raw_chairs is not None:
+                try:
+                    item["chairCount"] = max(1, int(raw_chairs))
+                except (TypeError, ValueError):
+                    item["chairCount"] = _infer_chair_count(canonical, label)
+            else:
+                item["chairCount"] = _infer_chair_count(canonical, label)
+        items.append(item)
+
+    zones: list[dict] = []
+    for z in raw.get("zones", []):
+        canonical = str(z.get("type", "")).strip().lower().replace("-", "_")
+        if canonical not in _ZONE_TYPES:
+            spaced = canonical.replace("_", " ")
+            canonical = _TYPE_ALIASES.get(spaced) or _TYPE_ALIASES.get(canonical) or canonical
+        if canonical not in _ZONE_TYPES:
+            continue
+        zones.append({
+            "type":       canonical,
+            "x":          _clamp01(z.get("x", 0.5)),
+            "y":          _clamp01(z.get("y", 0.5)),
+            "width":      max(0.01, _clamp01(z.get("width", 0.2))),
+            "height":     max(0.01, _clamp01(z.get("height", 0.2))),
+            "confidence": _clamp01(z.get("confidence", 0.7)),
+        })
+
+    return {"items": items, "zones": zones}
+
+
+def _call_ollama_vision(image_bytes: bytes) -> str:
+    b64 = base64.b64encode(image_bytes).decode("ascii")
+    payload = json.dumps({
+        "model": _OLLAMA_VISION_MODEL,
+        "messages": [{"role": "user", "content": _VISION_PROMPT, "images": [b64]}],
+        "stream": False,
+        "options": {"temperature": 0.1, "num_predict": 4096},
+    }).encode("utf-8")
+
+    url = f"{_OLLAMA_BASE_URL.rstrip('/')}/api/chat"
+    req = urllib.request.Request(
+        url, data=payload, headers={"Content-Type": "application/json"}, method="POST"
+    )
+    with urllib.request.urlopen(req, timeout=120) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+    return data["message"]["content"]
+
+
+def _parse_floor_plan_bytes(image_bytes: bytes) -> dict:
+    raw_text = _call_ollama_vision(image_bytes)
+    raw_json = _extract_json_from_llm(raw_text)
+    return _postprocess_vision_output(raw_json)
+
+
+def vision_parsed_to_understanding(parsed: dict) -> dict:
+    """Convert Gemma3's 0-1 normalised output to the pixel-coord understanding
+    format consumed by reconstruct_project_from_understanding()."""
+    W = H = _VIRTUAL_CANVAS
+
+    furniture: list[dict] = []
+    for item in parsed.get("items", []):
+        cx_px = item["x"] * W
+        cy_px = item["y"] * H
+        w_px  = item["width"]  * W
+        h_px  = item["height"] * H
+        entry: dict = {
+            "type":       item["type"],
+            "x":          cx_px - w_px / 2,
+            "y":          cy_px - h_px / 2,
+            "width":      w_px,
+            "height":     h_px,
+            "confidence": item["confidence"],
+            "rotation":   item.get("rotation", 0.0),
+        }
+        if "chairCount" in item:
+            entry["chairCount"] = item["chairCount"]
+        if "label" in item:
+            entry["label"] = item["label"]
+        furniture.append(entry)
+
+    zones: list[dict] = []
+    for z in parsed.get("zones", []):
+        cx_px = z["x"] * W
+        cy_px = z["y"] * H
+        w_px  = z["width"]  * W
+        h_px  = z["height"] * H
+        zones.append({
+            "type":       z["type"],
+            "x":          cx_px - w_px / 2,
+            "y":          cy_px - h_px / 2,
+            "width":      w_px,
+            "height":     h_px,
+            "confidence": z["confidence"],
+        })
+
+    return {
+        "walls":     [],
+        "doors":     [],
+        "windows":   [],
+        "rooms":     [],
+        "furniture": furniture,
+        "zones":     zones,
+        "image": {
+            "width":        W,
+            "height":       H,
+            "sourceWidth":  W,
+            "sourceHeight": H,
+            "scaleFactor":  1.0,
+        },
+    }
+
+
+def parse_floor_plan(image_path: str) -> dict:
+    """Parse a floor plan image using Gemma3 vision via Ollama.
+
+    Returns a validated dict with keys ``items`` and ``zones`` using
+    normalised 0-1 coordinates.
+    """
+    with open(image_path, "rb") as fh:
+        image_bytes = fh.read()
+    return _parse_floor_plan_bytes(image_bytes)
