@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "community",
     "profiles",
     "notifications",
+    "venue_cv",
 ]
 
 MIDDLEWARE = [
@@ -137,6 +138,40 @@ SKETCHFAB_CACHE_DIR = str(
     else BASE_DIR / _SKETCHFAB_CACHE_DIR
 )
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# ── Celery ────────────────────────────────────────────────────────────────────
+CELERY_BROKER_URL         = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
+CELERY_RESULT_BACKEND     = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/1")
+CELERY_ACCEPT_CONTENT     = ["json"]
+CELERY_TASK_SERIALIZER    = "json"
+CELERY_RESULT_SERIALIZER  = "json"
+CELERY_TIMEZONE           = "UTC"
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_ACKS_LATE     = True
+
+# Task routing — GPU workers for ML, LLM worker for Ollama, CPU for the rest
+CELERY_TASK_ROUTES = {
+    "venue_cv.tasks.object_detection.*":  {"queue": "gpu"},
+    "venue_cv.tasks.segmentation.*":      {"queue": "gpu"},
+    "venue_cv.tasks.depth_estimation.*":  {"queue": "gpu"},
+    "venue_cv.tasks.room_layout.*":       {"queue": "gpu"},
+    "venue_cv.tasks.sfm.*":               {"queue": "gpu"},
+    "venue_cv.tasks.gaussian_splatting.*":{"queue": "gpu"},
+    "venue_cv.tasks.preprocessing.*":     {"queue": "cpu"},
+    "venue_cv.tasks.video_processing.*":  {"queue": "cpu"},
+    "venue_cv.tasks.scene_graph.*":       {"queue": "cpu"},
+    "venue_cv.tasks.asset_matching.*":    {"queue": "cpu"},
+    "venue_cv.tasks.scene_generation.*":  {"queue": "cpu"},
+    "venue_cv.tasks.llm_reasoning.*":     {"queue": "llm"},
+}
+
+# ── Ollama / LLM ──────────────────────────────────────────────────────────────
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+OLLAMA_MODEL    = os.getenv("OLLAMA_MODEL", "gemma3:latest")
+
+# ── CV Pipeline storage limits ────────────────────────────────────────────────
+CV_MAX_IMAGE_SIZE_MB = int(os.getenv("CV_MAX_IMAGE_SIZE_MB", "20"))
+CV_MAX_VIDEO_SIZE_MB = int(os.getenv("CV_MAX_VIDEO_SIZE_MB", "500"))
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (

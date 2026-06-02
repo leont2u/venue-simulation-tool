@@ -1,7 +1,47 @@
+# ── Web Framework ─────────────────────────────────────────────────────────────
 Django>=5.1,<6.0
 djangorestframework>=3.15,<4.0
 djangorestframework-simplejwt>=5.3,<6.0
 django-cors-headers>=4.4,<5.0
+
+# ── Task Queue ────────────────────────────────────────────────────────────────
+celery[redis]>=5.3,<6.0
+redis>=5.0,<6.0
+
+# ── HTTP Client (Ollama + asset APIs) ────────────────────────────────────────
+httpx>=0.27,<1.0
+
+# ── Image Processing ──────────────────────────────────────────────────────────
+Pillow>=10.3,<12.0
+piexif>=1.1.3
 numpy>=1.26,<3.0
 opencv-python-headless>=4.9,<5.0
+
+# ── ML Core ───────────────────────────────────────────────────────────────────
+# PyTorch — CPU wheels by default. For GPU workers use CUDA wheels:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+torch>=2.3.0
+torchvision>=0.18.0
+
+# ── YOLO World (open-vocabulary object detection) ────────────────────────────
+ultralytics>=8.2.0
+
+# ── Depth Anything V2 (via HuggingFace Transformers) ─────────────────────────
+transformers>=4.41.0
+
+# ── Clustering (furniture grouping) ─────────────────────────────────────────
+scikit-learn>=1.4,<2.0
+scipy>=1.13
+
+# ── Mesh / Geometry ──────────────────────────────────────────────────────────
+trimesh>=4.0,<5.0
+
+# ── SAM 2 — install from source: ─────────────────────────────────────────────
+#   pip install git+https://github.com/facebookresearch/sam2.git
+# ── pycolmap (SfM) — install from source or wheels: ─────────────────────────
+#   pip install pycolmap
+# ── gsplat (Gaussian Splatting, video mode, requires CUDA 12.1+): ───────────
+#   pip install gsplat
+
+# ── Existing deps (unchanged) ─────────────────────────────────────────────────
 PyMuPDF>=1.24,<2.0

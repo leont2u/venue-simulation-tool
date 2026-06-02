@@ -1,0 +1,153 @@
+version: "3.9"
+
+# GPU-enabled development compose file.
+# Usage:
+#   docker compose -f docker-compose.gpu.yml up
+#
+# Prerequisites:
+#   - NVIDIA Container Toolkit installed (nvidia-container-toolkit)
+#   - docker run --gpus all nvidia/cuda:12.1.1-base nvidia-smi  # verify GPU access
+
+services:
+
+  # ── Database ──────────────────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       venue_sim
+      POSTGRES_USER:     venue_user
+      POSTGRES_PASSWORD: venue_pass
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "venue_user", "-d", "venue_sim"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ── Redis (broker + result backend) ─────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+
+  # ── Django API ───────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: ./backend/.env
+    environment:
+      DATABASE_URL:          postgresql://venue_user:venue_pass@db:5432/venue_sim
+      CELERY_BROKER_URL:     redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      DJANGO_DEBUG:          "false"
+    ports:
+      - "8000:8000"
+    volumes:
+      - media:/app/media
+    depends_on:
+      db:    { condition: service_healthy }
+      redis: { condition: service_healthy }
+    command: >
+      sh -c "python manage.py migrate &&
+             gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 4 --timeout 120"
+
+  # ── Celery CPU Worker (preprocessing, scene graph, scene gen) ────────────
+  worker-cpu:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: ./backend/.env
+    environment:
+      DATABASE_URL:          postgresql://venue_user:venue_pass@db:5432/venue_sim
+      CELERY_BROKER_URL:     redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+    volumes:
+      - media:/app/media
+    depends_on:
+      db:    { condition: service_healthy }
+      redis: { condition: service_healthy }
+    command: celery -A config worker -Q cpu --concurrency 4 --loglevel info
+
+  # ── Celery GPU Worker (YOLO, SAM2, Depth, RoomFormer, COLMAP) ────────────
+  worker-gpu:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.gpu
+    restart: unless-stopped
+    env_file: ./backend/.env
+    environment:
+      DATABASE_URL:          postgresql://venue_user:venue_pass@db:5432/venue_sim
+      CELERY_BROKER_URL:     redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+    volumes:
+      - media:/app/media
+      - model_cache:/root/.cache/huggingface
+    depends_on:
+      db:    { condition: service_healthy }
+      redis: { condition: service_healthy }
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command: celery -A config worker -Q gpu --concurrency 2 --loglevel info
+
+  # ── Celery LLM Worker (Gemma 3 via Ollama) ───────────────────────────────
+  worker-llm:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: ./backend/.env
+    environment:
+      DATABASE_URL:          postgresql://venue_user:venue_pass@db:5432/venue_sim
+      CELERY_BROKER_URL:     redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      OLLAMA_BASE_URL:       http://ollama:11434
+      OLLAMA_MODEL:          gemma3:12b
+    volumes:
+      - media:/app/media
+    depends_on:
+      db:     { condition: service_healthy }
+      redis:  { condition: service_healthy }
+      ollama: { condition: service_started }
+    command: celery -A config worker -Q llm --concurrency 2 --loglevel info
+
+  # ── Ollama (Gemma 3) ─────────────────────────────────────────────────────
+  ollama:
+    image: ollama/ollama
+    restart: unless-stopped
+    volumes:
+      - ollama_models:/root/.ollama
+    ports:
+      - "11434:11434"
+    # Pull Gemma 3 on first start — comment out after first run
+    command: >
+      sh -c "ollama serve & sleep 5 && ollama pull gemma3:12b && wait"
+
+  # ── Flower (Celery monitoring) ───────────────────────────────────────────
+  flower:
+    image: mher/flower:2.0
+    restart: unless-stopped
+    environment:
+      CELERY_BROKER_URL: redis://redis:6379/0
+    ports:
+      - "5555:5555"
+    depends_on:
+      redis: { condition: service_healthy }
+    command: celery --broker=redis://redis:6379/0 flower --port=5555
+
+volumes:
+  pgdata:
+  media:
+  model_cache:
+  ollama_models:

@@ -12,6 +12,10 @@ import {
 import { upsertProject } from "@/lib/storage";
 import { Project } from "@/types/types";
 import { X } from "lucide-react";
+import VenueImageUpload from "@/components/venue-cv/VenueImageUpload";
+import PipelineProgress from "@/components/venue-cv/PipelineProgress";
+import PipelineResultPreview from "@/components/venue-cv/PipelineResultPreview";
+import { usePipelineStatus } from "@/hooks/usePipelineStatus";
 
 export type ProjectPipeline =
   | "menu"
@@ -19,7 +23,8 @@ export type ProjectPipeline =
   | "upload"
   | "draw2d"
   | "prompt"
-  | "draw3d";
+  | "draw3d"
+  | "photo";
 
 export default function ProjectModal({
   open,
@@ -51,6 +56,17 @@ export default function ProjectModal({
   const clarityQuestions = getPromptClarifications(prompt);
   const clarifiedPrompt = buildClarifiedPrompt(prompt, clarityAnswers);
 
+  // CV photo pipeline state
+  const [cvJobId, setCvJobId]       = useState<string | null>(null);
+  const [accepting, setAccepting]   = useState(false);
+  const {
+    status: cvStatus,
+    sceneGraph,
+    isComplete: cvComplete,
+    isFailed: cvFailed,
+    acceptScene,
+  } = usePipelineStatus(cvJobId);
+
   useEffect(() => {
     if (open) {
       setStep(initialStep);
@@ -68,6 +84,8 @@ export default function ProjectModal({
     setFile(null);
     setError("");
     setLoading(false);
+    setCvJobId(null);
+    setAccepting(false);
   };
 
   const handleClose = () => {
@@ -257,12 +275,22 @@ export default function ProjectModal({
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
             <h2 className="text-[28px] font-semibold tracking-[-0.04em] text-(--sf-text)">
-              {step === "menu" ? "Create a new project" : "Project Details"}
+              {step === "menu"
+                ? "Create a new project"
+                : step === "photo"
+                  ? cvComplete
+                    ? "Scene preview"
+                    : cvJobId
+                      ? "Analysing venue"
+                      : "Upload venue photos"
+                  : "Project Details"}
             </h2>
             <p className="mt-2 text-[13px] text-(--sf-text-muted)">
               {step === "menu"
                 ? "Choose how you want to build your venue layout."
-                : "Complete the details below to continue."}
+                : step === "photo"
+                  ? "Computer vision pipeline — YOLO · SAM2 · Depth · RoomFormer · Gemma3"
+                  : "Complete the details below to continue."}
             </p>
           </div>
 
@@ -278,6 +306,12 @@ export default function ProjectModal({
 
         {step === "menu" && (
           <div className="grid gap-3">
+            <PipelineCard
+              title="From Venue Photo"
+              subtitle="AI-powered image-to-3D reconstruction"
+              onClick={() => setStep("photo")}
+            />
+
             <PipelineCard
               title="Upload File"
               subtitle="draw.io, image, or PDF"
@@ -543,6 +577,76 @@ export default function ProjectModal({
                 {loading ? "Creating..." : "Open 2D canvas"}
               </button>
             </div>
+          </div>
+        )}
+
+        {/* ── CV Photo Pipeline ──────────────────────────────────────── */}
+        {step === "photo" && !cvJobId && (
+          <div>
+            <div className="text-[15px] font-semibold text-(--sf-text)">
+              Reconstruct from venue photo
+            </div>
+            <p className="mt-1 mb-4 text-[13px] text-(--sf-text-muted)">
+              Upload one or more photos of your venue. Our computer vision pipeline
+              will detect furniture, measure the room, and build an editable 3D scene.
+            </p>
+            <VenueImageUpload
+              onJobStarted={(jobId) => setCvJobId(jobId)}
+            />
+          </div>
+        )}
+
+        {step === "photo" && cvJobId && !cvComplete && !cvFailed && cvStatus && (
+          <div>
+            <div className="mb-4 text-[15px] font-semibold text-(--sf-text)">
+              Analysing your venue…
+            </div>
+            <PipelineProgress status={cvStatus} />
+          </div>
+        )}
+
+        {step === "photo" && cvJobId && !cvComplete && !cvFailed && !cvStatus && (
+          <div className="flex items-center justify-center py-12 text-[13px] text-(--sf-text-muted)">
+            Starting pipeline…
+          </div>
+        )}
+
+        {step === "photo" && cvComplete && sceneGraph && (
+          <div>
+            <div className="mb-4 text-[15px] font-semibold text-(--sf-text)">
+              Scene ready — review before opening
+            </div>
+            <PipelineResultPreview
+              sceneGraph={sceneGraph}
+              accepting={accepting}
+              onDiscard={() => { resetState(); setStep("photo"); }}
+              onAccept={async () => {
+                setAccepting(true);
+                try {
+                  const projectId = await acceptScene();
+                  await onProjectCreated?.();
+                  handleClose();
+                  onOpenProject(projectId);
+                } catch (e) {
+                  setError(e instanceof Error ? e.message : "Failed to open scene.");
+                } finally {
+                  setAccepting(false);
+                }
+              }}
+            />
+          </div>
+        )}
+
+        {step === "photo" && cvFailed && (
+          <div className="rounded-lg bg-red-50 px-4 py-4 text-[13px] text-red-600">
+            <p className="font-semibold">Pipeline failed</p>
+            <p className="mt-1">{cvStatus?.error_message || "An unexpected error occurred."}</p>
+            <button
+              onClick={() => { setCvJobId(null); setError(""); }}
+              className="mt-3 rounded-md bg-red-100 px-3 py-1.5 text-[12px] font-medium hover:bg-red-200"
+            >
+              Try again
+            </button>
           </div>
         )}
 

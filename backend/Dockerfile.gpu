@@ -1,0 +1,47 @@
+# GPU worker image — includes CUDA 12.1, PyTorch, and all CV/ML libraries
+FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
+
+WORKDIR /app
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+ENV DJANGO_SETTINGS_MODULE=config.settings
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.12 python3.12-dev python3-pip \
+    libgl1 libglib2.0-0 libsm6 libxext6 libxrender-dev \
+    ffmpeg git wget \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN ln -sf python3.12 /usr/bin/python3 && ln -sf python3 /usr/bin/python
+
+# Install CPU requirements first (cached layer)
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Install GPU-specific PyTorch wheels
+RUN pip install --no-cache-dir \
+    torch==2.3.0+cu121 \
+    torchvision==0.18.0+cu121 \
+    --index-url https://download.pytorch.org/whl/cu121
+
+# Install ultralytics (YOLO World)
+RUN pip install --no-cache-dir ultralytics>=8.2.0
+
+# Install Depth Anything V2 (via HuggingFace)
+RUN pip install --no-cache-dir transformers>=4.41.0 accelerate
+
+# SAM 2 (from Meta's GitHub)
+RUN pip install --no-cache-dir \
+    "git+https://github.com/facebookresearch/sam2.git" || \
+    echo "SAM2 install failed — will fall back to no-op"
+
+# Optional: pycolmap for SfM
+RUN pip install --no-cache-dir pycolmap || echo "pycolmap not available on this platform"
+
+COPY . .
+
+# Download YOLO World model weights on build (optional — can be volume-mounted)
+# RUN python -c "from ultralytics import YOLOWorld; YOLOWorld('yolov8x-worldv2.pt')"
+
+CMD ["celery", "-A", "config", "worker", "-Q", "gpu", "--concurrency", "2", "--loglevel", "info"]
