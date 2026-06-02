@@ -15,7 +15,7 @@ const dmMono = DM_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Leon Manhimanzi | Venue Simulation Tool",
+  title: "VenueAR",
   description:
     "3D venue planning, draw.io import, AI generation, and client sharing.",
 };
@@ -26,7 +26,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className={`${dmSans.variable} ${dmMono.variable} antialiased`}>
         <Providers>{children}</Providers>
       </body>

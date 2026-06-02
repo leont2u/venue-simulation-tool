@@ -44,7 +44,7 @@ export function AuthExperience({ mode }: { mode: "login" | "register" }) {
     <main className="h-screen overflow-hidden bg-white text-[#17211e]">
       <div className="grid h-full w-full  bg-white">
         <section className="flex min-h-0 items-center justify-center bg-white px-6 py-6 sm:px-10">
-          <div className="w-full max-w-[440px]">
+          <div className="w-full max-w-110">
             <div className="text-center">
               <h2 className="text-[36px] font-semibold tracking-[-0.03em] text-[#17211e]">
                 {isRegister ? "Sign Up Account" : "Sign In Account"}
@@ -61,7 +61,7 @@ export function AuthExperience({ mode }: { mode: "login" | "register" }) {
                 <div className="mb-2 text-[15px] font-medium text-[#4f625c]">
                   Email
                 </div>
-                <div className="flex h-14 items-center gap-3 rounded-[8px] border border-[#dfe8e5] bg-[#f7faf9] px-4 shadow-sm">
+                <div className="flex h-14 items-center gap-3 rounded-lg border border-[#dfe8e5] bg-[#f7faf9] px-4 shadow-sm">
                   <Mail size={20} className="text-[#7e908a]" />
                   <input
                     type="email"
@@ -78,7 +78,7 @@ export function AuthExperience({ mode }: { mode: "login" | "register" }) {
                 <div className="mb-2 text-[15px] font-medium text-[#4f625c]">
                   Password
                 </div>
-                <div className="flex h-14 items-center gap-3 rounded-[8px] border border-[#dfe8e5] bg-[#f7faf9] px-4 shadow-sm">
+                <div className="flex h-14 items-center gap-3 rounded-lg border border-[#dfe8e5] bg-[#f7faf9] px-4 shadow-sm">
                   <Lock size={20} className="text-[#7e908a]" />
                   <input
                     type="password"
@@ -98,7 +98,7 @@ export function AuthExperience({ mode }: { mode: "login" | "register" }) {
               </label>
 
               {error ? (
-                <div className="rounded-[8px] border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-600">
+                <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-600">
                   {error}
                 </div>
               ) : null}
@@ -106,7 +106,7 @@ export function AuthExperience({ mode }: { mode: "login" | "register" }) {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="flex h-14 w-full items-center justify-center rounded-[8px] bg-[#527970] text-[18px] font-semibold text-white shadow-[0_4px_12px_rgba(82,121,112,0.24)] transition hover:bg-[#466b63] disabled:opacity-60"
+                className="flex h-14 w-full items-center justify-center rounded-lg bg-[#527970] text-[18px] font-semibold text-white shadow-[0_4px_12px_rgba(82,121,112,0.24)] transition hover:bg-[#466b63] disabled:opacity-60"
               >
                 {isSubmitting
                   ? "Please wait..."

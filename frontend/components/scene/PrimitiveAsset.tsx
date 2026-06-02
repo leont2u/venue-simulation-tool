@@ -1,11 +1,13 @@
 "use client";
 
-import { memo, useMemo } from "react";
+import { Suspense, memo, useMemo, useRef } from "react";
+import { useFrame } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 
 type Props = {
   url: string;
+  type?: string;
   position: [number, number, number];
   rotation: [number, number, number];
   scale: [number, number, number];
@@ -36,6 +38,7 @@ type Props = {
 
 function PrimitiveAssetComponent({
   url,
+  type,
   position,
   rotation,
   scale,
@@ -48,14 +51,32 @@ function PrimitiveAssetComponent({
   onPointerEnter,
   onPointerLeave,
 }: Props) {
-  if (url.startsWith("poly-pizza://required/") || url.startsWith("/models/")) {
-    const type = url.startsWith("poly-pizza://required/")
-      ? url.replace("poly-pizza://required/", "")
-      : url.split("/").pop()?.replace(".glb", "") ?? "asset";
+  if (url.startsWith("/models/")) {
+    return (
+      <Suspense fallback={<LoadingPlaceholder type={type} position={position} rotation={rotation} scale={scale} />}>
+        <GltfAsset
+          url={url}
+          position={position}
+          rotation={rotation}
+          scale={scale}
+          selected={selected}
+          hovered={hovered}
+          color={color}
+          material={material}
+          onClick={onClick}
+          onPointerDown={onPointerDown}
+          onPointerEnter={onPointerEnter}
+          onPointerLeave={onPointerLeave}
+        />
+      </Suspense>
+    );
+  }
 
+  if (url.startsWith("poly-pizza://required/")) {
+    const venueType = url.replace("poly-pizza://required/", "");
     return (
       <GeneratedVenueAsset
-        type={type}
+        type={venueType}
         position={position}
         rotation={rotation}
         scale={scale}
@@ -91,20 +112,22 @@ function PrimitiveAssetComponent({
   }
 
   return (
-    <GltfAsset
-      url={url}
-      position={position}
-      rotation={rotation}
-      scale={scale}
-      selected={selected}
-      hovered={hovered}
-      color={color}
-      material={material}
-      onClick={onClick}
-      onPointerDown={onPointerDown}
-      onPointerEnter={onPointerEnter}
-      onPointerLeave={onPointerLeave}
-    />
+    <Suspense fallback={<LoadingPlaceholder type={type} position={position} rotation={rotation} scale={scale} />}>
+      <GltfAsset
+        url={url}
+        position={position}
+        rotation={rotation}
+        scale={scale}
+        selected={selected}
+        hovered={hovered}
+        color={color}
+        material={material}
+        onClick={onClick}
+        onPointerDown={onPointerDown}
+        onPointerEnter={onPointerEnter}
+        onPointerLeave={onPointerLeave}
+      />
+    </Suspense>
   );
 }
 
@@ -132,6 +155,49 @@ function LocalSelectionRing({ color = "#49d24d" }: { color?: string }) {
       <ringGeometry args={[0.55, 0.78, 40]} />
       <meshBasicMaterial color={color} />
     </mesh>
+  );
+}
+
+function PulsingRing({ position }: { position: [number, number, number] }) {
+  const meshRef = useRef<THREE.Mesh>(null);
+  useFrame(({ clock }) => {
+    if (!meshRef.current) return;
+    const mat = meshRef.current.material as THREE.MeshBasicMaterial;
+    mat.opacity = 0.3 + 0.5 * Math.abs(Math.sin(clock.elapsedTime * 2.5));
+  });
+  return (
+    <mesh
+      ref={meshRef}
+      position={[position[0], position[1] + 0.05, position[2]]}
+      rotation={[-Math.PI / 2, 0, 0]}
+    >
+      <ringGeometry args={[0.55, 0.78, 40]} />
+      <meshBasicMaterial color="#5da0d0" transparent opacity={0.5} />
+    </mesh>
+  );
+}
+
+function LoadingPlaceholder({
+  type,
+  position,
+  rotation,
+  scale,
+}: {
+  type?: string;
+  position: [number, number, number];
+  rotation: [number, number, number];
+  scale: [number, number, number];
+}) {
+  return (
+    <group>
+      <GeneratedVenueAsset
+        type={type || "chair"}
+        position={position}
+        rotation={rotation}
+        scale={scale}
+      />
+      <PulsingRing position={position} />
+    </group>
   );
 }
 
@@ -228,7 +294,14 @@ function GltfAsset({
     const cloned = scene.clone(true);
     cloned.updateMatrixWorld(true);
 
-    const box = new THREE.Box3().setFromObject(cloned);
+    let box = new THREE.Box3().setFromObject(cloned);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    const maxDimension = Math.max(size.x, size.y, size.z, 0.001);
+    cloned.scale.setScalar(1 / maxDimension);
+    cloned.updateMatrixWorld(true);
+
+    box = new THREE.Box3().setFromObject(cloned);
     const center = new THREE.Vector3();
     box.getCenter(center);
 
@@ -446,6 +519,39 @@ function GeneratedVenueAsset({
   onPointerEnter,
   onPointerLeave,
 }: PrimitiveShapeProps) {
+  const fabricTexture = useMemo(() => {
+    if (typeof document === "undefined") return null;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+
+    ctx.fillStyle = "#efe3d7";
+    ctx.fillRect(0, 0, 256, 256);
+    for (let y = 0; y < 256; y += 10) {
+      ctx.strokeStyle = y % 20 === 0 ? "rgba(255,255,255,0.16)" : "rgba(120,92,74,0.06)";
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(256, y + 4);
+      ctx.stroke();
+    }
+    for (let x = 0; x < 256; x += 14) {
+      ctx.strokeStyle = "rgba(255,255,255,0.08)";
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x + 6, 256);
+      ctx.stroke();
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(2, 2);
+    return texture;
+  }, []);
+
   const palette = useMemo(() => {
     const colorMap: Record<string, string> = {
       chair: "#8fb19d",
@@ -492,10 +598,11 @@ function GeneratedVenueAsset({
     () =>
       new THREE.MeshStandardMaterial({
         color: palette.cloth,
+        map: fabricTexture ?? undefined,
         roughness: 0.92,
         metalness: 0.01,
       }),
-    [palette.cloth],
+    [fabricTexture, palette.cloth],
   );
   const visualScale = useMemo<[number, number, number]>(() => {
     const legacyTinyModelScale = ["podium", "banquet_table", "tv"].includes(type);
@@ -641,6 +748,45 @@ function GeneratedVenueAsset({
           <mesh position={[0, 0.8, 0]} castShadow receiveShadow material={bodyMaterial}>
             <sphereGeometry args={[0.18, 16, 16]} />
           </mesh>
+        </>
+      );
+    }
+
+    if (type === "round_table") {
+      return (
+        <>
+          <mesh position={[0, 0.43, 0]} castShadow receiveShadow material={clothMaterial}>
+            <cylinderGeometry args={[0.94, 1.0, 0.12, 36]} />
+          </mesh>
+          <mesh position={[0, 0.36, 0]} castShadow receiveShadow material={clothMaterial}>
+            <cylinderGeometry args={[1.0, 1.04, 0.18, 36, 1, true]} />
+          </mesh>
+          <mesh position={[0, 0.69, 0]} castShadow receiveShadow material={bodyMaterial}>
+            <cylinderGeometry args={[0.13, 0.18, 0.44, 18]} />
+          </mesh>
+          <mesh position={[0, 0.2, 0]} castShadow receiveShadow material={darkMaterial}>
+            <cylinderGeometry args={[0.4, 0.12, 0.08, 18]} />
+          </mesh>
+        </>
+      );
+    }
+
+    if (type === "rectangular_table") {
+      return (
+        <>
+          <mesh position={[0, 0.42, 0]} castShadow receiveShadow material={clothMaterial}>
+            <boxGeometry args={[1.9, 0.12, 0.86]} />
+          </mesh>
+          <mesh position={[0, 0.34, 0]} castShadow receiveShadow material={clothMaterial}>
+            <boxGeometry args={[1.98, 0.16, 0.94]} />
+          </mesh>
+          {[-0.72, 0.72].map((x) =>
+            [-0.24, 0.24].map((z) => (
+              <mesh key={`${x}-${z}`} position={[x, 0.2, z]} castShadow receiveShadow material={darkMaterial}>
+                <cylinderGeometry args={[0.04, 0.05, 0.4, 10]} />
+              </mesh>
+            )),
+          )}
         </>
       );
     }

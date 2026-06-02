@@ -9,53 +9,14 @@ import { upsertProject } from "@/lib/storage";
 import { useEditorStore } from "@/store/UseEditorStore";
 import { FloorplanCanvas } from "./FloorplanCanvas";
 import { SceneCanvas } from "../scene/SceneCanvas";
-
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="text-[11px] font-bold uppercase text-[#303733]">
-      {children}
-    </div>
-  );
-}
-
-function NumberField({
-  label,
-  value,
-  step = "0.1",
-  readOnly = false,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  step?: string;
-  readOnly?: boolean;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <label className="grid grid-cols-[1fr_96px] items-center gap-3">
-      <div className="text-[12px] font-medium text-[#73817c]">{label}</div>
-      <input
-        type="number"
-        step={step}
-        readOnly={readOnly}
-        value={Number.isFinite(value) ? value : 0}
-        onChange={(event) => onChange(Number(event.target.value))}
-        className="h-9 w-full rounded-[10px] border border-[#e8ece9] bg-white px-3 text-[13px] font-medium text-[#333936] outline-none read-only:bg-[#fbfcfb] read-only:text-[#67736f]"
-      />
-    </label>
-  );
-}
+import OpacityRow from "./components/OpacityRow";
+import roundScale from "./utils/roundScale";
+import NumberField from "./components/NumberField";
+import SectionTitle from "./components/SectionTitle";
+import clampAssetScale from "./utils/clampAssetScale";
 
 const WALL_SWATCHES = ["#F6F2EC", "#EAE4D8", "#E6ECF4", "#E4EEDA", "#D7D7D7"];
 const SCALE_PRESETS = [25, 50, 100, 150];
-
-function clampAssetScale(value: number) {
-  return Math.min(10, Math.max(0.02, Number.isFinite(value) ? value : 1));
-}
-
-function roundScale(value: number) {
-  return Number(value.toFixed(3));
-}
 
 export function PropertiesPanel() {
   const project = useEditorStore((s) => s.project);
@@ -97,11 +58,8 @@ export function PropertiesPanel() {
     (project.sceneSettings?.wallColor ? 1 : 1) * 100,
   );
   const floorOpacity = 100;
-  const defaultScale = selectedAsset?.defaultScale ?? ([1, 1, 1] as [
-    number,
-    number,
-    number,
-  ]);
+  const defaultScale =
+    selectedAsset?.defaultScale ?? ([1, 1, 1] as [number, number, number]);
   const uniformScalePercent = item
     ? Math.round(
         (item.scale.reduce((total, value, index) => {
@@ -152,7 +110,9 @@ export function PropertiesPanel() {
       await upsertProject(nextProject);
       setAiPrompt("");
     } catch (error) {
-      setAiError(error instanceof Error ? error.message : "AI refinement failed.");
+      setAiError(
+        error instanceof Error ? error.message : "AI refinement failed.",
+      );
     } finally {
       setAiLoading(false);
     }
@@ -161,7 +121,7 @@ export function PropertiesPanel() {
   return (
     <aside
       data-tour="editor-properties"
-      className="flex w-[388px] shrink-0 flex-col overflow-hidden border-l border-[#ececec] bg-white"
+      className="flex w-97 shrink-0 flex-col overflow-hidden border-l border-[#ececec] bg-white"
     >
       <div className="flex h-12 shrink-0 items-center justify-between border-b border-[#eef1ee] px-4">
         <div className="flex items-center gap-4 text-[13px] font-semibold text-[#72817d]">
@@ -179,7 +139,7 @@ export function PropertiesPanel() {
 
       <div className="sf-scroll min-h-0 flex-1 overflow-y-auto">
         <div className="border-b border-[#eef1ee] px-4 py-4">
-          <div className="h-[146px] overflow-hidden rounded-[12px] border border-[#edf0ee] bg-[#fbfcfb]">
+          <div className="h-36.5 overflow-hidden rounded-xl border border-[#edf0ee] bg-[#fbfcfb]">
             <div className="pointer-events-none h-full w-full">
               {oppositeView === "3d" ? (
                 <SceneCanvas projectOverride={project} readOnly />
@@ -204,7 +164,7 @@ export function PropertiesPanel() {
                 className="min-h-24 w-full resize-none rounded-[10px] border border-[#e1e7e4] bg-white px-3 py-2 text-[13px] leading-5 text-[#28312d] outline-none placeholder:text-[#9aa7a2]"
               />
               {aiError ? (
-                <div className="rounded-[8px] border border-[#f0d6d6] bg-[#fff7f7] px-3 py-2 text-[12px] text-[#9b2f2f]">
+                <div className="rounded-lg border border-[#f0d6d6] bg-[#fff7f7] px-3 py-2 text-[12px] text-[#9b2f2f]">
                   {aiError}
                 </div>
               ) : null}
@@ -212,7 +172,7 @@ export function PropertiesPanel() {
                 type="button"
                 onClick={refineWithAi}
                 disabled={aiLoading}
-                className="flex h-10 w-full items-center justify-center gap-2 rounded-[8px] bg-[#5d7f73] px-3 text-[13px] font-bold text-white transition hover:bg-[#4f7166] disabled:opacity-60"
+                className="flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-[#5d7f73] px-3 text-[13px] font-bold text-white transition hover:bg-[#4f7166] disabled:opacity-60"
               >
                 <Wand2 className="h-4 w-4" />
                 {aiLoading ? "Updating scene..." : "Update scene with AI"}
@@ -381,7 +341,10 @@ export function PropertiesPanel() {
                   value={project.sceneSettings?.venueEnvironment ?? "indoor"}
                   onChange={(event) =>
                     updateSceneSettings({
-                      venueEnvironment: event.target.value as "indoor" | "outdoor" | "tent",
+                      venueEnvironment: event.target.value as
+                        | "indoor"
+                        | "outdoor"
+                        | "tent",
                     })
                   }
                   className="h-11 w-full rounded-[10px] border border-[#d8d8d8] bg-white px-3 text-[14px] text-[#1a1a1a] outline-none"
@@ -458,7 +421,7 @@ export function PropertiesPanel() {
                   ).map(([type, label]) => (
                     <div key={type} className="flex items-center gap-2">
                       <span
-                        className="h-[3px] w-8 rounded-full"
+                        className="h-0.75 w-8 rounded-full"
                         style={{ backgroundColor: getCableColor(type) }}
                       />
                       <span>{label}</span>
@@ -519,17 +482,18 @@ export function PropertiesPanel() {
 
             <section className="space-y-3">
               <SectionTitle>Scale</SectionTitle>
-              <div className="rounded-[12px] border border-[#e8ece9] bg-[#fbfcfb] p-3">
+              <div className="rounded-xl border border-[#e8ece9] bg-[#fbfcfb] p-3">
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <div>
                     <div className="text-[12px] font-semibold text-[#303733]">
                       Asset size
                     </div>
                     <div className="mt-0.5 text-[11px] text-[#73817c]">
-                      Relative to the default {selectedAsset?.name ?? item.type} size
+                      Relative to the default {selectedAsset?.name ?? item.type}{" "}
+                      size
                     </div>
                   </div>
-                  <div className="rounded-[8px] border border-[#dfe8e4] bg-white px-2 py-1 text-[12px] font-bold text-[#4f625c]">
+                  <div className="rounded-lg border border-[#dfe8e4] bg-white px-2 py-1 text-[12px] font-bold text-[#4f625c]">
                     {uniformScalePercent}%
                   </div>
                 </div>
@@ -550,7 +514,7 @@ export function PropertiesPanel() {
                       key={preset}
                       type="button"
                       onClick={() => setUniformScale(preset)}
-                      className="h-8 rounded-[8px] border border-[#dfe8e4] bg-white text-[11px] font-bold text-[#657872] transition hover:border-[#b9cbc5] hover:bg-[#eef5f2]"
+                      className="h-8 rounded-lg border border-[#dfe8e4] bg-white text-[11px] font-bold text-[#657872] transition hover:border-[#b9cbc5] hover:bg-[#eef5f2]"
                     >
                       {preset}%
                     </button>
@@ -558,7 +522,7 @@ export function PropertiesPanel() {
                   <button
                     type="button"
                     onClick={() => setUniformScale(100)}
-                    className="h-8 rounded-[8px] bg-[#5d7f73] text-[11px] font-bold text-white transition hover:bg-[#4e7165]"
+                    className="h-8 rounded-lg bg-[#5d7f73] text-[11px] font-bold text-white transition hover:bg-[#4e7165]"
                   >
                     Reset
                   </button>
@@ -594,24 +558,5 @@ export function PropertiesPanel() {
         )}
       </div>
     </aside>
-  );
-}
-
-function OpacityRow({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="grid grid-cols-[58px_1fr_52px] items-center gap-3 text-[12px] font-medium text-[#73817c]">
-      <span>{label}</span>
-      <div className="relative h-2 rounded-full bg-[#dfe7e3]">
-        <div
-          className="absolute inset-y-0 left-0 rounded-full bg-[#6f8f84]"
-          style={{ width: `${value}%` }}
-        />
-        <div
-          className="absolute top-1/2 h-5 w-5 -translate-y-1/2 rounded-full border border-[#cdd8d2] bg-white shadow-sm"
-          style={{ left: `calc(${value}% - 10px)` }}
-        />
-      </div>
-      <span className="text-right text-[#3e4642]">{value} %</span>
-    </div>
   );
 }

@@ -45,6 +45,9 @@ INSTALLED_APPS = [
     "assets",
     "layout_imports",
     "projects",
+    "community",
+    "profiles",
+    "notifications",
 ]
 
 MIDDLEWARE = [
@@ -106,6 +109,8 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "static/"
+MEDIA_URL  = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
 POLY_PIZZA_API_KEY = os.getenv("POLY_PIZZA_API_KEY", "")
 _POLY_PIZZA_CACHE_DIR = Path(
     os.getenv(
@@ -117,6 +122,19 @@ POLY_PIZZA_CACHE_DIR = str(
     _POLY_PIZZA_CACHE_DIR
     if _POLY_PIZZA_CACHE_DIR.is_absolute()
     else BASE_DIR / _POLY_PIZZA_CACHE_DIR
+)
+SKETCHFAB_API_TOKEN = os.getenv("SKETCHFAB_API_TOKEN", "")
+SKETCHFAB_DOWNLOAD_TOKEN = os.getenv("SKETCHFAB_DOWNLOAD_TOKEN", "")
+_SKETCHFAB_CACHE_DIR = Path(
+    os.getenv(
+        "SKETCHFAB_CACHE_DIR",
+        str(BASE_DIR / ".cache" / "sketchfab"),
+    )
+)
+SKETCHFAB_CACHE_DIR = str(
+    _SKETCHFAB_CACHE_DIR
+    if _SKETCHFAB_CACHE_DIR.is_absolute()
+    else BASE_DIR / _SKETCHFAB_CACHE_DIR
 )
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

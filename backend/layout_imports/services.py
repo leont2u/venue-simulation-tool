@@ -76,11 +76,19 @@ def extract_xml_from_content(content: str):
     if trimmed.startswith("<mxfile") or trimmed.startswith("<?xml"):
         return trimmed
 
-    match = re.search(r'data-mxgraph="([^"]+)"', content, flags=re.IGNORECASE)
+    mxfile_match = re.search(r"<mxfile[\s\S]*?</mxfile>", content, flags=re.IGNORECASE)
+    if mxfile_match:
+        return mxfile_match.group(0)
+
+    match = re.search(
+        r'data-mxgraph\s*=\s*("|\')(.*?)(\1)',
+        content,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
     if not match:
         raise ValueError("Could not find draw.io data in the uploaded file.")
 
-    parsed = json.loads(unescape(match.group(1)))
+    parsed = json.loads(unescape(match.group(2)))
     if not parsed.get("xml"):
         raise ValueError("Could not extract XML from draw.io HTML export.")
 
@@ -570,4 +578,267 @@ def drawio_file_to_project(content: str, file_name: str, project_name: str | Non
         },
         "items": items,
         "measurements": build_measurement_lines(measurements, bounds, px_scale),
+    }
+
+
+# ── HTML canvas floorplan parser ─────────────────────────────────────────────
+
+_HTML_CANVAS_SCALE = 0.05  # meters per canvas pixel
+
+_ZONE_TYPE_MAP = {
+    "danceFloor": "dance_floor",
+    "bar": "bar",
+    "kitchen": "kitchen",
+    "greenRoom": "green_room",
+    "mensRoom": "restrooms",
+    "ladiesRoom": "restrooms",
+    "storage": "storage",
+    "stage": "stage/head_table",
+    "headTable": "stage/head_table",
+}
+
+# Zone types that should resolve to a real 3D asset rather than a flat area marker.
+# Scale is the default item scale in world-units (meters), not derived from the zone footprint.
+_ZONE_AS_ASSET: dict[str, dict] = {
+    "bar": {
+        "assetUrl": "poly-pizza://required/bar",
+        "scale": [1.5, 1.0, 0.7],
+    },
+}
+
+_ZONE_COLORS = {
+    "dance_floor": "#d4a373",
+    "bar": "#8fa8c0",
+    "kitchen": "#c8a0a0",
+    "green_room": "#a8b8a0",
+    "restrooms": "#c0b090",
+    "storage": "#b8b0a0",
+    "stage/head_table": "#6d6875",
+}
+
+
+def is_html_canvas_floorplan(content: str) -> bool:
+    return bool(
+        re.search(r"const\s+W\s*=\s*\d+", content)
+        and re.search(r"const\s+zones\s*=\s*\{", content)
+    )
+
+
+def _parse_canvas_dims(content: str):
+    m = re.search(r"const\s+W\s*=\s*(\d+),\s*H\s*=\s*(\d+)", content)
+    if not m:
+        raise ValueError("Could not detect canvas dimensions (W, H) in HTML floorplan.")
+    return int(m.group(1)), int(m.group(2))
+
+
+def _parse_canvas_zones(content: str) -> list:
+    zones_match = re.search(r"const\s+zones\s*=\s*\{([\s\S]*?)\};", content)
+    if not zones_match:
+        return []
+
+    block = zones_match.group(1)
+    zones = []
+    for entry in re.finditer(
+        r'(\w+)\s*:\s*\{[^}]*?x\s*:\s*([\d.]+)[^}]*?y\s*:\s*([\d.]+)[^}]*?w\s*:\s*([\d.]+)[^}]*?h\s*:\s*([\d.]+)[^}]*?label\s*:\s*(?:"([^"]*)"|\'([^\']*)\')',
+        block,
+    ):
+        zones.append(
+            {
+                "key": entry.group(1),
+                "x": float(entry.group(2)),
+                "y": float(entry.group(3)),
+                "width": float(entry.group(4)),
+                "height": float(entry.group(5)),
+                "label": entry.group(6) or entry.group(7) or "",
+            }
+        )
+    return zones
+
+
+def _parse_canvas_head_table(content: str):
+    m = re.search(
+        r"const\s+headTable\s*=\s*\{[^}]*?x\s*:\s*([\d.]+)[^}]*?y\s*:\s*([\d.]+)[^}]*?w\s*:\s*([\d.]+)[^}]*?h\s*:\s*([\d.]+)",
+        content,
+    )
+    if not m:
+        return None
+    return {
+        "x": float(m.group(1)),
+        "y": float(m.group(2)),
+        "width": float(m.group(3)),
+        "height": float(m.group(4)),
+        "label": "Head table",
+    }
+
+
+def _parse_canvas_round_tables(content: str) -> list:
+    tables = []
+
+    rows_m = re.search(r"for\s*\([^)]*\br\b[^)]*<\s*(\d+)", content)
+    cols_m = re.search(r"for\s*\([^)]*\bc\b[^)]*<\s*(\d+)", content)
+    x_expr_m = re.search(r"x\s*:\s*(\d+)\s*\+\s*c\s*\*\s*(\d+)", content)
+    y_expr_m = re.search(r"y\s*:\s*(\d+)\s*\+\s*r\s*\*\s*(\d+)", content)
+    r_loop_m = re.search(r"tables\.push\(\{[^}]*\br\b\s*:\s*(\d+)", content)
+
+    if all([rows_m, cols_m, x_expr_m, y_expr_m, r_loop_m]):
+        max_rows = int(rows_m.group(1))
+        max_cols = int(cols_m.group(1))
+        base_x = int(x_expr_m.group(1))
+        step_x = int(x_expr_m.group(2))
+        base_y = int(y_expr_m.group(1))
+        step_y = int(y_expr_m.group(2))
+        radius = int(r_loop_m.group(1))
+
+        skip = set()
+        for sm in re.finditer(r"if\s*\(r\s*===\s*(\d+)\s*&&\s*c\s*===\s*(\d+)\)\s*continue", content):
+            skip.add((int(sm.group(1)), int(sm.group(2))))
+
+        table_id = 1
+        for r in range(max_rows):
+            for c in range(max_cols):
+                if (r, c) in skip:
+                    continue
+                tables.append(
+                    {
+                        "x": float(base_x + c * step_x),
+                        "y": float(base_y + r * step_y),
+                        "radius": float(radius),
+                        "label": f"T{table_id}",
+                    }
+                )
+                table_id += 1
+
+    for em in re.finditer(
+        r"tables\.push\(\{\s*x\s*:\s*(\d+)\s*,\s*y\s*:\s*(\d+)\s*,\s*r\s*:\s*(\d+)", content
+    ):
+        tables.append(
+            {
+                "x": float(em.group(1)),
+                "y": float(em.group(2)),
+                "radius": float(em.group(3)),
+                "label": f"T{len(tables) + 1}",
+            }
+        )
+
+    return tables
+
+
+def html_canvas_to_project(content: str, file_name: str, project_name: str | None = None):
+    W, H = _parse_canvas_dims(content)
+    zones = _parse_canvas_zones(content)
+    head_table = _parse_canvas_head_table(content)
+    round_tables = _parse_canvas_round_tables(content)
+
+    if not zones and head_table is None and not round_tables:
+        raise ValueError("No venue elements could be extracted from the HTML canvas floorplan.")
+
+    scale = _HTML_CANVAS_SCALE
+    mid_x = W / 2
+    mid_y = H / 2
+
+    items = []
+
+    for zone in zones:
+        zone_type = _ZONE_TYPE_MAP.get(zone["key"], "zone")
+        cx = zone["x"] + zone["width"] / 2
+        cy = zone["y"] + zone["height"] / 2
+        asset_override = _ZONE_AS_ASSET.get(zone_type)
+        if asset_override:
+            items.append(
+                {
+                    "id": str(uuid4()),
+                    "type": zone_type,
+                    "x": round((cx - mid_x) * scale, 3),
+                    "y": 0,
+                    "z": round((cy - mid_y) * scale, 3),
+                    "rotationY": 0,
+                    "scale": asset_override["scale"],
+                    "assetUrl": asset_override["assetUrl"],
+                    "label": zone["label"],
+                    "source": "html_canvas",
+                }
+            )
+        else:
+            items.append(
+                {
+                    "id": str(uuid4()),
+                    "type": zone_type,
+                    "x": round((cx - mid_x) * scale, 3),
+                    "y": 0,
+                    "z": round((cy - mid_y) * scale, 3),
+                    "rotationY": 0,
+                    "scale": [
+                        round(max(0.5, zone["width"] * scale), 2),
+                        0.035,
+                        round(max(0.5, zone["height"] * scale), 2),
+                    ],
+                    "assetUrl": f"primitive://{zone_type}",
+                    "label": zone["label"],
+                    "color": _ZONE_COLORS.get(zone_type, "#e9edc9"),
+                    "material": {"roughness": 0.58, "metalness": 0.02},
+                    "source": "html_canvas",
+                }
+            )
+
+    if head_table:
+        cx = head_table["x"] + head_table["width"] / 2
+        cy = head_table["y"] + head_table["height"] / 2
+        items.append(
+            {
+                "id": str(uuid4()),
+                "type": "rectangular_table",
+                "x": round((cx - mid_x) * scale, 3),
+                "y": 0,
+                "z": round((cy - mid_y) * scale, 3),
+                "rotationY": 0,
+                "scale": [
+                    round(max(1.0, head_table["width"] * scale), 2),
+                    0.75,
+                    round(max(0.6, head_table["height"] * scale), 2),
+                ],
+                "assetUrl": "poly-pizza://required/rectangular_table",
+                "label": head_table.get("label", "Head table"),
+                "source": "html_canvas",
+            }
+        )
+
+    for table in round_tables:
+        diameter = table["radius"] * 2 * scale
+        items.append(
+            {
+                "id": str(uuid4()),
+                "type": "round_table",
+                "x": round((table["x"] - mid_x) * scale, 3),
+                "y": 0,
+                "z": round((table["y"] - mid_y) * scale, 3),
+                "rotationY": 0,
+                "scale": [
+                    round(max(1.2, diameter), 2),
+                    0.75,
+                    round(max(1.2, diameter), 2),
+                ],
+                "assetUrl": "poly-pizza://required/round_table",
+                "label": table.get("label", "Round table"),
+                "source": "html_canvas",
+            }
+        )
+
+    project_title = (
+        (project_name or "").strip()
+        or re.sub(r"\.(html|htm)$", "", file_name, flags=re.IGNORECASE)
+        or "Imported Venue Floorplan"
+    )
+
+    return {
+        "id": str(uuid4()),
+        "name": project_title,
+        "createdAt": iso_now(),
+        "updatedAt": iso_now(),
+        "room": {
+            "width": round(W * scale, 1),
+            "depth": round(H * scale, 1),
+            "height": 4,
+        },
+        "items": items,
+        "measurements": [],
     }

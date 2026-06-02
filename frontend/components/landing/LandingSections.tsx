@@ -16,11 +16,11 @@ import {
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthProvider";
-import { ProjectThumbnail } from "@/components/dashboard/ProjectPreviewCard";
 import { PROJECT_TEMPLATES, ProjectTemplate } from "@/lib/projectTemplates";
 import { savePendingTemplate } from "@/lib/pendingTemplate";
 import { upsertProject } from "@/lib/storage";
 import { Project } from "@/types/types";
+import { ProjectThumbnail } from "../dashboard/ProjectThumbnail";
 
 function estimateCapacity(project: Project) {
   const chairLike = project.items.filter((item) =>

@@ -2,17 +2,7 @@
 
 import { useEffect } from "react";
 import { useEditorStore } from "@/store/UseEditorStore";
-
-function isTypingTarget(target: EventTarget | null) {
-  const element = target as HTMLElement | null;
-  if (!element) return false;
-
-  return Boolean(
-    element.closest(
-      "input, textarea, select, [contenteditable='true'], [contenteditable='']",
-    ),
-  );
-}
+import isTypingTarget from "./utils/isTypingTarget";
 
 export function EditorShortcuts() {
   const selectedIds = useEditorStore((s) => s.selectedIds);
