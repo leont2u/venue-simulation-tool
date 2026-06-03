@@ -101,13 +101,27 @@ def add_theatre_rows(items, intent, columns=8, front_offset=5.8, label_prefix="C
         add_central_aisle(items, start_z + ((rows - 1) * spacing_z) / 2, rows * spacing_z)
 
 
+# Sketchfab "Round Table and Chairs" — 4 chairs already included in the model.
+_ROUND_TABLE_SKETCHFAB_UID   = "b3b1d1d338aa46ed9d480a613098e024"
+_ROUND_TABLE_SKETCHFAB_URL   = f"sketchfab://{_ROUND_TABLE_SKETCHFAB_UID}"
+_ROUND_TABLE_SKETCHFAB_SCALE = [2.2, 1.2, 2.2]
+_CHAIRS_PER_TABLE            = 4   # the model has 4 chairs
+
+
 def add_round_tables(items, intent, cabaret=False, standing=False):
-    seats_per_table = intent["layout"]["seating"]["seatsPerTable"]
-    seats_per_table = 0 if standing else (seats_per_table or 8)
-    table_count = intent["layout"]["seating"]["tableCount"] or max(
-        1,
-        math.ceil(intent["capacity"] / max(1, seats_per_table or 10)),
-    )
+    if standing:
+        # Cocktail / standing — keep the bar primitives as-is
+        seats_per_table = 0
+        table_count = intent["layout"]["seating"]["tableCount"] or max(
+            1, math.ceil(intent["capacity"] / 10)
+        )
+    else:
+        # Banquet round tables: use the pinned Sketchfab model (4 chairs per table)
+        table_count = intent["layout"]["seating"]["tableCount"] or max(
+            1, math.ceil(intent["capacity"] / _CHAIRS_PER_TABLE)
+        )
+        seats_per_table = 0   # chairs are baked into the model
+
     has_aisle = intent["layout"]["seating"]["hasCentralAisle"]
     spacing_x = 4.2
     spacing_z = 4.2
@@ -130,7 +144,6 @@ def add_round_tables(items, intent, cabaret=False, standing=False):
     total_width = (columns - 1) * spacing_x + aisle_width
     start_x = -total_width / 2
     start_z = min_table_z
-    front_focus_z = -intent["room"]["depth"] / 2
     half_columns = columns // 2
 
     for index in range(table_count):
@@ -140,32 +153,19 @@ def add_round_tables(items, intent, cabaret=False, standing=False):
         if has_aisle and col >= half_columns:
             table_x += aisle_width
         table_z = start_z + row * spacing_z
-        table_scale = [1.2, 1.1, 1.2] if standing else None
-        table_type = "bar" if standing else "round_table"
 
-        items.append(create_item(table_type, table_x, table_z, f"Table {index + 1}", scale=table_scale))
-
-        if standing or seats_per_table <= 0:
-            continue
-
-        for seat in range(seats_per_table):
-            angle = (math.pi * 2 * seat) / seats_per_table
-            chair_x = table_x + math.cos(angle) * seat_radius
-            chair_z = table_z + math.sin(angle) * seat_radius
-            rotation_y = -angle + math.pi / 2
-
-            if cabaret:
-                rotation_y = math.atan2(front_focus_z - chair_z, 0 - chair_x)
-
-            items.append(
-                create_item(
-                    "chair",
-                    chair_x,
-                    chair_z,
-                    f"Table {index + 1} Seat {seat + 1}",
-                    rotation_y=rotation_y,
-                )
-            )
+        if standing:
+            items.append(create_item("bar", table_x, table_z, f"Table {index + 1}", scale=[1.2, 1.1, 1.2]))
+        else:
+            # Sketchfab model already includes 4 chairs — no separate chair items needed
+            items.append(create_item(
+                "round_table",
+                table_x,
+                table_z,
+                f"Table {index + 1}",
+                scale=_ROUND_TABLE_SKETCHFAB_SCALE,
+                asset_url=_ROUND_TABLE_SKETCHFAB_URL,
+            ))
 
     if has_aisle:
         rows = max(1, math.ceil(table_count / columns))

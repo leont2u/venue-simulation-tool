@@ -1180,27 +1180,27 @@ function PostProcessingEffects({
   if (isXRPresenting) return null;
 
   return (
-    <EffectComposer multisampling={4}>
+    <EffectComposer multisampling={8}>
       <N8AO
         halfRes
         aoSamples={16}
         denoiseSamples={8}
         denoiseRadius={12}
-        aoRadius={0.5}
-        distanceFalloff={1.0}
-        intensity={concert ? 3 : 5}
+        aoRadius={0.65}
+        distanceFalloff={0.8}
+        intensity={concert ? 2.2 : wedding ? 2.8 : 2.0}
       />
       <Bloom
-        intensity={concert ? 1.4 : wedding ? 0.8 : daylight ? 0.25 : 0.45}
-        luminanceThreshold={concert ? 0.7 : 0.88}
+        intensity={concert ? 1.2 : wedding ? 0.7 : daylight ? 0.2 : 0.3}
+        luminanceThreshold={concert ? 0.65 : 0.85}
         luminanceSmoothing={0.025}
         mipmapBlur
-        radius={0.4}
+        radius={0.35}
       />
-      <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+      <ToneMapping mode={ToneMappingMode.ACES_FILMIC} exposure={1.05} />
       <Vignette
-        offset={0.35}
-        darkness={concert ? 0.65 : wedding ? 0.35 : 0.4}
+        offset={0.4}
+        darkness={concert ? 0.55 : wedding ? 0.28 : 0.3}
         blendFunction={BlendFunction.NORMAL}
       />
       <SMAA />
@@ -1637,7 +1637,7 @@ export function SceneCanvas({
       <Canvas
         shadows={{ type: THREE.VSMShadowMap }}
         gl={{
-          antialias: false,
+          antialias: true,
           toneMapping: THREE.NoToneMapping,
           localClippingEnabled: true,
           preserveDrawingBuffer: true,
@@ -1712,7 +1712,10 @@ export function SceneCanvas({
                         ? "apartment"
                         : settings?.lightingMood === "concert"
                           ? "warehouse"
-                          : "city"
+                          : settings?.lightingMood === "presentation" ||
+                              settings?.lightingMood === "conference"
+                            ? "lobby"
+                            : "city"
                 }
                 onError={() => setHdriError(true)}
               />
@@ -1748,10 +1751,11 @@ export function SceneCanvas({
                 width={project.room.width * 1.1}
                 height={project.room.depth * 1.1}
                 far={project.room.height}
-                blur={2.2}
-                opacity={settings?.lightingMood === "concert" ? 0.55 : 0.45}
+                blur={2.8}
+                opacity={settings?.lightingMood === "concert" ? 0.6 : 0.55}
                 color="#1a1208"
                 frames={1}
+                resolution={512}
               />
             ) : null}
 

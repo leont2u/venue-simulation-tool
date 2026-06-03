@@ -10,6 +10,13 @@ WALL_HEIGHT_M = 3.0
 WALL_THICKNESS_M = 0.2
 CHAIR_DISTANCE_M = 1.05
 
+# Pinned Sketchfab model: "Round Table and Chairs" (4 chairs included in the model).
+# Chairs are baked in — reconstruction must NOT emit separate chair items for round tables.
+_ROUND_TABLE_SF_UID   = "b3b1d1d338aa46ed9d480a613098e024"
+_ROUND_TABLE_SF_URL   = f"sketchfab://{_ROUND_TABLE_SF_UID}"
+_ROUND_TABLE_SF_SCALE = [2.2, 1.2, 2.2]   # matches CURATED_SKETCHFAB_ASSETS default_scale
+_CHAIRS_PER_SF_TABLE  = 4
+
 
 def _required_asset_url(asset_type: str):
     return f"poly-pizza://required/{asset_type}"
@@ -150,7 +157,7 @@ def _chair_item(x, z, label, rotation_y, source_id=None):
         x,
         z,
         label,
-        [0.62, 0.82, 0.62],
+        [1.0, 1.0, 1.0],
         rotation_y=rotation_y,
         asset_search="event chair",
         source_id=source_id,
@@ -158,33 +165,24 @@ def _chair_item(x, z, label, rotation_y, source_id=None):
 
 
 def _round_table_items(source, x, z, diameter):
-    items = [
-        _asset_item(
-            "round_table",
-            x,
-            z,
-            "Detected round table",
-            [diameter, 0.75, diameter],
-            asset_search="round banquet table",
-            source_id=source.get("id"),
-        )
+    # Use the pinned Sketchfab "Round Table and Chairs" model (4 chairs baked in).
+    # No separate chair items should be emitted — they are part of the GLTF.
+    return [
+        {
+            "id": str(uuid4()),
+            "type": "round_table",
+            "x": round(x, 3),
+            "y": 0,
+            "z": round(z, 3),
+            "rotationY": 0,
+            "scale": list(_ROUND_TABLE_SF_SCALE),
+            "assetUrl": _ROUND_TABLE_SF_URL,
+            "label": "Round table",
+            "source": "floorplan_cv",
+            "sourceId": source.get("id"),
+            "assetSearch": "round table chairs",
+        }
     ]
-    seats = source.get("chairCount") or (8 if diameter < 2.1 else 10)
-    radius = max(0.9, diameter / 2 + 0.38)
-    for index in range(seats):
-        angle = (math.pi * 2 * index) / seats
-        chair_x = x + math.cos(angle) * radius
-        chair_z = z + math.sin(angle) * radius
-        items.append(
-            _chair_item(
-                chair_x,
-                chair_z,
-                f"Round table chair {index + 1}",
-                -angle + math.pi / 2,
-                source.get("id"),
-            )
-        )
-    return items
 
 
 def _rectangular_table_items(source, x, z, width, depth, rotation_y):
@@ -400,7 +398,7 @@ def reconstruct_project_from_understanding(
         "connections": [],
         "measurements": [],
         "sceneSettings": {
-            "showGrid": True,
+            "showGrid": False,
             "enableHdri": True,
             "ambientLightIntensity": 0.75,
             "directionalLightIntensity": 1.25,
@@ -408,11 +406,11 @@ def reconstruct_project_from_understanding(
             "livestreamMode": False,
             "wallThickness": WALL_THICKNESS_M,
             "wallColor": "#f3efe7",
-            "floorColor": "#f2eee6",
-            "floorMaterial": "Concrete",
+            "floorColor": "#ead8c0",
+            "floorMaterial": "Wood",
             "wallMaterial": "Painted",
             "venueEnvironment": "indoor",
-            "lightingMood": "conference",
+            "lightingMood": "presentation",
         },
         "floorPlanUnderstanding": {
             "scaleMetersPerPixel": scale,

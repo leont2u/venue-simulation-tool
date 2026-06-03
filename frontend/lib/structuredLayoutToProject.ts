@@ -175,9 +175,12 @@ function tableToSceneItem(
     rotationY: round(-((table.rotationDeg ?? 0) * Math.PI) / 180, 4),
     scale:
       type === "round_table"
-        ? [round(Math.max(1.2, width)), 0.75, round(Math.max(1.2, width))]
+        ? [2.2, 1.2, 2.2]   // matches Sketchfab model's curated default_scale
         : [round(width), 0.75, round(depth)],
-    assetUrl: polyPizzaRequiredUrl(type),
+    assetUrl:
+      type === "round_table"
+        ? "sketchfab://b3b1d1d338aa46ed9d480a613098e024"
+        : polyPizzaRequiredUrl(type),
     label: table.label ?? (type === "round_table" ? "Round table" : "Rectangular table"),
     source: "structured_layout",
   };

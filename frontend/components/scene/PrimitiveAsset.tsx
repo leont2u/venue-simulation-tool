@@ -5,6 +5,15 @@ import { useFrame } from "@react-three/fiber";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 
+const SKETCHFAB_API_BASE =
+  (typeof process !== "undefined" &&
+    process.env?.NEXT_PUBLIC_API_BASE_URL?.trim()) ||
+  "http://127.0.0.1:8000";
+
+function resolveSketchfabUrl(uid: string): string {
+  return `${SKETCHFAB_API_BASE}/api/assets/sketchfab/models/${uid}/scene`;
+}
+
 type Props = {
   url: string;
   type?: string;
@@ -51,6 +60,29 @@ function PrimitiveAssetComponent({
   onPointerEnter,
   onPointerLeave,
 }: Props) {
+  if (url.startsWith("sketchfab://")) {
+    const uid = url.slice("sketchfab://".length);
+    const resolvedUrl = resolveSketchfabUrl(uid);
+    return (
+      <Suspense fallback={<LoadingPlaceholder type={type} position={position} rotation={rotation} scale={scale} />}>
+        <GltfAsset
+          url={resolvedUrl}
+          position={position}
+          rotation={rotation}
+          scale={scale}
+          selected={selected}
+          hovered={hovered}
+          color={color}
+          material={material}
+          onClick={onClick}
+          onPointerDown={onPointerDown}
+          onPointerEnter={onPointerEnter}
+          onPointerLeave={onPointerLeave}
+        />
+      </Suspense>
+    );
+  }
+
   if (url.startsWith("/models/")) {
     return (
       <Suspense fallback={<LoadingPlaceholder type={type} position={position} rotation={rotation} scale={scale} />}>
@@ -554,7 +586,7 @@ function GeneratedVenueAsset({
 
   const palette = useMemo(() => {
     const colorMap: Record<string, string> = {
-      chair: "#8fb19d",
+      chair: "#c8a882",
       church_bench: "#8a6a4e",
       altar: "#d8d0c2",
       podium: "#8a5e3f",
@@ -568,10 +600,14 @@ function GeneratedVenueAsset({
       mixing_desk: "#343a55",
     };
 
+    // Chair legs use brass/gold finish for banquet style
+    const dark = type === "chair" ? "#b89448" : "#2f3532";
+    const cloth = type === "chair" ? "#f0e0c8" : "#efe7dc";
+
     return {
       body: color || colorMap[type] || "#9aa6a0",
-      dark: "#2f3532",
-      cloth: "#efe7dc",
+      dark,
+      cloth,
       brass: "#c1a158",
     };
   }, [color, type]);
@@ -589,18 +625,18 @@ function GeneratedVenueAsset({
     () =>
       new THREE.MeshStandardMaterial({
         color: palette.dark,
-        roughness: 0.48,
-        metalness: 0.18,
+        roughness: type === "chair" ? 0.35 : 0.48,
+        metalness: type === "chair" ? 0.55 : 0.18,
       }),
-    [palette.dark],
+    [palette.dark, type],
   );
   const clothMaterial = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
         color: palette.cloth,
         map: fabricTexture ?? undefined,
-        roughness: 0.92,
-        metalness: 0.01,
+        roughness: 0.88,
+        metalness: 0.02,
       }),
     [fabricTexture, palette.cloth],
   );
@@ -614,19 +650,34 @@ function GeneratedVenueAsset({
     if (type === "chair") {
       return (
         <>
-          <mesh position={[0, 0.32, 0]} castShadow receiveShadow material={bodyMaterial}>
-            <boxGeometry args={[0.55, 0.12, 0.52]} />
+          {/* Seat cushion */}
+          <mesh position={[0, 0.45, 0]} castShadow receiveShadow material={clothMaterial}>
+            <boxGeometry args={[0.50, 0.10, 0.46]} />
           </mesh>
-          <mesh position={[0, 0.68, 0.22]} castShadow receiveShadow material={bodyMaterial}>
-            <boxGeometry args={[0.58, 0.72, 0.1]} />
+          {/* Seat frame */}
+          <mesh position={[0, 0.39, 0]} castShadow receiveShadow material={bodyMaterial}>
+            <boxGeometry args={[0.52, 0.05, 0.48]} />
           </mesh>
-          {[-0.2, 0.2].map((x) =>
-            [-0.18, 0.18].map((z) => (
-              <mesh key={`${x}-${z}`} position={[x, 0.15, z]} castShadow receiveShadow material={darkMaterial}>
-                <cylinderGeometry args={[0.035, 0.035, 0.3, 10]} />
-              </mesh>
-            )),
-          )}
+          {/* Back cushion */}
+          <mesh position={[0, 0.82, 0.20]} castShadow receiveShadow material={clothMaterial}>
+            <boxGeometry args={[0.46, 0.72, 0.08]} />
+          </mesh>
+          {/* Back frame */}
+          <mesh position={[0, 0.82, 0.24]} castShadow receiveShadow material={bodyMaterial}>
+            <boxGeometry args={[0.50, 0.76, 0.035]} />
+          </mesh>
+          {/* Front legs */}
+          {([-0.19, 0.19] as const).map((x) => (
+            <mesh key={`fl-${x}`} position={[x, 0.20, -0.17]} castShadow receiveShadow material={darkMaterial}>
+              <cylinderGeometry args={[0.022, 0.028, 0.40, 8]} />
+            </mesh>
+          ))}
+          {/* Back legs */}
+          {([-0.19, 0.19] as const).map((x) => (
+            <mesh key={`bl-${x}`} position={[x, 0.21, 0.17]} castShadow receiveShadow material={darkMaterial}>
+              <cylinderGeometry args={[0.022, 0.028, 0.43, 8]} />
+            </mesh>
+          ))}
         </>
       );
     }
@@ -755,17 +806,25 @@ function GeneratedVenueAsset({
     if (type === "round_table") {
       return (
         <>
-          <mesh position={[0, 0.43, 0]} castShadow receiveShadow material={clothMaterial}>
-            <cylinderGeometry args={[0.94, 1.0, 0.12, 36]} />
+          {/* Tablecloth top */}
+          <mesh position={[0, 0.77, 0]} castShadow receiveShadow material={clothMaterial}>
+            <cylinderGeometry args={[0.92, 0.98, 0.06, 40]} />
           </mesh>
-          <mesh position={[0, 0.36, 0]} castShadow receiveShadow material={clothMaterial}>
-            <cylinderGeometry args={[1.0, 1.04, 0.18, 36, 1, true]} />
+          {/* Tablecloth drape sides (open cylinder) */}
+          <mesh position={[0, 0.40, 0]} castShadow receiveShadow material={clothMaterial}>
+            <cylinderGeometry args={[0.98, 1.02, 0.80, 40, 1, true]} />
           </mesh>
-          <mesh position={[0, 0.69, 0]} castShadow receiveShadow material={bodyMaterial}>
-            <cylinderGeometry args={[0.13, 0.18, 0.44, 18]} />
+          {/* Hem at bottom */}
+          <mesh position={[0, 0.02, 0]} castShadow receiveShadow material={clothMaterial}>
+            <cylinderGeometry args={[1.02, 1.04, 0.04, 40]} />
           </mesh>
-          <mesh position={[0, 0.2, 0]} castShadow receiveShadow material={darkMaterial}>
-            <cylinderGeometry args={[0.4, 0.12, 0.08, 18]} />
+          {/* Pedestal shaft */}
+          <mesh position={[0, 0.42, 0]} castShadow receiveShadow material={bodyMaterial}>
+            <cylinderGeometry args={[0.07, 0.10, 0.70, 16]} />
+          </mesh>
+          {/* Pedestal base disc */}
+          <mesh position={[0, 0.055, 0]} castShadow receiveShadow material={darkMaterial}>
+            <cylinderGeometry args={[0.36, 0.12, 0.11, 18]} />
           </mesh>
         </>
       );

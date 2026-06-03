@@ -774,6 +774,74 @@ def _clean_wall_coordinates(walls):
     return cleaned
 
 
+def _filter_interior_short_walls(walls, width: int, height: int) -> list:
+    """
+    Remove wall segments that are clearly interior furniture/annotation lines
+    rather than structural walls.
+
+    A segment is dropped when ALL of these hold:
+      - Both endpoints are well inside the image border (>12 % from every edge)
+      - Its length is less than 28 % of the room's shorter dimension
+      - It doesn't share an axis with a dominant perimeter wall
+
+    This eliminates grid lines, screen outlines, coffee-counter borders, and
+    dimension-annotation lines that the morphology kernels would otherwise keep.
+    """
+    if not walls:
+        return walls
+
+    min_side = min(width, height)
+    perimeter_band = min_side * 0.12          # within this many px of image edge = perimeter
+    max_interior_length = min_side * 0.28     # shorter than this = annotation candidate
+
+    # Collect the dominant horizontal/vertical axis values used by long walls
+    dominant_ys: list[float] = []
+    dominant_xs: list[float] = []
+    for w in walls:
+        length = _distance(w["x1"], w["y1"], w["x2"], w["y2"])
+        if length >= min_side * 0.30:
+            if abs(w["y1"] - w["y2"]) < 2:
+                dominant_ys.append(w["y1"])
+            if abs(w["x1"] - w["x2"]) < 2:
+                dominant_xs.append(w["x1"])
+
+    axis_tolerance = max(6, int(min_side * 0.008))
+
+    kept = []
+    for w in walls:
+        length = _distance(w["x1"], w["y1"], w["x2"], w["y2"])
+
+        # Always keep long walls
+        if length >= max_interior_length:
+            kept.append(w)
+            continue
+
+        # Keep if near the image boundary (likely a perimeter wall segment)
+        near_edge = (
+            min(w["x1"], w["x2"]) < perimeter_band
+            or max(w["x1"], w["x2"]) > width - perimeter_band
+            or min(w["y1"], w["y2"]) < perimeter_band
+            or max(w["y1"], w["y2"]) > height - perimeter_band
+        )
+        if near_edge:
+            kept.append(w)
+            continue
+
+        # Keep if it lies on the same axis as a dominant perimeter wall
+        on_dominant_h = abs(w["y1"] - w["y2"]) < 2 and any(
+            abs(w["y1"] - dy) <= axis_tolerance for dy in dominant_ys
+        )
+        on_dominant_v = abs(w["x1"] - w["x2"]) < 2 and any(
+            abs(w["x1"] - dx) <= axis_tolerance for dx in dominant_xs
+        )
+        if on_dominant_h or on_dominant_v:
+            kept.append(w)
+            continue
+
+        # Drop: short, interior, not on a dominant structural axis
+    return kept
+
+
 def extract_structural_layout(plan: PreprocessedFloorPlan):
     height, width = plan.gray.shape[:2]
     min_side = min(width, height)
@@ -813,6 +881,7 @@ def extract_structural_layout(plan: PreprocessedFloorPlan):
         key=lambda line: _distance(line["x1"], line["y1"], line["x2"], line["y2"]),
         reverse=True,
     )
+    walls = _filter_interior_short_walls(walls, width, height)
     return {"walls": walls[:180]}
 
 
